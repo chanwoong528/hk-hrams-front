@@ -37,7 +37,7 @@ function App() {
       <div className='flex-1 flex flex-col overflow-hidden'>
         <Header currentPage='dashboard' />
         <main className='flex-1 overflow-auto'>
-          <PerformanceAppraisal />
+          <Dashboard />
         </main>
       </div>
     </div>
