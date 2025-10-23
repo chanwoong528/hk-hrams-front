@@ -1,14 +1,13 @@
-import { navigation, type Page } from "@/utils";
+import { navigation } from "@/utils";
+import { useLocation, useNavigate } from "react-router";
 
 export default function SidebarContent({
-  currentPage,
-  setCurrentPage,
   setSidebarOpen,
 }: {
-  currentPage: Page;
-  setCurrentPage: (page: Page) => void;
   setSidebarOpen: (open: boolean) => void;
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   return (
     <div className='flex h-full flex-col'>
       <div className='p-6 border-b'>
@@ -22,11 +21,11 @@ export default function SidebarContent({
             <button
               key={item.id}
               onClick={() => {
-                setCurrentPage(item.id);
                 setSidebarOpen(false);
+                navigate(item.path);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                currentPage === item.id
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
+                location.pathname === item.path
                   ? "bg-blue-600 text-white"
                   : "text-gray-700 hover:bg-gray-100"
               }`}>

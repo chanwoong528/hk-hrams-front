@@ -1,16 +1,16 @@
 import { useState } from "react";
+import { Building2, Plus, Users, GripVertical } from "lucide-react";
 import {
-  Building2,
-  Plus,
-  Edit,
-  Trash2,
-  Users,
-  ChevronRight,
-  ChevronDown,
-} from "lucide-react";
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from "@dnd-kit/core";
+import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -29,23 +29,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import DepartmentTree from "@/components/DepartmentTree";
 
-interface Department {
-  id: string;
-  name: string;
-  leader: string;
-  memberCount: number;
-  parentId: string | null;
-  children?: Department[];
-}
+// Department Tree Component
 
+// Main Department Management Component
 export default function DepartmentManagement() {
+  // State
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(
     new Set(["1"]),
   );
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    leader: "",
+    parentId: "",
+  });
 
+  // Drag and Drop Sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+  );
+
+  // Department Data
   const [departments, setDepartments] = useState<Department[]>([
     {
       id: "1",
@@ -164,11 +176,20 @@ export default function DepartmentManagement() {
     },
   ]);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    leader: "",
-    parentId: "",
-  });
+  // Helper Functions
+  const findDepartmentById = (
+    depts: Department[],
+    id: string,
+  ): Department | null => {
+    for (const dept of depts) {
+      if (dept.id === id) return dept;
+      if (dept.children) {
+        const found = findDepartmentById(dept.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
 
   const toggleExpand = (deptId: string) => {
     const newExpanded = new Set(expandedDepts);
@@ -180,85 +201,98 @@ export default function DepartmentManagement() {
     setExpandedDepts(newExpanded);
   };
 
-  const renderDepartment = (dept: Department, level: number = 0) => {
-    const hasChildren = dept.children && dept.children.length > 0;
-    const isExpanded = expandedDepts.has(dept.id);
-
-    return (
-      <div key={dept.id} className='mb-2'>
-        <div
-          className='flex items-center gap-3 p-4 bg-white border rounded-lg hover:shadow-md transition-shadow'
-          style={{ marginLeft: `${level * 32}px` }}>
-          <div className='flex-1 flex items-center gap-3'>
-            {hasChildren ? (
-              <button
-                onClick={() => toggleExpand(dept.id)}
-                className='text-gray-400 hover:text-gray-600'>
-                {isExpanded ? (
-                  <ChevronDown className='w-5 h-5' />
-                ) : (
-                  <ChevronRight className='w-5 h-5' />
-                )}
-              </button>
-            ) : (
-              <div className='w-5' />
-            )}
-
-            <div className='w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center'>
-              <Building2 className='w-5 h-5 text-blue-600' />
-            </div>
-
-            <div className='flex-1'>
-              <div className='flex items-center gap-2'>
-                <h3 className='text-gray-900'>{dept.name}</h3>
-                {level === 0 && (
-                  <Badge className='bg-purple-100 text-purple-700'>본부</Badge>
-                )}
-              </div>
-              <div className='flex items-center gap-4 text-sm text-gray-600 mt-1'>
-                <span>리더: {dept.leader}</span>
-                <span className='flex items-center gap-1'>
-                  <Users className='w-4 h-4' />
-                  {dept.memberCount}명
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className='flex gap-2'>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => {
-                setSelectedDept(dept);
-                setFormData({
-                  name: dept.name,
-                  leader: dept.leader,
-                  parentId: dept.parentId || "",
-                });
-              }}>
-              <Edit className='w-4 h-4' />
-            </Button>
-            {level > 0 && (
-              <Button
-                variant='outline'
-                size='sm'
-                className='text-red-600 hover:text-red-700'>
-                <Trash2 className='w-4 h-4' />
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {hasChildren && isExpanded && (
-          <div className='mt-2'>
-            {dept.children!.map((child) => renderDepartment(child, level + 1))}
-          </div>
-        )}
-      </div>
-    );
+  // Drag and Drop Handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
+  const handleDragOver = () => {
+    // Optional: Add visual feedback during drag over
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      setActiveId(null);
+      return;
+    }
+
+    // Move department
+    moveDepartment(active.id as string, over.id as string);
+    setActiveId(null);
+  };
+
+  // Move Department Logic
+  const moveDepartment = (activeId: string, overId: string) => {
+    if (activeId === overId) return;
+
+    const activeDept = findDepartmentById(departments, activeId);
+    if (!activeDept) return;
+
+    // Prevent moving a department into its own children
+    if (isDescendant(activeDept, overId)) {
+      toast.error("부서를 자신의 하위 부서로 이동할 수 없습니다");
+      return;
+    }
+
+    setDepartments((prev) => {
+      const newDepartments = JSON.parse(JSON.stringify(prev));
+
+      // Remove from current position
+      const removeFromTree = (depts: Department[]): Department[] => {
+        return depts.filter((dept) => {
+          if (dept.id === activeId) return false;
+          if (dept.children) {
+            dept.children = removeFromTree(dept.children);
+          }
+          return true;
+        });
+      };
+
+      // Add to new position
+      const addToTree = (depts: Department[]): Department[] => {
+        return depts.map((dept) => {
+          if (dept.id === overId) {
+            return {
+              ...dept,
+              children: [
+                ...(dept.children || []),
+                { ...activeDept, parentId: overId },
+              ],
+            };
+          }
+          if (dept.children) {
+            return {
+              ...dept,
+              children: addToTree(dept.children),
+            };
+          }
+          return dept;
+        });
+      };
+
+      const afterRemoval = removeFromTree(newDepartments);
+      const afterAddition = addToTree(afterRemoval);
+
+      return afterAddition;
+    });
+
+    toast.success("부서가 이동되었습니다");
+  };
+
+  // Check if target is descendant of active department
+  const isDescendant = (ancestor: Department, targetId: string): boolean => {
+    if (!ancestor.children) return false;
+
+    for (const child of ancestor.children) {
+      if (child.id === targetId) return true;
+      if (isDescendant(child, targetId)) return true;
+    }
+    return false;
+  };
+
+  // Event Handlers
   const handleAddDepartment = () => {
     toast.success("부서가 추가되었습니다");
     setIsAddDialogOpen(false);
@@ -269,6 +303,19 @@ export default function DepartmentManagement() {
     toast.success("부서 정보가 업데이트되었습니다");
     setSelectedDept(null);
     setFormData({ name: "", leader: "", parentId: "" });
+  };
+
+  const handleEdit = (dept: Department) => {
+    setSelectedDept(dept);
+    setFormData({
+      name: dept.name,
+      leader: dept.leader,
+      parentId: dept.parentId || "",
+    });
+  };
+
+  const handleDelete = () => {
+    toast.success("부서가 삭제되었습니다");
   };
 
   return (
@@ -391,12 +438,13 @@ export default function DepartmentManagement() {
       </div>
 
       {/* Department Tree */}
+
       <Card>
         <CardHeader>
           <CardTitle>조직도</CardTitle>
         </CardHeader>
         <CardContent>
-          {departments.map((dept) => renderDepartment(dept))}
+          <DepartmentTree />
         </CardContent>
       </Card>
 
