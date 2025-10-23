@@ -441,7 +441,17 @@ export default function DepartmentManagement() {
 
       <Card>
         <CardHeader>
-          <CardTitle>조직도</CardTitle>
+          <CardTitle className='flex items-center justify-between'>
+            조직도
+            <div className='flex items-center gap-2'>
+              <Button variant='outline' onClick={() => setSelectedDept(null)}>
+                저장
+              </Button>
+              <Button variant='outline' onClick={() => setSelectedDept(null)}>
+                취소
+              </Button>
+            </div>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <DepartmentTree />
