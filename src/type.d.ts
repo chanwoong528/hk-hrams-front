@@ -22,6 +22,6 @@ interface User {
   email: string;
   created: string;
   updated: string;
-  status: "active" | "inactive";
+  userStatus: "active" | "inactive";
   departments: Department[];
 }

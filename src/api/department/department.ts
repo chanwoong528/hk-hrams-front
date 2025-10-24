@@ -20,7 +20,10 @@ export const POST_department = async (department: {
   departmentName: string;
   leaderId?: string;
 }) => {
-  const response = await http.post("/department", department);
+  const response = await http.post("/department", {
+    departmentName: department.departmentName,
+    ...(department.leaderId && { leaderId: department.leaderId }),
+  });
   return response.data;
 };
 

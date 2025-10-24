@@ -95,3 +95,15 @@ function deepEqual(a: unknown, b: unknown): boolean {
   }
   return true;
 }
+export function symmetricDiffBy<T, K>(
+  a: ReadonlyArray<T>,
+  b: ReadonlyArray<T>,
+  keySelector: (x: T) => K,
+): { onlyInA: T[]; onlyInB: T[] } {
+  const aKeys = new Set(a.map(keySelector));
+  const bKeys = new Set(b.map(keySelector));
+  return {
+    onlyInA: a.filter((x) => !bKeys.has(keySelector(x))),
+    onlyInB: b.filter((x) => !aKeys.has(keySelector(x))),
+  };
+}

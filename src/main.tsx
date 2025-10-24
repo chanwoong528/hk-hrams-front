@@ -6,13 +6,14 @@ import { createBrowserRouter } from "react-router";
 
 import RootLayout from "./routes/RootLayout";
 import Dashboard from "./pages/Dashboard";
-import DepartmentManagement from "./pages/DepartmentManagement";
+import DepartmentManagement from "./pages/DepartmentManagement/DepartmentManagement";
 import GoalManagement from "./pages/GoalManagement";
 import PerformanceAppraisal from "./pages/PerformanceAppraisal";
-import UserManagement from "./pages/UserManagement";
+import UserManagement from "./pages/UserManagement/UserManagement";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/sonner";
 
 import "./index.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const router = createBrowserRouter([
   {
@@ -48,6 +49,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>
   </StrictMode>,
 );

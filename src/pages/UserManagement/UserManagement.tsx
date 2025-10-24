@@ -35,56 +35,118 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { GET_usersByPagination } from "@/api/user/user";
-import { useQuery } from "@tanstack/react-query";
+import { GET_usersByPagination, PATCH_user, POST_user } from "@/api/user/user";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import DepartmentSelect from "./widget/DepartmentSelect";
+import { symmetricDiffBy } from "@/utils";
 
 export default function UserManagement() {
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [modalType, setModalType] = useState<"add" | "edit" | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
+  const [formData, setFormData] = useState<{
+    koreanName: string;
+    email: string;
+    departments: Department[];
+    userStatus: "active" | "inactive";
+  }>({
+    koreanName: "",
+    email: "",
+    departments: [],
+    userStatus: "active",
+  });
   const { data: usersData, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["users", searchQuery],
+    queryKey: ["users"],
     queryFn: () => GET_usersByPagination(1, 10),
     select: (data) => {
-      console.log("@@@ ", data);
       return {
         users: data.data.list,
         total: data.data.total,
       };
     },
   });
-  console.log(usersData);
-
-  const [formData, setFormData] = useState({
-    koreanName: "",
-    email: "",
-    departments: [],
-    status: "active" as "active" | "inactive",
+  const { mutate: postUser } = useMutation({
+    mutationFn: (payload: {
+      koreanName: string;
+      email: string;
+      departments: Department[];
+    }) => POST_user(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("사용자가 추가되었습니다");
+      setModalType(null);
+      setFormData({
+        koreanName: "",
+        email: "",
+        departments: [],
+        userStatus: "active",
+      });
+    },
+    onError: () => {
+      toast.error("사용자 추가에 실패했습니다");
+    },
   });
-
+  const { mutate: patchUser } = useMutation({
+    mutationFn: (payload: {
+      userId: string;
+      koreanName: string;
+      email: string;
+      tobeDeletedDepartments: string[];
+      tobeAddedDepartments: string[];
+      userStatus: "active" | "inactive";
+    }) => PATCH_user(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("사용자 정보가 업데이트되었습니다");
+      setSelectedUser(null);
+      setFormData({
+        koreanName: "",
+        email: "",
+        departments: [],
+        userStatus: "active",
+      });
+    },
+    onError: () => {
+      toast.error("사용자 정보 업데이트에 실패했습니다");
+    },
+  });
   const handleAddUser = () => {
-    toast.success("사용자가 추가되었습니다");
+    postUser({
+      koreanName: formData.koreanName,
+      email: formData.email,
+      departments: formData.departments,
+    });
   };
 
   const handleEditUser = (user: User) => {
-    // setFormData({
-    //   koreanName: user.koreanName,
-    //   email: user.email,
-    //   departments: user.departments || [],
-    //   status: user.status,
-    // });
+    setSelectedUser(user);
+    setFormData({
+      koreanName: user.koreanName,
+      email: user.email,
+      departments: user.departments,
+      userStatus: user.userStatus,
+    });
   };
 
   const handleUpdateUser = () => {
     if (selectedUser) {
-      // setFormData({
-      //   koreanName: "",
-      //   email: "",
-      //   department: "",
-      //   status: "active",
-      // });
-      toast.success("사용자 정보가 업데이트되었습니다");
+      const diffs = symmetricDiffBy(
+        selectedUser.departments.map((d) => ({ id: d.departmentId })),
+        formData.departments.map((d) => ({ id: d.departmentId })),
+        (x: { id: string }) => x.id,
+      );
+      const { onlyInA: tobeDeleted, onlyInB: tobeAdded } = diffs;
+
+      patchUser({
+        userId: selectedUser.userId,
+        koreanName: formData.koreanName,
+        email: formData.email,
+        tobeDeletedDepartments: tobeDeleted.map((d) => d.id),
+        tobeAddedDepartments: tobeAdded.map((d) => d.id),
+        userStatus: formData.userStatus,
+      });
     }
   };
 
@@ -106,7 +168,9 @@ export default function UserManagement() {
             시스템의 모든 사용자를 관리합니다
           </p>
         </div>
-        {/* <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog
+          open={modalType === "add"}
+          onOpenChange={(open) => setModalType(open ? "add" : null)}>
           <DialogTrigger asChild>
             <Button className='bg-blue-600 hover:bg-blue-700'>
               <Plus className='w-4 h-4 mr-2' />
@@ -140,46 +204,19 @@ export default function UserManagement() {
                 />
               </div>
               <div className='space-y-2'>
-                <Label>부서</Label>
-                <Select
-                  value={formData.department}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, department: value })
-                  }>
-                  <SelectTrigger>
-                    <SelectValue placeholder='부서 선택' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='영업팀'>영업팀</SelectItem>
-                    <SelectItem value='마케팅팀'>마케팅팀</SelectItem>
-                    <SelectItem value='기술팀'>기술팀</SelectItem>
-                    <SelectItem value='인사팀'>인사팀</SelectItem>
-                    <SelectItem value='재무팀'>재무팀</SelectItem>
-                    <SelectItem value='R&D팀'>R&D팀</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className='space-y-2'>
-                <Label>상태</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: "active" | "inactive") =>
-                    setFormData({ ...formData, status: value })
-                  }>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='active'>활성</SelectItem>
-                    <SelectItem value='inactive'>비활성</SelectItem>
-                  </SelectContent>
-                </Select>
+                <DepartmentSelect
+                  value={formData.departments}
+                  onChange={(value) => {
+                    setFormData({
+                      ...formData,
+                      departments: value,
+                    });
+                  }}
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button
-                variant='outline'
-                onClick={() => setIsAddDialogOpen(false)}>
+              <Button variant='outline' onClick={() => setModalType(null)}>
                 취소
               </Button>
               <Button
@@ -189,7 +226,7 @@ export default function UserManagement() {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog> */}
+        </Dialog>
       </div>
 
       {/* Search and Filter */}
@@ -246,25 +283,25 @@ export default function UserManagement() {
                       {user.email}
                     </TableCell>
                     <TableCell>
-                      {/* <div className='flex gap-1 flex-wrap'>
+                      <div className='flex gap-1 flex-wrap'>
                         {user.departments.map((dept, idx) => (
                           <Badge key={idx} variant='secondary'>
-                            {dept}
+                            {dept.departmentName}
                           </Badge>
                         ))}
-                      </div> */}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant={
-                          user.status === "active" ? "default" : "secondary"
+                          user.userStatus === "active" ? "default" : "secondary"
                         }
                         className={
-                          user.status === "active"
+                          user.userStatus === "active"
                             ? "bg-green-100 text-green-700 hover:bg-green-100"
                             : ""
                         }>
-                        {user.status === "active" ? "활성" : "비활성"}
+                        {user.userStatus === "active" ? "활성" : "비활성"}
                       </Badge>
                     </TableCell>
                     <TableCell className='text-gray-600'>
@@ -329,31 +366,22 @@ export default function UserManagement() {
               />
             </div>
             <div className='space-y-2'>
-              <Label>부서</Label>
-              {/* <Select
+              <DepartmentSelect
                 value={formData.departments}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, departments: value })
-                }>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='영업팀'>영업팀</SelectItem>
-                  <SelectItem value='마케팅팀'>마케팅팀</SelectItem>
-                  <SelectItem value='기술팀'>기술팀</SelectItem>
-                  <SelectItem value='인사팀'>인사팀</SelectItem>
-                  <SelectItem value='재무팀'>재무팀</SelectItem>
-                  <SelectItem value='R&D팀'>R&D팀</SelectItem>
-                </SelectContent>
-              </Select> */}
+                onChange={(value) => {
+                  setFormData({
+                    ...formData,
+                    departments: value,
+                  });
+                }}
+              />
             </div>
             <div className='space-y-2'>
               <Label>상태</Label>
               <Select
-                value={formData.status}
+                value={formData.userStatus}
                 onValueChange={(value: "active" | "inactive") =>
-                  setFormData({ ...formData, status: value })
+                  setFormData({ ...formData, userStatus: value })
                 }>
                 <SelectTrigger>
                   <SelectValue />

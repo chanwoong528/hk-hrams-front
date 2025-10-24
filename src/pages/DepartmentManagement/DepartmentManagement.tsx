@@ -1,5 +1,16 @@
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Plus, Users } from "lucide-react";
+
+import { toast } from "sonner";
+
+import {
+  GET_departments,
+  PATCH_manyDepartments,
+  POST_department,
+} from "@/api/department/department";
+
+import { pickChangedOnly } from "@/utils";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,69 +22,12 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
-import { toast } from "sonner";
-import DepartmentTree from "@/components/DepartmentTree";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  GET_departments,
-  PATCH_manyDepartments,
-  POST_department,
-} from "@/api/department/department";
-import { pickChangedOnly } from "@/utils";
-
-import { GET_users } from "@/api/user/user";
-
-import { useDebounce } from "@uidotdev/usehooks";
-
-import { AutoComplete } from "@/components/ui/autocomplete";
-
-function LeaderSelect({
-  value,
-  onChange,
-}: {
-  value: { name: string; id: string };
-  onChange: (value: { name: string; id: string }) => void;
-}) {
-  const [searchValue, setSearchValue] = useState<string>(value.name);
-
-  const debouncedSearchTerm = useDebounce(searchValue, 1000);
-
-  const { data: users, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["users", debouncedSearchTerm],
-    queryFn: () => GET_users(debouncedSearchTerm || ""),
-    select: (data) => data.data,
-    enabled: !!debouncedSearchTerm,
-  });
-
-  return (
-    <>
-      <Label>리더</Label>
-      <AutoComplete
-        selectedValue={value.id}
-        onSelectedValueChange={(selectValue) => {
-          const selectedUser = users?.find(
-            (u: User) => u.userId === selectValue,
-          );
-          onChange?.({
-            name: selectedUser?.koreanName || "",
-            id: selectValue,
-          });
-          setSearchValue(selectedUser?.koreanName || "");
-        }}
-        searchValue={searchValue}
-        onSearchValueChange={setSearchValue}
-        items={
-          users?.map((u: User) => ({ value: u.userId, label: u.koreanName })) ||
-          []
-        }
-        isLoading={isLoadingUsers}
-      />
-    </>
-  );
-}
+import DepartmentTree from "./widget/DepartmentTree";
+import LeaderSelect from "./widget/LeaderSelect";
 
 // Department Tree Component
 export default function DepartmentManagement() {
@@ -106,6 +60,13 @@ export default function DepartmentManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments", "flat"] });
       toast.success("부서 정보가 추가되었습니다");
+      setModalType(null);
+      setFormData({
+        name: "",
+        leaderName: "",
+        leaderId: "",
+        departmentId: "",
+      });
     },
     onError: () => {
       toast.error("부서 정보 추가에 실패했습니다");
@@ -121,6 +82,13 @@ export default function DepartmentManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments", "flat"] });
       toast.success("부서 정보가 업데이트되었습니다");
+      setModalType(null);
+      setFormData({
+        name: "",
+        leaderName: "",
+        leaderId: "",
+        departmentId: "",
+      });
     },
     onError: () => {
       toast.error("부서 정보 업데이트에 실패했습니다");
@@ -279,13 +247,14 @@ export default function DepartmentManagement() {
       </div>
 
       {/* Department Tree */}
-      <Card>
+      <Card className='gap-0'>
         <CardHeader>
           <CardTitle className='flex items-center justify-between'>
             조직도
             <div className='flex items-center gap-2'>
               <Button
                 variant='outline'
+                className='bg-blue-600 hover:bg-blue-700 text-white'
                 disabled={!hasChangedDepartments}
                 onClick={() =>
                   handleSave(treeData as unknown as DepartmentTreeData[])
