@@ -44,3 +44,54 @@ export type Page =
   | "departments"
   | "appraisals"
   | "goals";
+
+export function pickChangedOnly<T extends { id: string | number }>(
+  previousArray: ReadonlyArray<T>,
+  newArray: ReadonlyArray<T>,
+): T[] {
+  const prevMap = new Map(previousArray.map((i) => [i.id, i]));
+  const changed: T[] = [];
+
+  for (const next of newArray) {
+    const prev = prevMap.get(next.id);
+    if (!prev) continue; // new item → skip (not "different from previous")
+    if (!deepEqual(prev, next)) changed.push(next);
+  }
+  return changed;
+}
+
+/** Deep equality for plain data (objects/arrays/primitives). */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (
+    typeof a !== "object" ||
+    a === null ||
+    typeof b !== "object" ||
+    b === null
+  )
+    return false;
+
+  // Arrays
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!deepEqual(a[i], b[i])) return false;
+    return true;
+  }
+
+  // Plain objects
+  const ak = Object.keys(a as Record<string, unknown>);
+  const bk = Object.keys(b as Record<string, unknown>);
+  if (ak.length !== bk.length) return false;
+  for (const k of ak) {
+    if (!Object.prototype.hasOwnProperty.call(b, k)) return false;
+    if (
+      !deepEqual(
+        (a as Record<string, unknown>)[k],
+        (b as Record<string, unknown>)[k],
+      )
+    )
+      return false;
+  }
+  return true;
+}

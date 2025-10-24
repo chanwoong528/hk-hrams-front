@@ -1,14 +1,6 @@
 import { useState } from "react";
-import { Building2, Plus, Users, GripVertical } from "lucide-react";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  closestCenter,
-} from "@dnd-kit/core";
-import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
+import { Building2, Plus, Users } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,302 +13,167 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { toast } from "sonner";
 import DepartmentTree from "@/components/DepartmentTree";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  GET_departments,
+  PATCH_manyDepartments,
+  POST_department,
+} from "@/api/department/department";
+import { pickChangedOnly } from "@/utils";
 
-// Department Tree Component
+import { GET_users } from "@/api/user/user";
 
-// Main Department Management Component
-export default function DepartmentManagement() {
-  // State
-  const [expandedDepts, setExpandedDepts] = useState<Set<string>>(
-    new Set(["1"]),
-  );
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedDept, setSelectedDept] = useState<Department | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    leader: "",
-    parentId: "",
+import { useDebounce } from "@uidotdev/usehooks";
+
+import { AutoComplete } from "@/components/ui/autocomplete";
+
+function LeaderSelect({
+  value,
+  onChange,
+}: {
+  value: { name: string; id: string };
+  onChange: (value: { name: string; id: string }) => void;
+}) {
+  const [searchValue, setSearchValue] = useState<string>(value.name);
+
+  const debouncedSearchTerm = useDebounce(searchValue, 1000);
+
+  const { data: users, isLoading: isLoadingUsers } = useQuery({
+    queryKey: ["users", debouncedSearchTerm],
+    queryFn: () => GET_users(debouncedSearchTerm || ""),
+    select: (data) => data.data,
+    enabled: !!debouncedSearchTerm,
   });
 
-  // Drag and Drop Sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
+  return (
+    <>
+      <Label>리더</Label>
+      <AutoComplete
+        selectedValue={value.id}
+        onSelectedValueChange={(selectValue) => {
+          const selectedUser = users?.find(
+            (u: User) => u.userId === selectValue,
+          );
+          onChange?.({
+            name: selectedUser?.koreanName || "",
+            id: selectValue,
+          });
+          setSearchValue(selectedUser?.koreanName || "");
+        }}
+        searchValue={searchValue}
+        onSearchValueChange={setSearchValue}
+        items={
+          users?.map((u: User) => ({ value: u.userId, label: u.koreanName })) ||
+          []
+        }
+        isLoading={isLoadingUsers}
+      />
+    </>
   );
+}
 
-  // Department Data
-  const [departments, setDepartments] = useState<Department[]>([
-    {
-      id: "1",
-      name: "본사",
-      leader: "김민준",
-      memberCount: 248,
-      parentId: null,
-      children: [
-        {
-          id: "2",
-          name: "영업본부",
-          leader: "이서연",
-          memberCount: 45,
-          parentId: "1",
-          children: [
-            {
-              id: "3",
-              name: "영업1팀",
-              leader: "박지훈",
-              memberCount: 22,
-              parentId: "2",
-            },
-            {
-              id: "4",
-              name: "영업2팀",
-              leader: "최유진",
-              memberCount: 23,
-              parentId: "2",
-            },
-          ],
-        },
-        {
-          id: "5",
-          name: "기술본부",
-          leader: "정다은",
-          memberCount: 78,
-          parentId: "1",
-          children: [
-            {
-              id: "6",
-              name: "개발팀",
-              leader: "강호민",
-              memberCount: 35,
-              parentId: "5",
-            },
-            {
-              id: "7",
-              name: "QA팀",
-              leader: "윤서준",
-              memberCount: 18,
-              parentId: "5",
-            },
-            {
-              id: "8",
-              name: "DevOps팀",
-              leader: "임지우",
-              memberCount: 25,
-              parentId: "5",
-            },
-          ],
-        },
-        {
-          id: "9",
-          name: "마케팅본부",
-          leader: "한지민",
-          memberCount: 32,
-          parentId: "1",
-          children: [
-            {
-              id: "10",
-              name: "디지털마케팅팀",
-              leader: "오준서",
-              memberCount: 18,
-              parentId: "9",
-            },
-            {
-              id: "11",
-              name: "브랜드팀",
-              leader: "서하윤",
-              memberCount: 14,
-              parentId: "9",
-            },
-          ],
-        },
-        {
-          id: "12",
-          name: "경영지원본부",
-          leader: "양민석",
-          memberCount: 35,
-          parentId: "1",
-          children: [
-            {
-              id: "13",
-              name: "인사팀",
-              leader: "조서영",
-              memberCount: 12,
-              parentId: "12",
-            },
-            {
-              id: "14",
-              name: "재무팀",
-              leader: "신유진",
-              memberCount: 15,
-              parentId: "12",
-            },
-            {
-              id: "15",
-              name: "총무팀",
-              leader: "문준호",
-              memberCount: 8,
-              parentId: "12",
-            },
-          ],
-        },
-      ],
+// Department Tree Component
+export default function DepartmentManagement() {
+  const queryClient = useQueryClient();
+  const [modalType, setModalType] = useState<"add" | "edit" | null>(null);
+
+  const [treeData, setTreeData] = useState<DepartmentTreeData[]>([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    leaderName: "",
+    leaderId: "",
+    departmentId: "",
+  });
+
+  const { data: flatData, isLoading: isLoadingDepartments } = useQuery({
+    queryKey: ["departments", "flat"],
+    queryFn: () => GET_departments(),
+    select: (data) => {
+      setTreeData(data.data);
+      return data.data;
     },
-  ]);
+  });
 
-  // Helper Functions
-  const findDepartmentById = (
-    depts: Department[],
-    id: string,
-  ): Department | null => {
-    for (const dept of depts) {
-      if (dept.id === id) return dept;
-      if (dept.children) {
-        const found = findDepartmentById(dept.children, id);
-        if (found) return found;
-      }
-    }
-    return null;
+  const {
+    mutate: postDepartment,
+    // isPending: isPostingDepartment
+  } = useMutation({
+    mutationFn: (department: { departmentName: string; leaderId?: string }) =>
+      POST_department(department),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["departments", "flat"] });
+      toast.success("부서 정보가 추가되었습니다");
+    },
+    onError: () => {
+      toast.error("부서 정보 추가에 실패했습니다");
+    },
+  });
+
+  const {
+    mutate: patchManyDepartments,
+    //  isPending: isPatchingManyDepartments
+  } = useMutation({
+    mutationFn: (departments: DepartmentTreeData[]) =>
+      PATCH_manyDepartments(departments),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["departments", "flat"] });
+      toast.success("부서 정보가 업데이트되었습니다");
+    },
+    onError: () => {
+      toast.error("부서 정보 업데이트에 실패했습니다");
+    },
+  });
+
+  const handleSave = (treeData: DepartmentTreeData[]) => {
+    const diffs = pickChangedOnly(flatData, treeData);
+    patchManyDepartments(diffs as unknown as DepartmentTreeData[]);
   };
 
-  const toggleExpand = (deptId: string) => {
-    const newExpanded = new Set(expandedDepts);
-    if (newExpanded.has(deptId)) {
-      newExpanded.delete(deptId);
-    } else {
-      newExpanded.add(deptId);
-    }
-    setExpandedDepts(newExpanded);
-  };
-
-  // Drag and Drop Handlers
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragOver = () => {
-    // Optional: Add visual feedback during drag over
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) {
-      setActiveId(null);
-      return;
-    }
-
-    // Move department
-    moveDepartment(active.id as string, over.id as string);
-    setActiveId(null);
-  };
-
-  // Move Department Logic
-  const moveDepartment = (activeId: string, overId: string) => {
-    if (activeId === overId) return;
-
-    const activeDept = findDepartmentById(departments, activeId);
-    if (!activeDept) return;
-
-    // Prevent moving a department into its own children
-    if (isDescendant(activeDept, overId)) {
-      toast.error("부서를 자신의 하위 부서로 이동할 수 없습니다");
-      return;
-    }
-
-    setDepartments((prev) => {
-      const newDepartments = JSON.parse(JSON.stringify(prev));
-
-      // Remove from current position
-      const removeFromTree = (depts: Department[]): Department[] => {
-        return depts.filter((dept) => {
-          if (dept.id === activeId) return false;
-          if (dept.children) {
-            dept.children = removeFromTree(dept.children);
-          }
-          return true;
-        });
-      };
-
-      // Add to new position
-      const addToTree = (depts: Department[]): Department[] => {
-        return depts.map((dept) => {
-          if (dept.id === overId) {
-            return {
-              ...dept,
-              children: [
-                ...(dept.children || []),
-                { ...activeDept, parentId: overId },
-              ],
-            };
-          }
-          if (dept.children) {
-            return {
-              ...dept,
-              children: addToTree(dept.children),
-            };
-          }
-          return dept;
-        });
-      };
-
-      const afterRemoval = removeFromTree(newDepartments);
-      const afterAddition = addToTree(afterRemoval);
-
-      return afterAddition;
-    });
-
-    toast.success("부서가 이동되었습니다");
-  };
-
-  // Check if target is descendant of active department
-  const isDescendant = (ancestor: Department, targetId: string): boolean => {
-    if (!ancestor.children) return false;
-
-    for (const child of ancestor.children) {
-      if (child.id === targetId) return true;
-      if (isDescendant(child, targetId)) return true;
-    }
-    return false;
-  };
-
-  // Event Handlers
   const handleAddDepartment = () => {
-    toast.success("부서가 추가되었습니다");
-    setIsAddDialogOpen(false);
-    setFormData({ name: "", leader: "", parentId: "" });
-  };
-
-  const handleUpdateDepartment = () => {
-    toast.success("부서 정보가 업데이트되었습니다");
-    setSelectedDept(null);
-    setFormData({ name: "", leader: "", parentId: "" });
-  };
-
-  const handleEdit = (dept: Department) => {
-    setSelectedDept(dept);
-    setFormData({
-      name: dept.name,
-      leader: dept.leader,
-      parentId: dept.parentId || "",
+    postDepartment({
+      departmentName: formData.name,
+      leaderId: formData.leaderId,
     });
   };
 
-  const handleDelete = () => {
-    toast.success("부서가 삭제되었습니다");
+  const handleSaveEdit = () => {
+    patchManyDepartments([
+      {
+        id: formData.departmentId,
+        text: formData.name,
+        data: {
+          departmentId: formData.departmentId,
+          departmentName: formData.name,
+          leaderId: formData.leaderId,
+        },
+      },
+    ] as unknown as DepartmentTreeData[]);
   };
+
+  const handleCancel = () => {
+    setTreeData(flatData);
+  };
+
+  const handleOpenEdit = (dept: DepartmentTreeData) => {
+    setModalType("edit");
+    setFormData({
+      name: dept.data.departmentName,
+      leaderName: dept.data.leader?.koreanName || "",
+      leaderId: dept.data.leader?.userId || "",
+      departmentId: dept.data.departmentId,
+    });
+  };
+
+  const hasChangedDepartments = flatData
+    ? pickChangedOnly(flatData, treeData).length > 0
+    : false;
+
+  if (isLoadingDepartments) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className='p-4 lg:p-6 space-y-6'>
@@ -326,7 +183,9 @@ export default function DepartmentManagement() {
           <h2 className='text-gray-900'>부서 관리</h2>
           <p className='text-gray-600 mt-1'>조직 구조를 관리합니다</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog
+          open={modalType === "add"}
+          onOpenChange={(open) => setModalType(open ? "add" : null)}>
           <DialogTrigger asChild>
             <Button className='bg-blue-600 hover:bg-blue-700'>
               <Plus className='w-4 h-4 mr-2' />
@@ -349,39 +208,21 @@ export default function DepartmentManagement() {
                 />
               </div>
               <div className='space-y-2'>
-                <Label>리더</Label>
-                <Input
-                  value={formData.leader}
-                  onChange={(e) =>
-                    setFormData({ ...formData, leader: e.target.value })
-                  }
-                  placeholder='부서 리더 이름'
+                <LeaderSelect
+                  value={{ name: formData.leaderName, id: formData.leaderId }}
+                  onChange={(value) => {
+                    console.log("@@@value>> ", value);
+                    setFormData({
+                      ...formData,
+                      leaderName: value.name,
+                      leaderId: value.id,
+                    });
+                  }}
                 />
-              </div>
-              <div className='space-y-2'>
-                <Label>상위 부서</Label>
-                <Select
-                  value={formData.parentId}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, parentId: value })
-                  }>
-                  <SelectTrigger>
-                    <SelectValue placeholder='상위 부서 선택' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='1'>본사</SelectItem>
-                    <SelectItem value='2'>영업본부</SelectItem>
-                    <SelectItem value='5'>기술본부</SelectItem>
-                    <SelectItem value='9'>마케팅본부</SelectItem>
-                    <SelectItem value='12'>경영지원본부</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             <DialogFooter>
-              <Button
-                variant='outline'
-                onClick={() => setIsAddDialogOpen(false)}>
+              <Button variant='outline' onClick={() => setModalType(null)}>
                 취소
               </Button>
               <Button
@@ -438,30 +279,41 @@ export default function DepartmentManagement() {
       </div>
 
       {/* Department Tree */}
-
       <Card>
         <CardHeader>
           <CardTitle className='flex items-center justify-between'>
             조직도
             <div className='flex items-center gap-2'>
-              <Button variant='outline' onClick={() => setSelectedDept(null)}>
+              <Button
+                variant='outline'
+                disabled={!hasChangedDepartments}
+                onClick={() =>
+                  handleSave(treeData as unknown as DepartmentTreeData[])
+                }>
                 저장
               </Button>
-              <Button variant='outline' onClick={() => setSelectedDept(null)}>
+              <Button
+                disabled={!hasChangedDepartments}
+                variant='outline'
+                onClick={handleCancel}>
                 취소
               </Button>
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <DepartmentTree />
+          <DepartmentTree
+            treeData={treeData}
+            setTreeData={setTreeData}
+            onEdit={handleOpenEdit}
+          />
         </CardContent>
       </Card>
 
       {/* Edit Department Dialog */}
       <Dialog
-        open={selectedDept !== null}
-        onOpenChange={(open) => !open && setSelectedDept(null)}>
+        open={modalType === "edit"}
+        onOpenChange={(open) => setModalType(open ? "edit" : null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>부서 수정</DialogTitle>
@@ -477,41 +329,25 @@ export default function DepartmentManagement() {
               />
             </div>
             <div className='space-y-2'>
-              <Label>리더</Label>
-              <Input
-                value={formData.leader}
-                onChange={(e) =>
-                  setFormData({ ...formData, leader: e.target.value })
+              <LeaderSelect
+                value={{ name: formData.leaderName, id: formData.leaderId }}
+                onChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    leaderName: value.name,
+                    leaderId: value.id,
+                  })
                 }
               />
             </div>
-            <div className='space-y-2'>
-              <Label>상위 부서</Label>
-              <Select
-                value={formData.parentId}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, parentId: value })
-                }>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='1'>본사</SelectItem>
-                  <SelectItem value='2'>영업본부</SelectItem>
-                  <SelectItem value='5'>기술본부</SelectItem>
-                  <SelectItem value='9'>마케팅본부</SelectItem>
-                  <SelectItem value='12'>경영지원본부</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
-            <Button variant='outline' onClick={() => setSelectedDept(null)}>
+            <Button variant='outline' onClick={() => setModalType(null)}>
               취소
             </Button>
             <Button
               className='bg-blue-600 hover:bg-blue-700'
-              onClick={handleUpdateDepartment}>
+              onClick={handleSaveEdit}>
               저장
             </Button>
           </DialogFooter>

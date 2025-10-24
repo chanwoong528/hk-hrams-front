@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Tree,
   getBackendOptions,
@@ -9,117 +8,46 @@ import { DndProvider } from "react-dnd";
 import {
   Edit,
   Trash2,
-  Users,
   Building2,
   ChevronDown,
   ChevronRight,
   GripVertical,
+  Flag,
+  Users,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+// import { GET_departments } from "@/api/department/department";
+// import { useQuery } from "@tanstack/react-query";
 
-// import { useDraggable, useDroppable } from "@dnd-kit/core";
-// import {
-//   Building2,
-//   Edit,
-//   Trash2,
-//   Users,
-//   ChevronRight,
-//   ChevronDown,
-//   GripVertical,
-// } from "lucide-react";
-// import { Button } from "./ui/button";
-// import { Badge } from "./ui/badge";
+export default function DepartmentTree({
+  treeData,
+  setTreeData,
+  onEdit,
+}: {
+  treeData: DepartmentTreeData[];
+  setTreeData: (treeData: DepartmentTreeData[]) => void;
+  onEdit: (dept: DepartmentTreeData) => void;
+}) {
+  // const [treeData, setTreeData] = useState<NodeModel<DepartmentTreeData>[]>([]);
+  // const { data: departments, isLoading: isLoadingDepartments } = useQuery({
+  //   queryKey: ["departments", "flat"],
+  //   queryFn: () => GET_departments(),
+  //   select: (data) => setTreeData(data.data),
+  // });
 
-// interface DepartmentTreeProps {
-//   departments: Department[];
-//   expandedDepts: Set<string>;
-//   onToggleExpand: (id: string) => void;
-//   onEdit: (dept: Department) => void;
-//   onDelete: (id: string) => void;
-// }
+  const handleDrop = (newTreeData: NodeModel<DepartmentTreeData>[]) =>
+    setTreeData(newTreeData as unknown as DepartmentTreeData[]);
 
-export default function DepartmentTree() {
-  const [treeData, setTreeData] = useState<
-    NodeModel<{ name: string; color: string }>[]
-  >([
-    {
-      id: 1,
-      parent: 0,
-      droppable: true,
-      text: "A",
-      data: {
-        name: "A",
-        color: "red",
-      },
-    },
-    {
-      id: 2,
-      parent: 1,
-      droppable: true,
-      text: "B",
-      data: {
-        name: "B",
-        color: "green",
-      },
-    },
-    {
-      id: 3,
-      parent: 1,
-      droppable: true,
-      text: "C",
-      data: {
-        name: "C",
-        color: "blue",
-      },
-    },
-    {
-      id: 4,
-      parent: 0,
-      droppable: true,
-      text: "D",
-      data: {
-        name: "D",
-        color: "yellow",
-      },
-    },
-    {
-      id: "5",
-      parent: 4,
-      droppable: true,
-      text: "E",
-      data: {
-        name: "E",
-        color: "purple",
-      },
-    },
-    {
-      id: "6",
-      parent: "5",
-      droppable: true,
-      text: "F",
-      data: {
-        name: "F",
-        color: "orange",
-      },
-    },
-  ]);
-  const handleDrop = (
-    newTreeData: NodeModel<{ name: string; color: string }>[],
-  ) => setTreeData(newTreeData);
-
-  const handleEdit = (node: NodeModel<{ name: string; color: string }>) => {
-    console.log(node);
-  };
+  // if (isLoadingDepartments) {
+  //   return <div>Loading...</div>;
+  // }
 
   return (
     <DndProvider backend={MultiBackend} options={getBackendOptions()}>
       <Tree
-        tree={treeData}
-        rootId={
-          0
-          // treeData[0].id
-        }
+        tree={treeData as unknown as NodeModel<DepartmentTreeData>[]}
+        rootId={"0"}
         insertDroppableFirst={false}
         sort={false}
         dropTargetOffset={5}
@@ -146,13 +74,13 @@ export default function DepartmentTree() {
         )}
         render={(node, { depth, isOpen, onToggle, hasChild, isDropTarget }) => (
           <DraggableDepartmentItem
-            node={node}
+            node={node as unknown as NodeModel<Department>}
             depth={depth}
             isDropTarget={isDropTarget}
             onToggle={onToggle}
             isOpen={isOpen}
             hasChild={hasChild}
-            onEdit={handleEdit}
+            onEdit={onEdit}
           />
         )}
         classes={{
@@ -166,13 +94,13 @@ export default function DepartmentTree() {
 
 // Draggable Department Item Component
 interface DraggableDepartmentItemProps {
-  node: NodeModel<{ name: string; color: string }>;
+  node: NodeModel<Department>;
   onToggle: (id: string) => void;
   isOpen: boolean;
   isDropTarget: boolean;
   depth: number;
   hasChild: boolean;
-  onEdit: (node: NodeModel<{ name: string; color: string }>) => void;
+  onEdit: (dept: DepartmentTreeData) => void;
 }
 
 function DraggableDepartmentItem({
@@ -184,6 +112,8 @@ function DraggableDepartmentItem({
   hasChild,
   onEdit,
 }: DraggableDepartmentItemProps) {
+  const leaderName = node.data?.leader?.koreanName || "없음";
+
   return (
     <div
       className={`transition-all duration-200 my-4 `}
@@ -225,17 +155,22 @@ function DraggableDepartmentItem({
               )}
             </div>
             <div className='flex items-center gap-4 text-sm text-gray-600 mt-1'>
-              {/* <span>리더: {node.leader}</span> */}
+              <span className='flex items-center gap-1'>
+                <Flag className='w-4 h-4' />
+                {leaderName}
+              </span>
               <span className='flex items-center gap-1'>
                 <Users className='w-4 h-4' />
-                {/* {depth.memberCount}명 */}
               </span>
             </div>
           </div>
         </div>
 
         <div className='flex gap-2'>
-          <Button variant='outline' size='sm' onClick={() => onEdit(node)}>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => onEdit(node as unknown as DepartmentTreeData)}>
             <Edit className='w-4 h-4' />
           </Button>
           {depth > 0 && (

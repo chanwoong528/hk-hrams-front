@@ -35,162 +35,66 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-
-interface User {
-  id: string;
-  koreanName: string;
-  email: string;
-  departments: string[];
-  status: "active" | "inactive";
-  createdAt: string;
-}
+import { GET_usersByPagination } from "@/api/user/user";
+import { useQuery } from "@tanstack/react-query";
 
 export default function UserManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      koreanName: "김민준",
-      email: "kim.minjun@company.com",
-      departments: ["영업팀"],
-      status: "active",
-      createdAt: "2024-01-15",
+  const { data: usersData, isLoading: isLoadingUsers } = useQuery({
+    queryKey: ["users", searchQuery],
+    queryFn: () => GET_usersByPagination(1, 10),
+    select: (data) => {
+      console.log("@@@ ", data);
+      return {
+        users: data.data.list,
+        total: data.data.total,
+      };
     },
-    {
-      id: "2",
-      koreanName: "이서연",
-      email: "lee.seoyeon@company.com",
-      departments: ["마케팅팀"],
-      status: "active",
-      createdAt: "2024-01-20",
-    },
-    {
-      id: "3",
-      koreanName: "박지훈",
-      email: "park.jihun@company.com",
-      departments: ["기술팀", "R&D팀"],
-      status: "active",
-      createdAt: "2024-02-01",
-    },
-    {
-      id: "4",
-      koreanName: "최유진",
-      email: "choi.yujin@company.com",
-      departments: ["인사팀"],
-      status: "active",
-      createdAt: "2024-02-10",
-    },
-    {
-      id: "5",
-      koreanName: "정다은",
-      email: "jung.daeun@company.com",
-      departments: ["재무팀"],
-      status: "active",
-      createdAt: "2024-02-15",
-    },
-    {
-      id: "6",
-      koreanName: "강호민",
-      email: "kang.homin@company.com",
-      departments: ["영업팀"],
-      status: "inactive",
-      createdAt: "2024-03-01",
-    },
-    {
-      id: "7",
-      koreanName: "윤서준",
-      email: "yoon.seojun@company.com",
-      departments: ["마케팅팀"],
-      status: "active",
-      createdAt: "2024-03-10",
-    },
-    {
-      id: "8",
-      koreanName: "임지우",
-      email: "lim.jiwoo@company.com",
-      departments: ["기술팀"],
-      status: "active",
-      createdAt: "2024-03-15",
-    },
-  ]);
+  });
+  console.log(usersData);
 
   const [formData, setFormData] = useState({
     koreanName: "",
     email: "",
-    department: "",
+    departments: [],
     status: "active" as "active" | "inactive",
   });
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.koreanName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.departments.some((d) =>
-        d.toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
-  );
-
   const handleAddUser = () => {
-    const newUser: User = {
-      id: String(users.length + 1),
-      koreanName: formData.koreanName,
-      email: formData.email,
-      departments: formData.department ? [formData.department] : [],
-      status: formData.status,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setUsers([...users, newUser]);
-    setIsAddDialogOpen(false);
-    setFormData({
-      koreanName: "",
-      email: "",
-      department: "",
-      status: "active",
-    });
     toast.success("사용자가 추가되었습니다");
   };
 
   const handleEditUser = (user: User) => {
-    setSelectedUser(user);
-    setFormData({
-      koreanName: user.koreanName,
-      email: user.email,
-      department: user.departments[0] || "",
-      status: user.status,
-    });
+    // setFormData({
+    //   koreanName: user.koreanName,
+    //   email: user.email,
+    //   departments: user.departments || [],
+    //   status: user.status,
+    // });
   };
 
   const handleUpdateUser = () => {
     if (selectedUser) {
-      setUsers(
-        users.map((u) =>
-          u.id === selectedUser.id
-            ? {
-                ...u,
-                ...formData,
-                departments: formData.department ? [formData.department] : [],
-              }
-            : u,
-        ),
-      );
-      setSelectedUser(null);
-      setFormData({
-        koreanName: "",
-        email: "",
-        department: "",
-        status: "active",
-      });
+      // setFormData({
+      //   koreanName: "",
+      //   email: "",
+      //   department: "",
+      //   status: "active",
+      // });
       toast.success("사용자 정보가 업데이트되었습니다");
     }
   };
 
   const handleDeleteUser = (userId: string) => {
-    setUsers(users.filter((u) => u.id !== userId));
     toast.success("사용자가 삭제되었습니다");
   };
+
+  if (isLoadingUsers) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className='p-4 lg:p-6 space-y-6'>
@@ -202,7 +106,7 @@ export default function UserManagement() {
             시스템의 모든 사용자를 관리합니다
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        {/* <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className='bg-blue-600 hover:bg-blue-700'>
               <Plus className='w-4 h-4 mr-2' />
@@ -285,7 +189,7 @@ export default function UserManagement() {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+        </Dialog> */}
       </div>
 
       {/* Search and Filter */}
@@ -312,7 +216,7 @@ export default function UserManagement() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>사용자 목록 ({filteredUsers.length})</CardTitle>
+          <CardTitle>사용자 목록 ({usersData?.total})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className='overflow-x-auto'>
@@ -328,8 +232,8 @@ export default function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
+                {usersData?.users.map((user: User) => (
+                  <TableRow key={user.userId}>
                     <TableCell>
                       <div className='flex items-center gap-3'>
                         <div className='w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600'>
@@ -342,13 +246,13 @@ export default function UserManagement() {
                       {user.email}
                     </TableCell>
                     <TableCell>
-                      <div className='flex gap-1 flex-wrap'>
+                      {/* <div className='flex gap-1 flex-wrap'>
                         {user.departments.map((dept, idx) => (
                           <Badge key={idx} variant='secondary'>
                             {dept}
                           </Badge>
                         ))}
-                      </div>
+                      </div> */}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -364,7 +268,7 @@ export default function UserManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell className='text-gray-600'>
-                      {user.createdAt}
+                      {user.created}
                     </TableCell>
                     <TableCell className='text-right'>
                       <DropdownMenu>
@@ -380,7 +284,7 @@ export default function UserManagement() {
                             수정
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleDeleteUser(user.id)}
+                            onClick={() => handleDeleteUser(user.userId)}
                             className='text-red-600'>
                             <Trash2 className='w-4 h-4 mr-2' />
                             삭제
@@ -426,10 +330,10 @@ export default function UserManagement() {
             </div>
             <div className='space-y-2'>
               <Label>부서</Label>
-              <Select
-                value={formData.department}
+              {/* <Select
+                value={formData.departments}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, department: value })
+                  setFormData({ ...formData, departments: value })
                 }>
                 <SelectTrigger>
                   <SelectValue />
@@ -442,7 +346,7 @@ export default function UserManagement() {
                   <SelectItem value='재무팀'>재무팀</SelectItem>
                   <SelectItem value='R&D팀'>R&D팀</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
             </div>
             <div className='space-y-2'>
               <Label>상태</Label>
