@@ -41,7 +41,6 @@ export default function DepartmentSelect({
           placeholder={
             isLoadingDepartments ? "Loading..." : "Select Department"
           }
-          // defaultValue={value.map((v) => v.departmentId) ?? []}
           searchable={true}
           onValueChange={(values) => {
             onChange(

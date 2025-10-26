@@ -102,6 +102,7 @@ function DraggableDepartmentItem({
   onEdit,
 }: DraggableDepartmentItemProps) {
   const leaderName = node.data?.leader?.koreanName || "없음";
+  const userCount = node.data?.teamMembers?.length || 0;
 
   return (
     <div
@@ -150,6 +151,7 @@ function DraggableDepartmentItem({
               </span>
               <span className='flex items-center gap-1'>
                 <Users className='w-4 h-4' />
+                {userCount}
               </span>
             </div>
           </div>

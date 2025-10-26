@@ -6,6 +6,7 @@ interface Department {
   leader?: User;
   parent?: Department;
   children?: Department[];
+  teamMembers?: User[];
 }
 
 interface DepartmentTreeData {

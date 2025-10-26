@@ -39,12 +39,29 @@ import { GET_usersByPagination, PATCH_user, POST_user } from "@/api/user/user";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import DepartmentSelect from "./widget/DepartmentSelect";
 import { symmetricDiffBy } from "@/utils";
+import { useDebounce } from "@uidotdev/usehooks";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+} from "@/components/ui/pagination";
 
 export default function UserManagement() {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
   const [modalType, setModalType] = useState<"add" | "edit" | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const debouncedSearchQuery = useDebounce(searchQuery, 1500);
+
+  const [pageInfo, setPageInfo] = useState<{
+    page: number;
+    limit: number;
+  }>({
+    page: 1,
+    limit: 10,
+  });
 
   const [formData, setFormData] = useState<{
     koreanName: string;
@@ -58,8 +75,13 @@ export default function UserManagement() {
     userStatus: "active",
   });
   const { data: usersData, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => GET_usersByPagination(1, 10),
+    queryKey: ["users", debouncedSearchQuery, pageInfo.page, pageInfo.limit],
+    queryFn: () =>
+      GET_usersByPagination(
+        pageInfo.page,
+        pageInfo.limit,
+        debouncedSearchQuery,
+      ),
     select: (data) => {
       return {
         users: data.data.list,
@@ -150,9 +172,9 @@ export default function UserManagement() {
     }
   };
 
-  const handleDeleteUser = (userId: string) => {
-    toast.success("사용자가 삭제되었습니다");
-  };
+  // const handleDeleteUser = (userId: string) => {
+  //   toast.success("사용자가 삭제되었습니다");
+  // };
 
   if (isLoadingUsers) {
     return <div>Loading...</div>;
@@ -321,7 +343,7 @@ export default function UserManagement() {
                             수정
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleDeleteUser(user.userId)}
+                            onClick={() => {}}
                             className='text-red-600'>
                             <Trash2 className='w-4 h-4 mr-2' />
                             삭제
@@ -334,6 +356,23 @@ export default function UserManagement() {
               </TableBody>
             </Table>
           </div>
+          <Pagination>
+            <PaginationContent>
+              {Array.from({
+                length: Math.ceil((usersData?.total ?? 0) / pageInfo.limit),
+              }).map((_, index) => (
+                <PaginationItem key={index}>
+                  <PaginationLink
+                    isActive={pageInfo.page === index + 1}
+                    onClick={() =>
+                      setPageInfo({ ...pageInfo, page: index + 1 })
+                    }>
+                    {index + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+            </PaginationContent>
+          </Pagination>
         </CardContent>
       </Card>
 
