@@ -26,3 +26,31 @@ interface User {
   userStatus: "active" | "inactive";
   departments: Department[];
 }
+
+interface Appraisal {
+  id: string;
+  title: string;
+  targetUser: string;
+  description: string;
+  endDate: string;
+  excludedUsers: User[];
+}
+
+interface Goal {
+  id: string;
+  appraisalId: string;
+  description: string;
+  grade: string | null;
+  assessedBy: string[];
+}
+
+interface Assessment {
+  id: string;
+  appraisalId: string;
+  type: "performance" | "competency";
+  term: "mid" | "final";
+  grade: string;
+  comments: string;
+  assessor: string;
+  date: string;
+}

@@ -276,6 +276,7 @@ interface MultiSelectProps
    * Optional, defaults to false.
    */
   closeOnSelect?: boolean;
+  searchDisplay?: React.ReactNode;
 }
 
 /**
@@ -330,6 +331,7 @@ export const MultiSelect = React.forwardRef<MultiSelectRef, MultiSelectProps>(
       deduplicateOptions = false,
       resetOnDefaultValueChange = true,
       closeOnSelect = false,
+      searchDisplay,
       ...props
     },
     ref,
@@ -1019,6 +1021,8 @@ export const MultiSelect = React.forwardRef<MultiSelectRef, MultiSelectProps>(
             align='start'
             onEscapeKeyDown={() => setIsPopoverOpen(false)}>
             <Command shouldFilter={false}>
+              {searchDisplay && <div>{searchDisplay}</div>}
+
               {searchable && (
                 <CommandInput
                   placeholder='Search options...'

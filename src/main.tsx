@@ -1,16 +1,19 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-
 import { RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router";
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import RootLayout from "./routes/RootLayout";
 import Dashboard from "./pages/Dashboard";
 import DepartmentManagement from "./pages/DepartmentManagement/DepartmentManagement";
 import GoalManagement from "./pages/GoalManagement";
-import PerformanceAppraisal from "./pages/PerformanceAppraisal";
+import PerformanceAppraisal from "./pages/PerformanceAppraisal/PerformanceAppraisal";
+import AppraisalDetail from "./pages/PerformanceAppraisal/AppraisalDetail/AppraisalDetail";
+
 import UserManagement from "./pages/UserManagement/UserManagement";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import { Toaster } from "@/components/ui/sonner";
 
 import "./index.css";
@@ -35,6 +38,10 @@ const router = createBrowserRouter([
       {
         path: "performance-appraisal",
         element: <PerformanceAppraisal />,
+      },
+      {
+        path: "performance-appraisal/:appraisalType",
+        element: <AppraisalDetail />,
       },
       {
         path: "user-management",
