@@ -9,10 +9,13 @@ import {
   // Target,
   Code,
   Book,
+  Rocket,
+  Check,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 import {
   Dialog,
@@ -33,9 +36,11 @@ import { toast } from "sonner";
 import UserMultiSelect from "./widget/UserMultiSelect";
 import {
   GET_appraisalsByDistinctType,
+  PATCH_appraisal,
   POST_appraisal,
+  POST_startAppraisal,
 } from "@/api/appraisal/appraisal";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Select,
   SelectContent,
@@ -44,10 +49,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDebounce } from "@uidotdev/usehooks";
+import { Progress } from "@/components/ui/progress";
 
 interface AppraisalFormData {
   title: string;
-  excludedUsers: User[];
+  // excludedUsers: User[];
   description: string;
   endDate: string;
   appraisalYear: string;
@@ -82,19 +88,35 @@ const APPRRAISAL_TERMS = [
 ];
 
 export default function PerformanceAppraisal() {
+  const navigate = useNavigate();
+
+  const queryClient = useQueryClient();
+
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 1500);
 
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const navigate = useNavigate();
+  const [modalType, setModalType] = useState<"add" | "user-select" | null>(
+    null,
+  );
+
   const [formData, setFormData] = useState<AppraisalFormData>({
     title: "",
-    excludedUsers: [],
     description: "",
     endDate: "",
     appraisalYear: new Date().getFullYear().toString(),
     appraisalType: APPRRAISAL_TYPES[0].value,
     appraisalTerm: APPRRAISAL_TERMS[0].value,
+  });
+
+  const [excludedUsers, setExcludedUsers] = useState<User[]>([]);
+  const [patchFormData, setPatchFormData] = useState<{
+    title?: string;
+    description?: string;
+    endDate?: string;
+  }>({
+    title: "",
+    description: "",
+    endDate: "",
   });
 
   const { data: appraisalTypes, isLoading: isLoadingAppraisalTypes } = useQuery(
@@ -111,10 +133,9 @@ export default function PerformanceAppraisal() {
     mutationFn: (payload: AppraisalFormData) => POST_appraisal(payload),
     onSuccess: () => toast.success("평가가 생성되었습니다"),
     onSettled: () => {
-      setIsAddDialogOpen(false);
+      setModalType(null);
       setFormData({
         title: "",
-        excludedUsers: [],
         description: "",
         endDate: "",
         appraisalYear: new Date().getFullYear().toString(),
@@ -122,17 +143,77 @@ export default function PerformanceAppraisal() {
         appraisalTerm: APPRRAISAL_TERMS[0].value,
       });
     },
-
     onError: () => {
       toast.error("평가 생성에 실패했습니다");
     },
   });
 
+  const { mutate: patchAppraisal } = useMutation({
+    mutationFn: (payload: {
+      appraisalId: string;
+      title?: string;
+      description?: string;
+      endDate?: string;
+      status?: string;
+    }) => PATCH_appraisal(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appraisalTypes"] });
+      setPatchFormData({
+        title: "",
+        description: "",
+        endDate: "",
+      });
+      toast.success("평가가 수정되었습니다");
+    },
+    onSettled: () => {
+      setPatchFormData({
+        title: "",
+        description: "",
+        endDate: "",
+      });
+      setModalType(null);
+    },
+    onError: () => {
+      toast.error("평가 수정에 실패했습니다");
+    },
+  });
+  const { mutate: postStartAppraisal } = useMutation({
+    mutationFn: (payload: { appraisalId: string; excludedUsers: User[] }) =>
+      POST_startAppraisal(payload),
+    onSuccess: () => toast.success("평가가 시작되었습니다"),
+    onSettled: () => {
+      setExcludedUsers([]);
+      setModalType(null);
+    },
+    onError: () => {
+      toast.error("평가 시작에 실패했습니다");
+    },
+  });
+
+  const handleStartAppraisal = (appraisalId: string) => {
+    const confirm = window.confirm(
+      "인사평가를 실행하시겠습니까? 제외 대상자: " + excludedUsers.length,
+    );
+    if (!confirm) {
+      return;
+    }
+    if (
+      Object.keys(patchFormData).some(
+        (key) => patchFormData[key as keyof typeof patchFormData] !== "",
+      )
+    ) {
+      handleEditAppraisal(appraisalId, "ongoing");
+    }
+
+    postStartAppraisal({ appraisalId, excludedUsers });
+  };
+
+  const handleEditAppraisal = (appraisalId: string, status?: string) => {
+    patchAppraisal({ appraisalId, ...patchFormData, status });
+  };
+
   const handleExcludedUsersChange = useCallback((value: User[]) => {
-    setFormData((prev) => ({
-      ...prev,
-      excludedUsers: value,
-    }));
+    setExcludedUsers(value);
   }, []);
 
   // const filteredAppraisals = appraisals.filter(
@@ -199,7 +280,9 @@ export default function PerformanceAppraisal() {
             직원들의 성과를 평가하고 관리합니다
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog
+          open={modalType === "add"}
+          onOpenChange={(open) => setModalType(open ? "add" : null)}>
           <DialogTrigger asChild>
             <Button className='bg-blue-600 hover:bg-blue-700'>
               <Plus className='w-4 h-4 mr-2' />
@@ -287,12 +370,12 @@ export default function PerformanceAppraisal() {
                 </div>
               </div>
 
-              <div className='space-y-2'>
+              {/* <div className='space-y-2'>
                 <UserMultiSelect
                   value={formData.excludedUsers}
                   onChange={handleExcludedUsersChange}
                 />
-              </div>
+              </div> */}
 
               <div className='space-y-2'>
                 <Label>설명</Label>
@@ -317,9 +400,7 @@ export default function PerformanceAppraisal() {
               </div>
             </div>
             <DialogFooter>
-              <Button
-                variant='outline'
-                onClick={() => setIsAddDialogOpen(false)}>
+              <Button variant='outline' onClick={() => setModalType(null)}>
                 취소
               </Button>
               <Button
@@ -351,64 +432,153 @@ export default function PerformanceAppraisal() {
 
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
         {appraisalTypes &&
-          appraisalTypes?.map(
-            (appraisal: {
-              title: string;
-              appraisalType: string;
-              description: string;
-              count: number;
-              endDate: string;
-            }) => (
-              <Card
-                key={appraisal.appraisalType}
-                className='hover:shadow-lg transition-shadow'>
-                <CardHeader>
-                  <div className='flex items-start justify-between'>
-                    <CardTitle className='text-lg'>{appraisal.title}</CardTitle>
+          appraisalTypes?.map((appraisal: Appraisal) => (
+            <Card
+              key={appraisal.appraisalId}
+              className='hover:shadow-lg transition-shadow'>
+              <CardHeader>
+                <div className='flex items-start justify-between'>
+                  <CardTitle className='text-lg flex items-center gap-2'>
+                    {appraisal.title}
+                  </CardTitle>
+                  <Badge
+                    variant={
+                      appraisal.status === "ongoing" ? "default" : "secondary"
+                    }
+                    className={
+                      appraisal.status !== "ongoing"
+                        ? "bg-green-100 text-green-700 hover:bg-green-100"
+                        : ""
+                    }>
+                    {appraisal.status !== "ongoing" ? "진행중" : "완료"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <div className='space-y-2'>
+                  <div className='flex items-center gap-2 text-sm text-gray-600'>
+                    <Code className='w-4 h-4' />
+                    <span>{appraisal.appraisalType}</span>
                   </div>
-                </CardHeader>
-                <CardContent className='space-y-4'>
-                  <div className='space-y-2'>
-                    <div className='flex items-center gap-2 text-sm text-gray-600'>
-                      <Code className='w-4 h-4' />
-                      <span>{appraisal.appraisalType}</span>
-                    </div>
-                    <div className='flex items-center gap-2 text-sm text-gray-600'>
-                      <Book className='w-4 h-4' />
-                      <span>{appraisal.description}</span>
-                    </div>
-                    <div className='flex items-center gap-2 text-sm text-gray-600'>
+                  <div className='flex items-center gap-2 text-sm text-gray-600'>
+                    <Book className='w-4 h-4' />
+                    <span>{appraisal.description}</span>
+                  </div>
+                  {/* <div className='flex items-center gap-2 text-sm text-gray-600'>
                       <User className='w-4 h-4' />
                       <span>{appraisal.count}</span>
-                    </div>
-                    <div className='flex items-center gap-2 text-sm text-gray-600'>
-                      <Calendar className='w-4 h-4' />
-                      <span>
-                        마감:
-                        {Intl.DateTimeFormat("ko-KR").format(
-                          new Date(appraisal.endDate),
-                        )}
-                      </span>
-                    </div>
+                    </div> */}
+                  <div className='flex items-center gap-2 text-sm text-gray-600'>
+                    <Calendar className='w-4 h-4' />
+                    <span>
+                      마감:
+                      {Intl.DateTimeFormat("ko-KR").format(
+                        new Date(appraisal.endDate),
+                      )}
+                    </span>
                   </div>
+                </div>
+                <div className='flex flex-col gap-2 text-sm text-gray-600'>
+                  <Progress
+                    value={
+                      (appraisal.submittedCount / appraisal.totalCount) * 100 ||
+                      0
+                    }
+                  />
+                  <p className='flex items-center gap-2'>
+                    <User className='w-4 h-4' />
+                    {appraisal.submittedCount} / {appraisal.totalCount}
+                  </p>
+                </div>
 
-                  <div className='flex gap-2'>
-                    <Button
-                      variant='outline'
-                      className='flex-1'
-                      onClick={() => {
-                        navigate(
-                          `/performance-appraisal/${appraisal.appraisalType}`,
-                        );
-                      }}>
-                      <Eye className='w-4 h-4 mr-2' />
-                      상세보기
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ),
-          )}
+                <div className='flex gap-2'>
+                  <Button
+                    variant='outline'
+                    className='flex-1'
+                    onClick={() => {
+                      navigate(
+                        `/performance-appraisal/${appraisal.appraisalId}`,
+                      );
+                    }}>
+                    <Eye className='w-4 h-4 mr-2' />
+                    상세보기
+                  </Button>
+
+                  <Dialog
+                    open={modalType === "user-select"}
+                    onOpenChange={(open) =>
+                      setModalType(open ? "user-select" : null)
+                    }>
+                    <DialogTrigger asChild>
+                      {appraisal.status === "ongoing" ? (
+                        <Button
+                          variant='outline'
+                          disabled
+                          className='bg-green-600 hover:bg-green-700 text-white hover:text-white disabled:opacity-100 disabled:cursor-not-allowed'>
+                          <Check className='w-4 h-4 mr-2' />
+                          진행중
+                        </Button>
+                      ) : (
+                        <Button
+                          variant='outline'
+                          className='bg-blue-600 hover:bg-blue-700 text-white hover:text-white'>
+                          <Rocket className='w-4 h-4 mr-2' />
+                          인사평가 실행
+                        </Button>
+                      )}
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>제외 대상자 선택</DialogTitle>
+                      </DialogHeader>
+                      <div className='space-y-2'>
+                        <Label>{appraisal.title} 평가 실행</Label>
+                      </div>
+                      <div className='space-y-2'>
+                        <Label>마감일</Label>
+                        <p>form: {patchFormData.endDate}</p>
+                        <p>api: {appraisal.endDate}</p>
+                        <Input
+                          type='date'
+                          value={
+                            patchFormData.endDate ||
+                            new Date(appraisal.endDate)
+                              .toISOString()
+                              .split("T")[0]
+                          }
+                          onChange={(e) => {
+                            setPatchFormData({
+                              ...patchFormData,
+                              endDate: e.target.value,
+                            });
+                          }}
+                        />
+                      </div>
+                      <UserMultiSelect
+                        value={excludedUsers}
+                        onChange={handleExcludedUsersChange}
+                      />
+                      <DialogFooter>
+                        <Button
+                          variant='outline'
+                          onClick={() => setModalType(null)}>
+                          취소
+                        </Button>
+                        <Button
+                          variant='outline'
+                          className='bg-blue-600 hover:bg-blue-700 text-white'
+                          onClick={() =>
+                            handleStartAppraisal(appraisal.appraisalId)
+                          }>
+                          인사평가 실행
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
       </div>
     </div>
   );

@@ -28,12 +28,16 @@ interface User {
 }
 
 interface Appraisal {
-  id: string;
+  appraisalId: string;
   title: string;
+  appraisalType: string;
   targetUser: string;
   description: string;
   endDate: string;
-  excludedUsers: User[];
+  status: "ongoing" | "finished" | "draft";
+  submittedCount: number;
+  totalCount: number;
+  // excludedUsers: User[];
 }
 
 interface Goal {

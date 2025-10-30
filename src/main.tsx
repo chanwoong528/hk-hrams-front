@@ -40,7 +40,7 @@ const router = createBrowserRouter([
         element: <PerformanceAppraisal />,
       },
       {
-        path: "performance-appraisal/:appraisalType",
+        path: "performance-appraisal/:appraisalId",
         element: <AppraisalDetail />,
       },
       {

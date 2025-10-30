@@ -95,15 +95,15 @@ import { Badge } from "@/components/ui/badge";
 export const columns: ColumnDef<any>[] = [
   {
     accessorKey: "assessTarget",
-    header: () => <div className='text-center'>대살자</div>,
+    header: () => <div className='text-left pl-2'>대상자</div>,
     cell: ({ row }) => {
       return (
-        <div className='flex items-center gap-2'>
+        <div className='flex items-center gap-2 pl-2'>
           <div className='w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600'>
-            {(row.getValue("assessTarget") as User).koreanName.charAt(0)}
+            {row.original.owner?.koreanName.charAt(0)}
           </div>
-          <span className='text-gray-900'>
-            {(row.getValue("assessTarget") as User).koreanName}
+          <span className='text-gray-900 text-center'>
+            {row.original.owner?.koreanName}
           </span>
         </div>
       );
@@ -114,36 +114,45 @@ export const columns: ColumnDef<any>[] = [
     header: () => <div className='text-center'>Department</div>,
     cell: ({ row }) => {
       return (
-        <div className='text-right font-medium'>
-          {(row.getValue("assessTarget") as User).departments.map(
-            (department) => (
-              <Badge key={department.departmentId}>
-                {department.departmentName}
-              </Badge>
-            ),
-          )}
+        <div className='text-center font-medium flex gap-2 justify-center'>
+          {row.original.departments?.map((department: Department) => (
+            <Badge key={department.departmentId}>
+              {department.departmentName}
+            </Badge>
+          ))}
         </div>
       );
     },
   },
-  {
-    accessorKey: "title",
-    header: () => <div className='text-center'>Title</div>,
-    cell: ({ row }) => {
-      return (
-        <div className='text-right font-medium'>
-          {row.getValue("title") as string}
-        </div>
-      );
-    },
-  },
+  // {
+  //   accessorKey: "title",
+  //   header: () => <div className='text-center'>Title</div>,
+  //   cell: ({ row }) => {
+  //     return (
+  //       <div className='text-right font-medium'>
+  //         {row.getValue("title") as string}
+  //       </div>
+  //     );
+  //   },
+  // },
   {
     accessorKey: "endDate",
-    header: () => <div className='text-right'>End Date</div>,
+    header: () => <div className='text-center'>End Date</div>,
     cell: ({ row }) => {
       return (
-        <div className='text-right font-medium'>
-          {row.getValue("endDate") as string}
+        <div className='text-center font-medium'>
+          {row.original.appraisal.endDate}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "status",
+    header: () => <div className='text-right pr-2'>Status</div>,
+    cell: ({ row }) => {
+      return (
+        <div className='text-right font-medium pr-2'>
+          {row.original.status ?? "진행중"}
         </div>
       );
     },

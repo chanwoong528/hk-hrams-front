@@ -1,27 +1,27 @@
-import { GET_appraisalDetail } from "@/api/appraisal/appraisal";
+import { GET_appraisalDetailByAppraisalId } from "@/api/appraisal/appraisal";
 import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 import { useParams } from "react-router";
 import { useDebounce } from "@uidotdev/usehooks";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableHead,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import { DataTable } from "./widget/Datatable";
-import type { ColumnDef } from "@tanstack/react-table";
+// import {
+//   Table,
+//   TableHeader,
+//   TableBody,
+//   TableRow,
+//   TableCell,
+//   TableHead,
+// } from "@/components/ui/table";
+// import { Badge } from "@/components/ui/badge";
+// import { Button } from "@/components/ui/button";
+// import { Eye } from "lucide-react";
+// import { Progress } from "@/components/ui/progress";
+import { DataTable } from "./widget/DataTable";
+// import type { ColumnDef } from "@tanstack/react-table";
 import { columns } from "./widget/Column";
 
 export default function AppraisalDetail() {
-  const { appraisalType } = useParams();
+  const { appraisalId } = useParams();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 1500);
 
@@ -34,14 +34,14 @@ export default function AppraisalDetail() {
     useQuery({
       queryKey: [
         "appraisalDetail",
-        appraisalType,
+        appraisalId,
         debouncedSearchQuery,
         pageInfo.page,
         pageInfo.limit,
       ],
       queryFn: () =>
-        GET_appraisalDetail(
-          appraisalType as string,
+        GET_appraisalDetailByAppraisalId(
+          appraisalId as string,
           pageInfo.page,
           pageInfo.limit,
           debouncedSearchQuery,
@@ -49,22 +49,22 @@ export default function AppraisalDetail() {
       select: (data) => {
         return data.data;
       },
-      enabled: !!appraisalType,
+      enabled: !!appraisalId,
     });
 
-  console.log("@@@@@@@@@@@ appraisalDetail>> ", appraisalType, appraisalDetail);
+  console.log("@@@@@@@@@@@ appraisalDetail>> ", appraisalId, appraisalDetail);
   if (isLoadingAppraisalDetail) return <div>Loading...</div>;
 
   return (
     <div>
-      AppraisalDetailaaaaaa {appraisalType}
+      AppraisalDetailaaaaaa {appraisalId}
       <Card>
         <CardHeader>
           <CardTitle>평가 대상자 목록 ({appraisalDetail?.total}명)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className='overflow-x-auto'>
-            <DataTable columns={columns} data={appraisalDetail?.list} />
+            <DataTable columns={columns} data={appraisalDetail?.list || []} />
             {/* <Table>
               <TableHeader>
                 <TableRow>
