@@ -5,14 +5,16 @@ import { createBrowserRouter } from "react-router";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import RootLayout from "./routes/RootLayout";
-import Dashboard from "./pages/Dashboard";
-import DepartmentManagement from "./pages/DepartmentManagement/DepartmentManagement";
-import GoalManagement from "./pages/GoalManagement";
-import PerformanceAppraisal from "./pages/PerformanceAppraisal/PerformanceAppraisal";
-import AppraisalDetail from "./pages/PerformanceAppraisal/AppraisalDetail/AppraisalDetail";
+import RootLayout from "@/components/layout/RootLayout";
+import AuthenticatedLayout from "@/components/layout/AuthenticatedLayout";
 
-import UserManagement from "./pages/UserManagement/UserManagement";
+import Dashboard from "@/pages/Dashboard";
+import DepartmentManagement from "@/pages/DepartmentManagement/DepartmentManagement";
+import GoalManagement from "@/pages/GoalManagement";
+import PerformanceAppraisal from "@/pages/PerformanceAppraisal/PerformanceAppraisal";
+import AppraisalDetail from "@/pages/PerformanceAppraisal/AppraisalDetail/AppraisalDetail";
+import UserManagement from "@/pages/UserManagement/UserManagement";
+import Login from "@/pages/Login/Login";
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -24,31 +26,78 @@ const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       {
-        index: true,
-        element: <Dashboard />,
+        path: "/login",
+        element: <Login />,
       },
       {
-        path: "department-management",
-        element: <DepartmentManagement />,
-      },
-      {
-        path: "goal-management",
-        element: <GoalManagement />,
-      },
-      {
-        path: "performance-appraisal",
-        element: <PerformanceAppraisal />,
-      },
-      {
-        path: "performance-appraisal/:appraisalId",
-        element: <AppraisalDetail />,
-      },
-      {
-        path: "user-management",
-        element: <UserManagement />,
+        path: "",
+        element: <AuthenticatedLayout />,
+        children: [
+          {
+            index: true,
+            element: <Dashboard />,
+          },
+          {
+            path: "login",
+          },
+          {
+            path: "department-management",
+            element: <DepartmentManagement />,
+          },
+          {
+            path: "goal-management",
+            element: <GoalManagement />,
+          },
+          {
+            path: "performance-appraisal",
+            element: <PerformanceAppraisal />,
+          },
+          {
+            path: "performance-appraisal/:appraisalId",
+            element: <AppraisalDetail />,
+          },
+          {
+            path: "user-management",
+            element: <UserManagement />,
+          },
+        ],
       },
     ],
   },
+
+  // {
+  //   path: "/",
+  //   element: <AuthenticatedLayout />,
+  //   children: [
+  //     {
+  //       index: true,
+  //       element: <Dashboard />,
+  //     },
+  //     {
+  //       path: "login",
+  //     },
+  //     {
+  //       path: "department-management",
+  //       element: <DepartmentManagement />,
+  //     },
+  //     {
+  //       path: "goal-management",
+  //       element: <GoalManagement />,
+  //     },
+  //     {
+  //       path: "performance-appraisal",
+  //       element: <PerformanceAppraisal />,
+  //     },
+  //     {
+  //       path: "performance-appraisal/:appraisalId",
+  //       element: <AppraisalDetail />,
+  //     },
+  //     {
+  //       path: "user-management",
+  //       element: <UserManagement />,
+  //     },
+  //   ],
+  // },
 ]);
 const queryClient = new QueryClient();
 

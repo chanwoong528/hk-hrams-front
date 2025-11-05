@@ -19,6 +19,9 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DataTable } from "./widget/DataTable";
 // import type { ColumnDef } from "@tanstack/react-table";
 import { columns } from "./widget/Column";
+import { Search, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function AppraisalDetail() {
   const { appraisalId } = useParams();
@@ -64,6 +67,27 @@ export default function AppraisalDetail() {
         </CardHeader>
         <CardContent>
           <div className='overflow-x-auto'>
+            {/* Search and Filter */}
+            <Card>
+              <CardContent className='p-4'>
+                <div className='flex flex-col sm:flex-row gap-3'>
+                  <div className='relative flex-1'>
+                    <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400' />
+                    <Input
+                      placeholder='이름, 이메일, 부서로 검색...'
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className='pl-9'
+                    />
+                  </div>
+                  <Button variant='outline'>
+                    <Filter className='w-4 h-4 mr-2' />
+                    필터
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <DataTable columns={columns} data={appraisalDetail?.list || []} />
             {/* <Table>
               <TableHeader>

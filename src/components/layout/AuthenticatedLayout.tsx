@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useState } from "react";
 
-export default function RootLayout() {
+export default function AuthenticatedLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className='flex h-screen bg-gray-50'>

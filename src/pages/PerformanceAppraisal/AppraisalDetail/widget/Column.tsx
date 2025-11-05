@@ -92,10 +92,20 @@ import { Badge } from "@/components/ui/badge";
 //   },
 // ];
 
-export const columns: ColumnDef<any>[] = [
+interface DetailColumn {
+  assessTarget: string;
+  department: string;
+  endDate: string;
+  status: string;
+  appraisal: Appraisal;
+  owner: User;
+  departments: Department[];
+}
+
+export const columns: ColumnDef<DetailColumn>[] = [
   {
     accessorKey: "assessTarget",
-    header: () => <div className='text-left pl-2'>대상자</div>,
+    header: () => <p className='text-left pl-2'>대상자</p>,
     cell: ({ row }) => {
       return (
         <div className='flex items-center gap-2 pl-2'>
@@ -111,7 +121,7 @@ export const columns: ColumnDef<any>[] = [
   },
   {
     accessorKey: "department",
-    header: () => <div className='text-center'>Department</div>,
+    header: () => <p className='text-center'>Department</p>,
     cell: ({ row }) => {
       return (
         <div className='text-center font-medium flex gap-2 justify-center'>
@@ -137,7 +147,7 @@ export const columns: ColumnDef<any>[] = [
   // },
   {
     accessorKey: "endDate",
-    header: () => <div className='text-center'>End Date</div>,
+    header: () => <p className='text-center'>End Date</p>,
     cell: ({ row }) => {
       return (
         <div className='text-center font-medium'>
@@ -148,7 +158,7 @@ export const columns: ColumnDef<any>[] = [
   },
   {
     accessorKey: "status",
-    header: () => <div className='text-right pr-2'>Status</div>,
+    header: () => <p className='text-right pr-2'>Status</p>,
     cell: ({ row }) => {
       return (
         <div className='text-right font-medium pr-2'>

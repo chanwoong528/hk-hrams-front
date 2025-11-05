@@ -58,3 +58,8 @@ interface Assessment {
   assessor: string;
   date: string;
 }
+
+interface SignInPayload {
+  email: string;
+  pw: string;
+}
