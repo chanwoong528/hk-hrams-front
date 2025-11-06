@@ -40,12 +40,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import DepartmentSelect from "./widget/DepartmentSelect";
 import { symmetricDiffBy } from "@/utils";
 import { useDebounce } from "@uidotdev/usehooks";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-} from "@/components/ui/pagination";
+
+import { TablePagination } from "../PerformanceAppraisal/AppraisalDetail/widget/TablePagination";
 
 export default function UserManagement() {
   const queryClient = useQueryClient();
@@ -140,6 +136,10 @@ export default function UserManagement() {
       email: formData.email,
       departments: formData.departments,
     });
+  };
+
+  const handlePageChange = (page: number) => {
+    setPageInfo({ ...pageInfo, page });
   };
 
   const handleEditUser = (user: User) => {
@@ -355,8 +355,14 @@ export default function UserManagement() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              total={usersData?.total ?? 0}
+              page={pageInfo.page}
+              limit={pageInfo.limit}
+              onPageChange={handlePageChange}
+            />
           </div>
-          <Pagination>
+          {/* <Pagination>
             <PaginationContent>
               {Array.from({
                 length: Math.ceil((usersData?.total ?? 0) / pageInfo.limit),
@@ -372,7 +378,7 @@ export default function UserManagement() {
                 </PaginationItem>
               ))}
             </PaginationContent>
-          </Pagination>
+          </Pagination> */}
         </CardContent>
       </Card>
 

@@ -63,3 +63,16 @@ interface SignInPayload {
   email: string;
   pw: string;
 }
+
+interface MyAppraisal {
+  appraisalId: string;
+  appraisalType: string;
+  title: string;
+  description: string;
+  endDate: string;
+  status: "ongoing" | "finished" | "draft";
+  created: string;
+  updated: string;
+  totalCount: number;
+  submittedCount: number;
+}

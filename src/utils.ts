@@ -30,7 +30,16 @@ export const navigation = [
     name: "성과 평가",
     icon: ClipboardCheck,
     path: "/performance-appraisal",
+    children: [],
   },
+  {
+    id: "appraisal-detail" as Page,
+    name: "성과 평가 상세",
+    icon: ClipboardCheck,
+    path: "/performance-appraisal/:appraisalId",
+    detailPage: true,
+  },
+
   {
     id: "goals" as Page,
     name: "목표 관리",

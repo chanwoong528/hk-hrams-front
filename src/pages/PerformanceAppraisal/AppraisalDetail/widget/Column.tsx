@@ -1,6 +1,15 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-
+import { Button } from "@/components/ui/button";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 // const columns: ColumnDef<AppraisalTarget>[] = [
 //   {
 //     accessorKey: "targetUser",
@@ -93,8 +102,7 @@ import { Badge } from "@/components/ui/badge";
 // ];
 
 interface DetailColumn {
-  assessTarget: string;
-  department: string;
+  appraisalUserId: string;
   endDate: string;
   status: string;
   appraisal: Appraisal;
@@ -102,34 +110,70 @@ interface DetailColumn {
   departments: Department[];
 }
 
-export const columns: ColumnDef<DetailColumn>[] = [
+export type SortConfig = {
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  onSortChange: (sortBy: string, sortOrder: "asc" | "desc") => void;
+};
+
+export const getColumns = (
+  sortConfig: SortConfig,
+): ColumnDef<DetailColumn>[] => [
   {
-    accessorKey: "assessTarget",
-    header: () => <p className='text-left pl-2'>대상자</p>,
+    id: "appraisalUserId",
+    accessorKey: "appraisalUserId",
+  },
+  {
+    accessorKey: "owner",
+    id: "owner",
+    header: () => (
+      <Button
+        variant='ghost'
+        onClick={() => {
+          const newOrder =
+            sortConfig.sortBy === "owner" && sortConfig.sortOrder === "asc"
+              ? "desc"
+              : "asc";
+          sortConfig.onSortChange("owner", newOrder);
+        }}>
+        대상자
+        <ArrowUpDown
+          className={`ml-2 h-4 w-4 ${
+            sortConfig.sortBy === "owner" ? "text-primary" : "text-gray-400"
+          }`}
+        />
+      </Button>
+    ),
     cell: ({ row }) => {
       return (
         <div className='flex items-center gap-2 pl-2'>
           <div className='w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600'>
-            {row.original.owner?.koreanName.charAt(0)}
+            {(row.getValue("owner") as User)?.koreanName.charAt(0)}
           </div>
           <span className='text-gray-900 text-center'>
-            {row.original.owner?.koreanName}
+            {(row.getValue("owner") as User)?.koreanName}
           </span>
         </div>
       );
     },
   },
   {
-    accessorKey: "department",
+    accessorKey: "departments",
     header: () => <p className='text-center'>Department</p>,
     cell: ({ row }) => {
       return (
         <div className='text-center font-medium flex gap-2 justify-center'>
-          {row.original.departments?.map((department: Department) => (
-            <Badge key={department.departmentId}>
-              {department.departmentName}
-            </Badge>
-          ))}
+          {(row.getValue("departments") as Department[])?.length > 0 ? (
+            (row.getValue("departments") as Department[])?.map(
+              (department: Department) => (
+                <Badge key={department.departmentId}>
+                  {department.departmentName}
+                </Badge>
+              ),
+            )
+          ) : (
+            <span className='text-gray-400'>No departments</span>
+          )}
         </div>
       );
     },
@@ -146,12 +190,12 @@ export const columns: ColumnDef<DetailColumn>[] = [
   //   },
   // },
   {
-    accessorKey: "endDate",
+    accessorKey: "appraisal",
     header: () => <p className='text-center'>End Date</p>,
     cell: ({ row }) => {
       return (
         <div className='text-center font-medium'>
-          {row.original.appraisal.endDate}
+          {(row.getValue("appraisal") as Appraisal)?.endDate}
         </div>
       );
     },
@@ -162,8 +206,38 @@ export const columns: ColumnDef<DetailColumn>[] = [
     cell: ({ row }) => {
       return (
         <div className='text-right font-medium pr-2'>
-          {row.original.status ?? "진행중"}
+          {(row.getValue("status") as string) ?? "진행중"}
         </div>
+      );
+    },
+  },
+  {
+    id: "actions",
+    enableHiding: false,
+    cell: ({ row }) => {
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant='ghost' className='h-8 w-8 p-0'>
+              <span className='sr-only'>Open menu</span>
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align='end'>
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() =>
+                navigator.clipboard.writeText(
+                  row.getValue("appraisalUserId") as string,
+                )
+              }>
+              Copy payment ID
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>View customer</DropdownMenuItem>
+            <DropdownMenuItem>View payment details</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       );
     },
   },

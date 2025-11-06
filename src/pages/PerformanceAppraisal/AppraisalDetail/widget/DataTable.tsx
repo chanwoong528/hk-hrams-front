@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   type ColumnDef,
   flexRender,
@@ -19,16 +20,26 @@ import {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  onClickRow: (appraisalUserId: string) => void;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  onClickRow,
 }: DataTableProps<TData, TValue>) {
+  const memoizedData = useMemo(() => data, [data]);
+  const memoizedColumns = useMemo(() => columns, [columns]);
+
   const table = useReactTable({
-    data,
-    columns,
+    data: memoizedData,
+    columns: memoizedColumns,
     getCoreRowModel: getCoreRowModel(),
+    initialState: {
+      columnVisibility: {
+        appraisalUserId: false,
+      },
+    },
   });
 
   return (
@@ -57,7 +68,8 @@ export function DataTable<TData, TValue>({
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                data-state={row.getIsSelected() && "selected"}>
+                data-state={row.getIsSelected() && "selected"}
+                onClick={() => onClickRow(row.getValue("appraisalUserId"))}>
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

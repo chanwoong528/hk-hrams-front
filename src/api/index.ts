@@ -20,6 +20,7 @@ http.interceptors.request.use((config) => {
   }
   return config;
 });
+
 function shouldRefresh(response: XiorResponse) {
   const token = useCurrentUserStore.getState().accessToken;
   return Boolean(
@@ -31,15 +32,17 @@ function shouldRefresh(response: XiorResponse) {
 
 http.plugins.use(
   errorRetry({
-    enableRetry: (config, error) => {
+    retryTimes: 1,
+    retryInterval: 100,
+    enableRetry: (_, error) => {
       if (error?.response && shouldRefresh(error.response)) {
-        console.log("#########################", error.response);
         return true;
       }
-      // return false
+      // return false;
     },
   }),
 );
+
 setupTokenRefresh(http, {
   shouldRefresh,
   async refreshToken(error) {
@@ -54,7 +57,9 @@ setupTokenRefresh(http, {
         throw error;
       }
     } catch (error) {
-      // useCurrentUserStore.getState().setAccessToken("");
+      useCurrentUserStore.getState().clearAccessToken();
+      useCurrentUserStore.getState().clearRefreshToken();
+      toast.error("토큰 갱신 실패");
       return Promise.reject(error);
     }
   },

@@ -10,11 +10,12 @@ import AuthenticatedLayout from "@/components/layout/AuthenticatedLayout";
 
 import Dashboard from "@/pages/Dashboard";
 import DepartmentManagement from "@/pages/DepartmentManagement/DepartmentManagement";
-import GoalManagement from "@/pages/GoalManagement";
+import GoalManagement from "@/pages/GoalManagement/GoalManagement";
 import PerformanceAppraisal from "@/pages/PerformanceAppraisal/PerformanceAppraisal";
 import AppraisalDetail from "@/pages/PerformanceAppraisal/AppraisalDetail/AppraisalDetail";
 import UserManagement from "@/pages/UserManagement/UserManagement";
 import Login from "@/pages/Login/Login";
+import GoalDetail from "@/pages/GoalManagement/GoalDetail/GoalDetail";
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -38,15 +39,16 @@ const router = createBrowserRouter([
             element: <Dashboard />,
           },
           {
-            path: "login",
-          },
-          {
             path: "department-management",
             element: <DepartmentManagement />,
           },
           {
             path: "goal-management",
             element: <GoalManagement />,
+          },
+          {
+            path: "goal-management/:appraisalId",
+            element: <GoalDetail />,
           },
           {
             path: "performance-appraisal",
@@ -100,6 +102,8 @@ const router = createBrowserRouter([
   // },
 ]);
 const queryClient = new QueryClient();
+
+// queryClient.setDefaultOptions();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

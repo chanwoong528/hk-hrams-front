@@ -49,11 +49,14 @@ export const PATCH_appraisal = async (payload: {
   );
   return response.data;
 };
-export const GET_appraisalsByDistinctType = async (keyword?: string) => {
+export const GET_appraisalsByDistinctType = async (
+  type: string,
+  keyword?: string,
+) => {
   // console.log("@@@@@@@@@@@@@@@ keyword>> ", keyword);
   const response = await http.get("/appraisal", {
     params: {
-      type: "distinct",
+      type: type ? type : "distinct",
       ...(keyword && { keyword }),
     },
   });
@@ -81,13 +84,21 @@ export const GET_appraisalDetailByAppraisalId = async (
   page: number = 1,
   limit: number = 10,
   keyword?: string,
+  sortBy?: string,
+  sortOrder?: "asc" | "desc",
 ) => {
   const response = await http.get(`/appraisal-user/${appraisalId}`, {
     params: {
       page,
       limit,
       ...(keyword && { keyword }),
+      ...(sortBy && sortOrder && { sortBy, sortOrder }),
     },
   });
   return response.data;
 };
+
+// export const GET_myAppraisals = async () => {
+//   const response = await http.get(`/appraisal/my-appraisal`);
+//   return response.data;
+// };

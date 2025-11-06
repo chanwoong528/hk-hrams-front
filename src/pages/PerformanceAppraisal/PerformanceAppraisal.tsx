@@ -122,7 +122,7 @@ export default function PerformanceAppraisal() {
   const { data: appraisalTypes, isLoading: isLoadingAppraisalTypes } = useQuery(
     {
       queryKey: ["appraisalTypes", debouncedSearchQuery],
-      queryFn: () => GET_appraisalsByDistinctType(debouncedSearchQuery),
+      queryFn: () => GET_appraisalsByDistinctType("", debouncedSearchQuery),
       select: (data) => {
         return data.data;
       },
@@ -216,58 +216,10 @@ export default function PerformanceAppraisal() {
     setExcludedUsers(value);
   }, []);
 
-  // const filteredAppraisals = appraisals.filter(
-  //   (a) =>
-  //     a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //     a.targetUser.toLowerCase().includes(searchQuery.toLowerCase()),
-  // );
-
-  // const getStatusColor = (status: string) => {
-  //   switch (status) {
-  //     case "completed":
-  //       return "bg-green-100 text-green-700";
-  //     case "in-progress":
-  //       return "bg-blue-100 text-blue-700";
-  //     case "draft":
-  //       return "bg-gray-100 text-gray-700";
-  //     default:
-  //       return "bg-gray-100 text-gray-700";
-  //   }
-  // };
-
-  // const getStatusText = (status: string) => {
-  //   switch (status) {
-  //     case "completed":
-  //       return "완료";
-  //     case "in-progress":
-  //       return "진행 중";
-  //     case "draft":
-  //       return "임시저장";
-  //     default:
-  //       return status;
-  //   }
-  // };
-
-  // const getGradeBadgeColor = (grade: string) => {
-  //   switch (grade) {
-  //     case "S":
-  //       return "bg-green-100 text-green-700";
-  //     case "A":
-  //       return "bg-blue-100 text-blue-700";
-  //     case "B":
-  //       return "bg-orange-100 text-orange-700";
-  //     case "C":
-  //       return "bg-red-100 text-red-700";
-  //     default:
-  //       return "bg-gray-100 text-gray-700";
-  //   }
-  // };
-
   const handleAddAppraisal = () => {
     postAppraisal(formData);
   };
 
-  console.log("@@@@@@@@@@@ ", appraisalTypes);
   if (isLoadingAppraisalTypes) return <div>Loading...</div>;
 
   return (

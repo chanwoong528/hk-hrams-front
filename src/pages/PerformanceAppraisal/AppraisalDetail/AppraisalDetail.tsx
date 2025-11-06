@@ -1,27 +1,20 @@
-import { GET_appraisalDetailByAppraisalId } from "@/api/appraisal/appraisal";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import React, { useState } from "react";
 import { useParams } from "react-router";
+
 import { useDebounce } from "@uidotdev/usehooks";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-// import {
-//   Table,
-//   TableHeader,
-//   TableBody,
-//   TableRow,
-//   TableCell,
-//   TableHead,
-// } from "@/components/ui/table";
-// import { Badge } from "@/components/ui/badge";
-// import { Button } from "@/components/ui/button";
-// import { Eye } from "lucide-react";
-// import { Progress } from "@/components/ui/progress";
-import { DataTable } from "./widget/DataTable";
-// import type { ColumnDef } from "@tanstack/react-table";
-import { columns } from "./widget/Column";
-import { Search, Filter } from "lucide-react";
+
+import { Search } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+
+import { GET_appraisalDetailByAppraisalId } from "@/api/appraisal/appraisal";
+
+import { DataTable } from "./widget/DataTable";
+import { getColumns } from "./widget/Column";
+import { TablePagination } from "./widget/TablePagination";
 
 export default function AppraisalDetail() {
   const { appraisalId } = useParams();
@@ -33,6 +26,29 @@ export default function AppraisalDetail() {
     limit: 10,
   });
 
+  const [sortInfo, setSortInfo] = useState<{
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+  }>({
+    sortBy: undefined,
+    sortOrder: undefined,
+  });
+
+  const handlePageChange = (page: number) => {
+    setPageInfo((prev) => ({ ...prev, page }));
+  };
+
+  const handleSortChange = (sortBy: string, sortOrder: "asc" | "desc") => {
+    setSortInfo({ sortBy, sortOrder });
+    setPageInfo((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const columns = getColumns({
+    sortBy: sortInfo.sortBy,
+    sortOrder: sortInfo.sortOrder,
+    onSortChange: handleSortChange,
+  });
+
   const { data: appraisalDetail, isLoading: isLoadingAppraisalDetail } =
     useQuery({
       queryKey: [
@@ -41,6 +57,8 @@ export default function AppraisalDetail() {
         debouncedSearchQuery,
         pageInfo.page,
         pageInfo.limit,
+        sortInfo.sortBy,
+        sortInfo.sortOrder,
       ],
       queryFn: () =>
         GET_appraisalDetailByAppraisalId(
@@ -48,19 +66,51 @@ export default function AppraisalDetail() {
           pageInfo.page,
           pageInfo.limit,
           debouncedSearchQuery,
+          sortInfo.sortBy,
+          sortInfo.sortOrder,
         ),
-      select: (data) => {
-        return data.data;
-      },
+      select: (data) => data.data,
       enabled: !!appraisalId,
     });
 
-  console.log("@@@@@@@@@@@ appraisalDetail>> ", appraisalId, appraisalDetail);
-  if (isLoadingAppraisalDetail) return <div>Loading...</div>;
+  if (isLoadingAppraisalDetail && !appraisalDetail)
+    return <div>Loading...</div>;
+
+  const handleRowClick = (appraisalUserId: string) => {
+    console.log(" appraisalUserId>> ", appraisalUserId);
+  };
 
   return (
-    <div>
-      AppraisalDetailaaaaaa {appraisalId}
+    <div className='p-4 lg:p-6 space-y-6'>
+      <div className='flex flex-col sm:flex-row gap-4 justify-between'>
+        <div>
+          <h2 className='text-gray-900'>성과 평가</h2>
+          <p className='text-gray-600 mt-1'>
+            직원들의 성과를 평가하고 관리합니다
+          </p>
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className='p-4'>
+          <div className='flex flex-col sm:flex-row gap-3'>
+            <div className='relative flex-1'>
+              <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400' />
+              <Input
+                placeholder='이름, 이메일, 부서로 검색...'
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className='pl-9'
+              />
+            </div>
+            {/* <Button variant='outline'>
+              <Filter className='w-4 h-4 mr-2' />
+              필터
+            </Button> */}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>평가 대상자 목록 ({appraisalDetail?.total}명)</CardTitle>
@@ -68,64 +118,20 @@ export default function AppraisalDetail() {
         <CardContent>
           <div className='overflow-x-auto'>
             {/* Search and Filter */}
-            <Card>
-              <CardContent className='p-4'>
-                <div className='flex flex-col sm:flex-row gap-3'>
-                  <div className='relative flex-1'>
-                    <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400' />
-                    <Input
-                      placeholder='이름, 이메일, 부서로 검색...'
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className='pl-9'
-                    />
-                  </div>
-                  <Button variant='outline'>
-                    <Filter className='w-4 h-4 mr-2' />
-                    필터
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
-            <DataTable columns={columns} data={appraisalDetail?.list || []} />
-            {/* <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>대상자</TableHead>
-                  <TableHead>부서</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead>진행률</TableHead>
-                  <TableHead className='text-right'>작업</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {appraisalDetail?.list?.map(
-                  (target: {
-                    appraisalId: string;
-                    appraisalType: string;
-                    title: string;
-                    description: string;
-                    endDate: string;
-                    created: string;
-                    updated: string;
-                    goals: [];
-                    appraisalBy: [];
-                    assessTarget: {
-                      userId: string;
-                      koreanName: string;
-                      email: string;
-                      lv: string;
-                      userStatus: string;
-                      created: string;
-                      updated: string;
-                    };
-                  }) => (
-                    <></>
-                  ),
-                )}
-              </TableBody>
-            </Table> */}
+            <DataTable
+              key={`${pageInfo.page}-${pageInfo.limit}-${debouncedSearchQuery}-${sortInfo.sortBy}-${sortInfo.sortOrder}`}
+              columns={columns}
+              data={appraisalDetail?.list ?? []}
+              onClickRow={handleRowClick}
+            />
+
+            <TablePagination
+              total={appraisalDetail?.total ?? 0}
+              page={pageInfo.page}
+              limit={pageInfo.limit}
+              onPageChange={handlePageChange}
+            />
           </div>
         </CardContent>
       </Card>
