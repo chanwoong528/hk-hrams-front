@@ -75,4 +75,5 @@ interface MyAppraisal {
   updated: string;
   totalCount: number;
   submittedCount: number;
+  goals: Goal[];
 }

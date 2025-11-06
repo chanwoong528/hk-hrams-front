@@ -37,6 +37,8 @@ export const PATCH_appraisal = async (payload: {
   endDate?: string;
   status?: string;
 }) => {
+  console.log("@@@@@@@@@@@@@@@ payload>> ", payload);
+
   const payloadToSend = {
     ...(payload.title && { title: payload.title }),
     ...(payload.description && { description: payload.description }),
@@ -93,6 +95,16 @@ export const GET_appraisalDetailByAppraisalId = async (
       limit,
       ...(keyword && { keyword }),
       ...(sortBy && sortOrder && { sortBy, sortOrder }),
+    },
+  });
+  return response.data;
+};
+
+export const GET_appraisalsOfTeamMembers = async (departments: string[]) => {
+  console.log("@@@@@@@@@@@@@@@ departments>> ", departments);
+  const response = await http.get("/appraisal-team-members", {
+    params: {
+      departments: departments.join(","),
     },
   });
   return response.data;

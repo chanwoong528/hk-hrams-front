@@ -1,9 +1,19 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+interface currentUserPayload {
+  email: string;
+  userId: string;
+  departments: {
+    departmentId: string;
+    departmentName: string;
+    isLeader?: boolean;
+  }[];
+}
+
 interface CurrentUserStore {
-  currentUser: User | null; //TODO: have to change to User type
-  setCurrentUser: (user: User) => void;
+  currentUser: currentUserPayload | null;
+  setCurrentUser: (user: currentUserPayload) => void;
   clearCurrentUser: () => void;
 
   accessToken: string | null;

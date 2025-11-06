@@ -157,7 +157,9 @@ export default function PerformanceAppraisal() {
       status?: string;
     }) => PATCH_appraisal(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["appraisalTypes"] });
+      queryClient.invalidateQueries({
+        queryKey: ["appraisalTypes", debouncedSearchQuery],
+      });
       setPatchFormData({
         title: "",
         description: "",
@@ -206,6 +208,7 @@ export default function PerformanceAppraisal() {
     }
 
     postStartAppraisal({ appraisalId, excludedUsers });
+    patchAppraisal({ appraisalId, status: "ongoing" });
   };
 
   const handleEditAppraisal = (appraisalId: string, status?: string) => {
@@ -488,8 +491,8 @@ export default function PerformanceAppraisal() {
                       </div>
                       <div className='space-y-2'>
                         <Label>마감일</Label>
-                        <p>form: {patchFormData.endDate}</p>
-                        <p>api: {appraisal.endDate}</p>
+                        {/* <p>form: {patchFormData.endDate}</p>
+                        <p>api: {appraisal.endDate}</p> */}
                         <Input
                           type='date'
                           value={

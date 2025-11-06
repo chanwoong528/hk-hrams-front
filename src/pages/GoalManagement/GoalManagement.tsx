@@ -1,12 +1,24 @@
-import { Star, MessageSquare, TrendingUp, Pencil } from "lucide-react";
+import {
+  Star,
+  MessageSquare,
+  TrendingUp,
+  Pencil,
+  // CheckCircle2,
+  ListChecks,
+  Plus,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 import { Badge } from "@/components/ui/badge";
 
-import { GET_appraisalsByDistinctType } from "@/api/appraisal/appraisal";
+import {
+  GET_appraisalsByDistinctType,
+  GET_appraisalsOfTeamMembers,
+} from "@/api/appraisal/appraisal";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
+import { useCurrentUserStore } from "@/store/currentUserStore";
 
 // interface Goal {
 //   id: string;
@@ -30,6 +42,7 @@ import { useNavigate } from "react-router";
 
 export default function GoalManagement() {
   const navigate = useNavigate();
+  const { currentUser } = useCurrentUserStore();
   const { data: myAppraisals, isLoading: isLoadingMyAppraisals } = useQuery({
     queryKey: ["appraisalTypes"],
     queryFn: () => GET_appraisalsByDistinctType("my-appraisal"),
@@ -38,17 +51,31 @@ export default function GoalManagement() {
     },
   });
 
-  if (isLoadingMyAppraisals) {
+  const {
+    data: teamMembersAppraisals,
+    isLoading: isLoadingTeamMembersAppraisals,
+  } = useQuery({
+    queryKey: ["teamMembersAppraisals"],
+    queryFn: () =>
+      GET_appraisalsOfTeamMembers(
+        currentUser?.departments.map((dept) => dept.departmentId) || [],
+      ),
+    enabled: currentUser?.departments.some((dept) => dept.isLeader) ?? false,
+  });
+
+  console.log(teamMembersAppraisals);
+
+  if (isLoadingMyAppraisals || isLoadingTeamMembersAppraisals) {
     return <div>Loading...</div>;
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "completed":
+      case "finished":
         return "bg-green-100 text-green-700";
-      case "in-progress":
+      case "ongoing":
         return "bg-blue-100 text-blue-700";
-      case "pending":
+      case "draft":
         return "bg-orange-100 text-orange-700";
       default:
         return "bg-gray-100 text-gray-700";
@@ -143,10 +170,11 @@ export default function GoalManagement() {
         </Card>
       </div>
 
-      {/* Goals List */}
       <Card>
         <CardHeader>
-          <CardTitle>인사 평가 목록 ({myAppraisals?.length || 0})</CardTitle>
+          <CardTitle>
+            나의 평가 작성 목록 ({myAppraisals?.length || 0})
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className='space-y-4'>
@@ -158,19 +186,35 @@ export default function GoalManagement() {
                   <div className='flex flex-col lg:flex-row gap-4'>
                     <div className='flex-1 space-y-3'>
                       <div className='flex items-start justify-between gap-4'>
-                        <div className='flex-1'>
-                          <p className='text-gray-900'>
-                            {appraisal.description}
-                          </p>
-                          <div className='flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-600'>
-                            <span>{appraisal.appraisalType}</span>
+                        <div className='flex flex-col gap-2 flex-1'>
+                          <div className='flex items-center gap-2'>
+                            <Badge className={getStatusColor(appraisal.status)}>
+                              {getStatusText(appraisal.status)}
+                            </Badge>
+                            <p className='text-gray-900'>{appraisal.title}</p>
+                          </div>
+                          <div className='flex flex-col flex-wrap gap-2 mt-2 text-sm text-gray-600'>
+                            <p className='text-gray-900'>
+                              {appraisal.description}
+                            </p>
+                            <p className='text-gray-600'>
+                              {appraisal.appraisalType}
+                            </p>
+                          </div>
+                          <div>
+                            <div className='flex items-center gap-4'>
+                              <div className='flex items-center gap-1 text-gray-600'>
+                                <ListChecks className='w-4 h-4' />
+                                <span>목표 {appraisal.goals.length}개</span>
+                              </div>
+                              {/* <div className='flex items-center gap-1 text-green-600'>
+                                <CheckCircle2 className='w-4 h-4' />
+                                //TODO: 평가 당한 목표 개수 표시
+                              </div> */}
+                            </div>
                           </div>
                         </div>
-                        <div className='flex items-center gap-2 flex-shrink-0'>
-                          <Badge className={getStatusColor(appraisal.status)}>
-                            {getStatusText(appraisal.status)}
-                          </Badge>
-                        </div>
+                        <div className='flex items-center gap-2 shrink-0'></div>
                       </div>
                     </div>
 
@@ -181,8 +225,12 @@ export default function GoalManagement() {
                         onClick={() => {
                           navigate(`/goal-management/${appraisal.appraisalId}`);
                         }}>
-                        <Pencil className='w-4 h-4 mr-2' />
-                        목표 작성
+                        {appraisal.goals.length > 0 ? (
+                          <Pencil className='w-4 h-4 mr-2' />
+                        ) : (
+                          <Plus className='w-4 h-4 mr-2' />
+                        )}
+                        {appraisal.goals.length > 0 ? "목표 수정" : "목표 작성"}
                       </Button>
 
                       {/* <Button
@@ -202,6 +250,14 @@ export default function GoalManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {currentUser?.departments.some((dept) => dept.isLeader) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>팀원 평가 진행하기</CardTitle>
+          </CardHeader>
+        </Card>
+      )}
 
       {/* Assessment Dialog */}
 
