@@ -8,17 +8,18 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Book, FileText, Save, Trash } from "lucide-react";
 import { Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { GoalFormData } from "../type.d";
 
-interface GoalFormData {
-  title: string;
-  description: string;
+interface GoalFormProps {
+  onSubmitGoals: (goals: GoalFormData[]) => void;
+  showLeft?: boolean;
 }
 
 export default function GoalForm({
   onSubmitGoals,
-}: {
-  onSubmitGoals: (goals: GoalFormData[]) => void;
-}) {
+  showLeft = true,
+}: GoalFormProps) {
   const { control, register, handleSubmit } = useForm({
     defaultValues: { goals: [{ title: "", description: "" }] },
   });
@@ -33,66 +34,70 @@ export default function GoalForm({
 
   return (
     <>
-      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+      <div
+        className={cn("grid gap-6", showLeft ? "grid-cols-2" : "grid-cols-1")}>
         {/* 목표 정보 */}
-        <Card className='h-fit'>
-          <CardHeader>
-            <CardTitle>인사평가 정보</CardTitle>
-          </CardHeader>
-          <CardContent className='space-y-4'>
-            <div className='space-y-2'>
-              <div className='flex items-center gap-2'>
-                <Book className='w-4 h-4' />
-                <span className='text-gray-900'>인사평가 제목</span>
-              </div>
-            </div>
 
-            <div className='space-y-2'>
-              <div className='flex items-center gap-2'>
-                <FileText className='w-4 h-4' />
-                <span className='text-gray-600'>인사평가 설명</span>
+        {showLeft && (
+          <Card className='h-fit'>
+            <CardHeader>
+              <CardTitle>인사평가 정보</CardTitle>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <div className='space-y-2'>
+                <div className='flex items-center gap-2'>
+                  <Book className='w-4 h-4' />
+                  <span className='text-gray-900'>인사평가 제목</span>
+                </div>
               </div>
-            </div>
 
-            <div className='grid grid-cols-2 gap-4'>
               <div className='space-y-2'>
-                <Label>담당자 *</Label>
-                <Input
-                  placeholder='이름'
-                  disabled
-                  value={"홍길동"}
-                  className='disabled:text-gray-900 disabled:opacity-100'
-                />
+                <div className='flex items-center gap-2'>
+                  <FileText className='w-4 h-4' />
+                  <span className='text-gray-600'>인사평가 설명</span>
+                </div>
               </div>
-              <div className='space-y-2'>
-                <Label>담당자 이메일</Label>
-                <Input
-                  type='email'
-                  disabled
-                  value={"honggildong@company.com"}
-                  className='disabled:text-gray-900 disabled:opacity-100'
-                />
+
+              <div className='grid grid-cols-2 gap-4'>
+                <div className='space-y-2'>
+                  <Label>담당자 *</Label>
+                  <Input
+                    placeholder='이름'
+                    disabled
+                    value={"홍길동"}
+                    className='disabled:text-gray-900 disabled:opacity-100'
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label>담당자 이메일</Label>
+                  <Input
+                    type='email'
+                    disabled
+                    value={"honggildong@company.com"}
+                    className='disabled:text-gray-900 disabled:opacity-100'
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label>담당자 부서</Label>
+                  <Input
+                    disabled
+                    value={"인사팀"}
+                    className='disabled:text-gray-900 disabled:opacity-100'
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label>종료일 *</Label>
+                  <Input
+                    type='date'
+                    disabled
+                    value={"2025-12-31"}
+                    className='disabled:text-gray-900 disabled:opacity-100'
+                  />
+                </div>
               </div>
-              <div className='space-y-2'>
-                <Label>담당자 부서</Label>
-                <Input
-                  disabled
-                  value={"인사팀"}
-                  className='disabled:text-gray-900 disabled:opacity-100'
-                />
-              </div>
-              <div className='space-y-2'>
-                <Label>종료일 *</Label>
-                <Input
-                  type='date'
-                  disabled
-                  value={"2025-12-31"}
-                  className='disabled:text-gray-900 disabled:opacity-100'
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 과제 관리 */}
         <Card>

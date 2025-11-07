@@ -19,26 +19,9 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { useCurrentUserStore } from "@/store/currentUserStore";
+import LeaderGradeCard from "./widget/LeaderGradeCard";
 
-// interface Goal {
-//   id: string;
-//   description: string;
-//   appraisalTitle: string;
-//   targetUser: string;
-//   status: "pending" | "in-progress" | "completed";
-//   progress: number;
-//   grade: string | null;
-//   assessments: GoalAssessment[];
-// }
-
-// interface GoalAssessment {
-//   id: string;
-//   goalId: string;
-//   assessor: string;
-//   grade: string;
-//   comments: string;
-//   date: string;
-// }
+import type { DepartmentAppraisal } from "./type.d";
 
 export default function GoalManagement() {
   const navigate = useNavigate();
@@ -50,6 +33,8 @@ export default function GoalManagement() {
       return data.data;
     },
   });
+  const isLeader =
+    currentUser?.departments.some((dept) => dept.isLeader) ?? false;
 
   const {
     data: teamMembersAppraisals,
@@ -60,7 +45,9 @@ export default function GoalManagement() {
       GET_appraisalsOfTeamMembers(
         currentUser?.departments.map((dept) => dept.departmentId) || [],
       ),
-    enabled: currentUser?.departments.some((dept) => dept.isLeader) ?? false,
+    select: (data: { data: DepartmentAppraisal[] }) => data.data,
+
+    enabled: isLeader,
   });
 
   console.log(teamMembersAppraisals);
@@ -251,11 +238,18 @@ export default function GoalManagement() {
         </CardContent>
       </Card>
 
-      {currentUser?.departments.some((dept) => dept.isLeader) && (
+      {isLeader && (
         <Card>
           <CardHeader>
             <CardTitle>팀원 평가 진행하기</CardTitle>
           </CardHeader>
+          <CardContent>
+            <LeaderGradeCard
+              departmentAppraisals={
+                teamMembersAppraisals as DepartmentAppraisal[]
+              }
+            />
+          </CardContent>
         </Card>
       )}
 

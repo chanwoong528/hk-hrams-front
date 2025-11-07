@@ -16,6 +16,7 @@ import AppraisalDetail from "@/pages/PerformanceAppraisal/AppraisalDetail/Apprai
 import UserManagement from "@/pages/UserManagement/UserManagement";
 import Login from "@/pages/Login/Login";
 import GoalDetail from "@/pages/GoalManagement/GoalDetail/GoalDetail";
+import GoalGrade from "./pages/GoalManagement/GoalGrade/GoalGrade";
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -49,6 +50,10 @@ const router = createBrowserRouter([
           {
             path: "goal-management/:appraisalId",
             element: <GoalDetail />,
+          },
+          {
+            path: "goal-grade/:appraisalId",
+            element: <GoalGrade />,
           },
           {
             path: "performance-appraisal",

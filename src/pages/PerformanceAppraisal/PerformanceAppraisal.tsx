@@ -131,7 +131,12 @@ export default function PerformanceAppraisal() {
 
   const { mutate: postAppraisal } = useMutation({
     mutationFn: (payload: AppraisalFormData) => POST_appraisal(payload),
-    onSuccess: () => toast.success("평가가 생성되었습니다"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["appraisalTypes", debouncedSearchQuery],
+      });
+      toast.success("평가가 생성되었습니다");
+    },
     onSettled: () => {
       setModalType(null);
       setFormData({

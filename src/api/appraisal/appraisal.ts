@@ -101,7 +101,6 @@ export const GET_appraisalDetailByAppraisalId = async (
 };
 
 export const GET_appraisalsOfTeamMembers = async (departments: string[]) => {
-  console.log("@@@@@@@@@@@@@@@ departments>> ", departments);
   const response = await http.get("/appraisal-team-members", {
     params: {
       departments: departments.join(","),
