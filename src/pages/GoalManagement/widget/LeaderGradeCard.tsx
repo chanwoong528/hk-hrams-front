@@ -1,14 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import React, { useState } from "react";
-
 import type { Appraisal, DepartmentAppraisal, Goal, User } from "../type.d";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { CheckCircle, Goal as GoalIcon, Plus, Star } from "lucide-react";
+  CheckCircle,
+  Goal as GoalIcon,
+  Plus,
+  Star,
+  Search,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +16,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import GoalForm from "./GoalForm";
 import type { GoalFormData } from "../type.d";
 import { useMutation } from "@tanstack/react-query";
@@ -29,33 +38,40 @@ export default function LeaderGradeCard({
 }: {
   departmentAppraisals: DepartmentAppraisal[];
 }) {
+  if (departmentAppraisals.length === 0) {
+    return <div>평가 대상 부서가 없습니다.</div>;
+  }
+
   return (
-    <Accordion type='multiple'>
-      {departmentAppraisals.map((departmentAppraisal) => (
-        <AccordionItem
-          key={departmentAppraisal.departmentName}
-          value={departmentAppraisal.departmentName}>
-          <AccordionTrigger>
-            <CardTitle>
-              <div>{departmentAppraisal.departmentName}</div>
-            </CardTitle>
-          </AccordionTrigger>
-          <AccordionContent>
-            {departmentAppraisal.appraisal.map((appraisal) => (
-              <AppraisalCard
-                key={appraisal.appraisalId}
-                appraisal={appraisal}
-                departmentId={departmentAppraisal.departmentId}
-              />
-            ))}
-          </AccordionContent>
-        </AccordionItem>
+    <Tabs
+      defaultValue={departmentAppraisals[0].departmentName}
+      className='w-full'>
+      <div className='flex items-center justify-between mb-4'>
+        <TabsList>
+          {departmentAppraisals.map((dept) => (
+            <TabsTrigger key={dept.departmentName} value={dept.departmentName}>
+              {dept.departmentName}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
+
+      {departmentAppraisals.map((dept) => (
+        <TabsContent key={dept.departmentName} value={dept.departmentName}>
+          {dept.appraisal.map((appraisal) => (
+            <AppraisalSection
+              key={appraisal.appraisalId}
+              appraisal={appraisal}
+              departmentId={dept.departmentId}
+            />
+          ))}
+        </TabsContent>
       ))}
-    </Accordion>
+    </Tabs>
   );
 }
 
-const AppraisalCard = ({
+const AppraisalSection = ({
   appraisal,
   departmentId,
 }: {
@@ -65,6 +81,7 @@ const AppraisalCard = ({
   const navigate = useNavigate();
   const [isAddCommonGoalModalOpen, setIsAddCommonGoalModalOpen] =
     useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const { mutate: mutateAddCommonGoal } = useMutation({
     mutationFn: POST_commonGoal,
@@ -77,13 +94,7 @@ const AppraisalCard = ({
     },
   });
 
-  const handleFinalAssessment = (user: User) => {
-    console.log("최종 평가", user);
-  };
-  const handleEvaluateGoal = (goal: Goal, user: User) => {
-    console.log("목표 평가", goal, user);
-  };
-  const handleAddCommonGoal = (goals: GoalFormData[]) => {
+  const handleApplyCommonGoal = (goals: GoalFormData[]) => {
     mutateAddCommonGoal({
       appraisalId: appraisal.appraisalId,
       departmentId: departmentId,
@@ -91,33 +102,39 @@ const AppraisalCard = ({
     });
   };
 
+  const handleFinalAssessment = (user: User) => {
+    console.log("최종 평가", user);
+    // TODO: Implement final assessment logic
+  };
+
+  const handleEvaluateGoal = (goal: Goal, user: User) => {
+    console.log("목표 평가", goal, user);
+    // TODO: Implement goal evaluation logic
+  };
+
   return (
-    <div className='flex flex-col gap-2 pl-4'>
-      <Accordion type='multiple'>
-        <AccordionItem value={appraisal.appraisalId}>
-          <AccordionTrigger>
-            <CardTitle>
-              <Button
-                onClick={() =>
-                  navigate(`/goal-grade/${appraisal.appraisalId}`)
-                }>
-                인사평가 : {appraisal.title}
-              </Button>
-            </CardTitle>
-          </AccordionTrigger>
-          <div className='flex items-center justify-end gap-2 mb-2'>
+    <Card className='mb-6'>
+      <CardHeader>
+        <div className='flex items-center justify-between'>
+          <CardTitle className='text-lg'>
+            {appraisal.title}
+            <span className='ml-2 text-sm font-normal text-muted-foreground'>
+              {appraisal.appraisalType}
+            </span>
+          </CardTitle>
+          <div className='flex gap-2'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => navigate(`/goal-grade/${appraisal.appraisalId}`)}>
+              <Search className='w-4 h-4 mr-2' />
+              상세 보기
+            </Button>
             <Dialog
               open={isAddCommonGoalModalOpen}
               onOpenChange={setIsAddCommonGoalModalOpen}>
               <DialogTrigger asChild>
-                <Button
-                  variant='outline'
-                  className='flex-1 lg:flex-none'
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsAddCommonGoalModalOpen(true);
-                  }}>
+                <Button size='sm' variant='secondary'>
                   <Plus className='w-4 h-4 mr-2' />
                   공통 목표 추가
                 </Button>
@@ -127,64 +144,105 @@ const AppraisalCard = ({
                   <DialogTitle>공통 목표 추가</DialogTitle>
                 </DialogHeader>
                 <GoalForm
-                  onSubmitGoals={handleAddCommonGoal}
+                  onSubmitGoals={handleApplyCommonGoal}
                   showLeft={false}
                 />
               </DialogContent>
             </Dialog>
           </div>
-          <AccordionContent>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>이름</TableHead>
+              <TableHead>직책/직급</TableHead>
+              <TableHead>목표 수</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead className='text-right'>관리</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {appraisal.user.map((user) => (
-              <Card key={user.userId}>
-                <CardHeader>
-                  <CardTitle>
-                    <div className='flex items-center justify-between gap-2'>
-                      <p>평가 대상자: {user.koreanName}</p>
+              <TableRow key={user.userId}>
+                <TableCell className='font-medium'>{user.koreanName}</TableCell>
+                <TableCell>-</TableCell> {/* Job Title/Position if available */}
+                <TableCell>{user.goals.length}개</TableCell>
+                <TableCell>
+                  <Badge variant='outline'>평가 대기</Badge>{" "}
+                  {/* Dynamic status needed */}
+                </TableCell>
+                <TableCell className='text-right'>
+                  <Dialog>
+                    <DialogTrigger asChild>
                       <Button
                         size='sm'
-                        className='bg-blue-600 hover:bg-blue-700'
-                        onClick={() => handleFinalAssessment(user)}>
-                        <CheckCircle className='w-4 h-4 mr-1' />
-                        최종 평가
+                        variant='ghost'
+                        onClick={() => setSelectedUser(user)}>
+                        <Star className='w-4 h-4 mr-2' />
+                        평가하기
                       </Button>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className='space-y-2'>
-                  {user.goals.length > 0 ? (
-                    user.goals.map((goal) => (
-                      <Card key={goal.goalId}>
-                        <CardHeader>
-                          <CardTitle>
-                            <p className='flex items-center gap-2 text-lg font-bold'>
-                              <GoalIcon className='w-6 h-6 mr-1 text-green-600' />
-                              {goal.title}
-                            </p>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className='flex items-center justify-between gap-2 '>
-                            <p>{goal.description}</p>
-                            <Button
-                              size='sm'
-                              className='bg-orange-600 hover:bg-orange-700'
-                              onClick={() => handleEvaluateGoal(goal, user)}>
-                              <Star className='w-4 h-4 mr-1' />
-                              평가
-                            </Button>
+                    </DialogTrigger>
+                    <DialogContent className='max-w-3xl max-h-[80vh] overflow-y-auto'>
+                      <DialogHeader>
+                        <DialogTitle>
+                          {user.koreanName}님의 목표 평가
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className='space-y-6 py-4'>
+                        <div className='flex justify-end'>
+                          <Button
+                            size='sm'
+                            className='bg-blue-600 hover:bg-blue-700'
+                            onClick={() => handleFinalAssessment(user)}>
+                            <CheckCircle className='w-4 h-4 mr-1' />
+                            최종 평가
+                          </Button>
+                        </div>
+                        {user.goals.length > 0 ? (
+                          user.goals.map((goal) => (
+                            <Card key={goal.goalId}>
+                              <CardHeader>
+                                <CardTitle className='text-base flex items-center gap-2'>
+                                  <GoalIcon className='w-5 h-5 text-green-600' />
+                                  {goal.title}
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className='flex flex-col gap-4'>
+                                  <p className='text-sm text-gray-600'>
+                                    {goal.description}
+                                  </p>
+                                  <div className='flex justify-end'>
+                                    <Button
+                                      size='sm'
+                                      className='bg-orange-600 hover:bg-orange-700'
+                                      onClick={() =>
+                                        handleEvaluateGoal(goal, user)
+                                      }>
+                                      <Star className='w-4 h-4 mr-1' />
+                                      개별 목표 평가
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))
+                        ) : (
+                          <div className='text-center py-8 text-gray-500'>
+                            등록된 목표가 없습니다.
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : (
-                    <p>목표가 없습니다.</p>
-                  )}
-                </CardContent>
-              </Card>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </TableCell>
+              </TableRow>
             ))}
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-    </div>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 };
