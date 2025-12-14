@@ -16,16 +16,47 @@ import {
   GET_appraisalsByDistinctType,
   GET_appraisalsOfTeamMembers,
 } from "@/api/appraisal/appraisal";
-import { useQuery } from "@tanstack/react-query";
+
+import { POST_goalAssessmentBy } from "@/api/goal-assessment-by/goal-assessment-by";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { useCurrentUserStore } from "@/store/currentUserStore";
 import LeaderGradeCard from "./widget/LeaderGradeCard";
+import GoalAssessmentItem from "./widget/GoalAssessmentItem";
+import { toast } from "sonner";
 
-import type { DepartmentAppraisal } from "./type.d";
+import type { MyAppraisal, DepartmentAppraisal } from "./type";
 
 export default function GoalManagement() {
   const navigate = useNavigate();
   const { currentUser } = useCurrentUserStore();
+  const queryClient = useQueryClient();
+
+  // Self Assessment Mutation
+  const { mutate: mutateAssessGoal } = useMutation({
+    mutationFn: POST_goalAssessmentBy,
+    onSuccess: () => {
+      toast.success("평가가 저장되었습니다");
+      queryClient.invalidateQueries({ queryKey: ["appraisalTypes"] });
+    },
+    onError: () => {
+      toast.error("평가 저장 실패");
+    },
+  });
+
+  const handleSelfAssessment = (goalId: string, grade: string, comment: string) => {
+      if (!currentUser?.userId) {
+          toast.error("사용자 정보를 찾을 수 없습니다.");
+          return;
+      }
+      mutateAssessGoal({
+          goalId,
+          grade,
+          comment,
+          gradedBy: currentUser.userId
+      });
+  };
+
   const { data: myAppraisals, isLoading: isLoadingMyAppraisals } = useQuery({
     queryKey: ["appraisalTypes"],
     queryFn: () => GET_appraisalsByDistinctType("my-appraisal"),
@@ -168,47 +199,36 @@ export default function GoalManagement() {
             {myAppraisals?.map((appraisal) => (
               <Card
                 key={appraisal.appraisalId}
-                className='hover:shadow-md transition-shadow'>
-                <CardContent className='p-4'>
-                  <div className='flex flex-col lg:flex-row gap-4'>
-                    <div className='flex-1 space-y-3'>
-                      <div className='flex items-start justify-between gap-4'>
-                        <div className='flex flex-col gap-2 flex-1'>
-                          <div className='flex items-center gap-2'>
-                            <Badge className={getStatusColor(appraisal.status)}>
-                              {getStatusText(appraisal.status)}
-                            </Badge>
-                            <p className='text-gray-900'>{appraisal.title}</p>
-                          </div>
-                          <div className='flex flex-col flex-wrap gap-2 mt-2 text-sm text-gray-600'>
-                            <p className='text-gray-900'>
-                              {appraisal.description}
-                            </p>
-                            <p className='text-gray-600'>
-                              {appraisal.appraisalType}
-                            </p>
-                          </div>
-                          <div>
-                            <div className='flex items-center gap-4'>
-                              <div className='flex items-center gap-1 text-gray-600'>
-                                <ListChecks className='w-4 h-4' />
-                                <span>목표 {appraisal.goals.length}개</span>
-                              </div>
-                              {/* <div className='flex items-center gap-1 text-green-600'>
-                                <CheckCircle2 className='w-4 h-4' />
-                                //TODO: 평가 당한 목표 개수 표시
-                              </div> */}
-                            </div>
+                className='border-none shadow-none'>
+                <CardContent className='p-0 space-y-4'>
+                  
+                  {/* Appraisal Header */}
+                  <div className='p-5 rounded-lg border bg-white shadow-sm flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center'>
+                     <div className='space-y-3 flex-1 min-w-0'>
+                        <div className='flex items-center gap-2 flex-wrap'>
+                          <Badge className={getStatusColor(appraisal.status)}>
+                            {getStatusText(appraisal.status)}
+                          </Badge>
+                          <h3 className='font-bold text-lg text-gray-900 truncate'>{appraisal.title}</h3>
+                        </div>
+                        
+                        <p className="text-gray-600 text-sm leading-relaxed break-keep">
+                          {appraisal.description}
+                        </p>
+
+                        <div className='flex items-center gap-3 text-sm text-gray-500 pt-1'>
+                          <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-600">
+                            {appraisal.appraisalType}
+                          </span>
+                          <span className="w-px h-3 bg-gray-300"></span>
+                          <div className='flex items-center gap-1.5'>
+                             <ListChecks className='w-3.5 h-3.5' />
+                             <span className="font-medium text-gray-700">목표 {appraisal.goals.length}개</span>
                           </div>
                         </div>
-                        <div className='flex items-center gap-2 shrink-0'></div>
-                      </div>
-                    </div>
-
-                    <div className='flex lg:flex-col gap-2 '>
-                      <Button
+                     </div>
+                     <Button
                         variant='outline'
-                        className='flex-1 lg:flex-none'
                         onClick={() => {
                           navigate(`/goal-management/${appraisal.appraisalId}`);
                         }}>
@@ -217,20 +237,28 @@ export default function GoalManagement() {
                         ) : (
                           <Plus className='w-4 h-4 mr-2' />
                         )}
-                        {appraisal.goals.length > 0 ? "목표 수정" : "목표 작성"}
+                        {appraisal.goals.length > 0 ? "목표 관리" : "목표 등록"}
                       </Button>
-
-                      {/* <Button
-                        className='flex-1 lg:flex-none bg-blue-600 hover:bg-blue-700'
-                        onClick={() => {
-                          setSelectedGoal(goal);
-                          setIsAssessDialogOpen(true);
-                        }}>
-                        <Star className='w-4 h-4 mr-2' />
-                        평가하기
-                      </Button> */}
-                    </div>
                   </div>
+
+                  {/* Goals List (Self Assessment) */}
+                  {appraisal.goals.length > 0 && (
+                      <div className="pl-0 lg:pl-6 space-y-4 border-l-2 border-gray-100 ml-4 py-2">
+                          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider pl-2 flex items-center gap-2 mb-2">
+                             <Star className="w-4 h-4" /> 
+                             자신에 대한 평가 (Self Assessment)
+                          </h4>
+                          {appraisal.goals.map((goal) => (
+                              <GoalAssessmentItem 
+                                  key={goal.goalId} 
+                                  goal={goal} 
+                                  currentUserId={currentUser?.userId || ''}
+                                  onSave={(goalId, grade, comment) => handleSelfAssessment(goalId, grade, comment)}
+                              />
+                          ))}
+                      </div>
+                  )}
+
                 </CardContent>
               </Card>
             ))}
@@ -248,6 +276,7 @@ export default function GoalManagement() {
               departmentAppraisals={
                 teamMembersAppraisals as DepartmentAppraisal[]
               }
+              currentUserId={currentUser?.userId}
             />
           </CardContent>
         </Card>
@@ -255,125 +284,7 @@ export default function GoalManagement() {
 
       {/* Assessment Dialog */}
 
-      {/* <Dialog open={isAssessDialogOpen} onOpenChange={setIsAssessDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>목표 평가</DialogTitle>
-          </DialogHeader>
-          {selectedGoal && (
-            <div className='space-y-4 py-4'>
-              <div className='p-4 bg-gray-50 rounded-lg'>
-                <Label>목표</Label>
-                <p className='mt-1'>{selectedGoal.description}</p>
-              </div>
-              <div className='space-y-2'>
-                <Label>등급 선택</Label>
-                <RadioGroup
-                  value={assessmentFormData.grade}
-                  onValueChange={(value) =>
-                    setAssessmentFormData({
-                      ...assessmentFormData,
-                      grade: value,
-                    })
-                  }>
-                  <div className='space-y-2'>
-                    <div className='flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer'>
-                      <RadioGroupItem value='S' id='grade-s' />
-                      <Label
-                        htmlFor='grade-s'
-                        className='flex-1 cursor-pointer'>
-                        <div className='flex items-center justify-between'>
-                          <span>S등급</span>
-                          <Badge className='bg-green-100 text-green-700'>
-                            탁월
-                          </Badge>
-                        </div>
-                        <p className='text-sm text-gray-600 mt-1'>
-                          목표를 크게 초과 달성
-                        </p>
-                      </Label>
-                    </div>
-                    <div className='flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer'>
-                      <RadioGroupItem value='A' id='grade-a' />
-                      <Label
-                        htmlFor='grade-a'
-                        className='flex-1 cursor-pointer'>
-                        <div className='flex items-center justify-between'>
-                          <span>A등급</span>
-                          <Badge className='bg-blue-100 text-blue-700'>
-                            우수
-                          </Badge>
-                        </div>
-                        <p className='text-sm text-gray-600 mt-1'>
-                          목표를 달성
-                        </p>
-                      </Label>
-                    </div>
-                    <div className='flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer'>
-                      <RadioGroupItem value='B' id='grade-b' />
-                      <Label
-                        htmlFor='grade-b'
-                        className='flex-1 cursor-pointer'>
-                        <div className='flex items-center justify-between'>
-                          <span>B등급</span>
-                          <Badge className='bg-orange-100 text-orange-700'>
-                            보통
-                          </Badge>
-                        </div>
-                        <p className='text-sm text-gray-600 mt-1'>
-                          목표를 부분적으로 달성
-                        </p>
-                      </Label>
-                    </div>
-                    <div className='flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer'>
-                      <RadioGroupItem value='C' id='grade-c' />
-                      <Label
-                        htmlFor='grade-c'
-                        className='flex-1 cursor-pointer'>
-                        <div className='flex items-center justify-between'>
-                          <span>C등급</span>
-                          <Badge className='bg-red-100 text-red-700'>
-                            미흡
-                          </Badge>
-                        </div>
-                        <p className='text-sm text-gray-600 mt-1'>
-                          목표 달성 미흡
-                        </p>
-                      </Label>
-                    </div>
-                  </div>
-                </RadioGroup>
-              </div>
-              <div className='space-y-2'>
-                <Label>평가 의견</Label>
-                <Textarea
-                  value={assessmentFormData.comments}
-                  onChange={(e) =>
-                    setAssessmentFormData({
-                      ...assessmentFormData,
-                      comments: e.target.value,
-                    })
-                  }
-                  placeholder='평가에 대한 의견을 작성하세요'
-                  rows={4}
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant='outline'
-              onClick={() => setIsAssessDialogOpen(false)}>
-              취소
-            </Button>
-            <Button
-              className='bg-blue-600 hover:bg-blue-700'
-              onClick={handleSubmitAssessment}>
-              평가 제출
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog> */}
     </div>
   );
 }
+

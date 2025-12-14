@@ -113,3 +113,8 @@ export const GET_appraisalsOfTeamMembers = async (departments: string[]) => {
 //   const response = await http.get(`/appraisal/my-appraisal`);
 //   return response.data;
 // };
+
+export const DELETE_appraisal = async (appraisalId: string) => {
+  const response = await http.delete(`/appraisal/${appraisalId}`);
+  return response.data;
+};

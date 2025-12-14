@@ -11,6 +11,7 @@ import {
   Book,
   Rocket,
   Check,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import {
   PATCH_appraisal,
   POST_appraisal,
   POST_startAppraisal,
+  DELETE_appraisal,
 } from "@/api/appraisal/appraisal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -196,6 +198,25 @@ export default function PerformanceAppraisal() {
       toast.error("평가 시작에 실패했습니다");
     },
   });
+
+  const { mutate: mutateDeleteAppraisal } = useMutation({
+    mutationFn: DELETE_appraisal,
+    onSuccess: () => {
+      toast.success("평가가 삭제되었습니다");
+      queryClient.invalidateQueries({
+        queryKey: ["appraisalTypes", debouncedSearchQuery],
+      });
+    },
+    onError: () => {
+      toast.error("평가 삭제 실패");
+    },
+  });
+
+  const handleDeleteAppraisal = (appraisalId: string) => {
+    if (window.confirm("정말로 이 평가를 삭제하시겠습니까? 연관된 모든 데이터가 삭제됩니다.")) {
+      mutateDeleteAppraisal(appraisalId);
+    }
+  };
 
   const handleStartAppraisal = (appraisalId: string) => {
     const confirm = window.confirm(
@@ -535,6 +556,19 @@ export default function PerformanceAppraisal() {
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
+                </div>
+
+                {/* Delete Button */}
+                <div className="flex justify-end pt-2">
+                   <Button
+                      variant='ghost'
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                      size="sm"
+                      onClick={() => handleDeleteAppraisal(appraisal.appraisalId)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1.5" />
+                      삭제
+                   </Button>
                 </div>
               </CardContent>
             </Card>

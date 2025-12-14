@@ -18,7 +18,26 @@ export const POST_commonGoal = async (payload: {
   departmentId: string;
   goals: { title: string; description: string }[];
 }) => {
-  console.log("@@@@@@@@@@@@@@@ payload>> ", payload);
   const response = await http.post(`/common-goal`, payload);
   return response.data;
 };
+
+export const PATCH_commonGoal = (payload: {
+  appraisalId: string;
+  departmentId: string;
+  oldTitle: string;
+  newTitle: string;
+  newDescription: string;
+}) => {
+  return http.patch("/common-goal", payload);
+};
+
+export const DELETE_commonGoal = (payload: {
+  appraisalId: string;
+  departmentId: string;
+  title: string;
+}) => {
+  return http.delete("/common-goal", { data: payload });
+};
+
+

@@ -4,6 +4,16 @@ export interface Goal {
   description: string;
   created: string; // ISO string (Date 형태로 쓰고 싶다면 Date 로 바꿔도 됨)
   updated: string;
+  goalAssessmentBy?: {
+    goalAssessId: string;
+    grade: string;
+    comment: string;
+    gradedBy: string;
+    gradedByUser?: {
+      userId: string;
+      koreanName: string;
+    };
+  }[];
 }
 
 export interface User {
@@ -31,4 +41,14 @@ export interface DepartmentAppraisal {
 export interface GoalFormData {
   title: string;
   description: string;
+}
+
+export interface MyAppraisal {
+  appraisalId: string;
+  appraisalType: string;
+  title: string;
+  description: string;
+  endDate: string;
+  status: string;
+  goals: Goal[];
 }
