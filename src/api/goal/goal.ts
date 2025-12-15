@@ -1,7 +1,7 @@
 import { http } from "@/api";
 
 export const GET_goalMyGoals = async (appraisalUserId: string) => {
-  const response = await http.get(`/goal/${appraisalUserId}`);
+  const response = await http.get(`/goal/appraisal/${appraisalUserId}`);
   return response.data;
 };
 
@@ -40,4 +40,14 @@ export const DELETE_commonGoal = (payload: {
   return http.delete("/common-goal", { data: payload });
 };
 
+export const PATCH_goal = (
+  goalId: string,
+  payload: { title: string; description: string },
+) => {
+  return http.patch(`/goal/${goalId}`, payload);
+};
+
+export const DELETE_goal = (goalId: string) => {
+  return http.delete(`/goal/${goalId}`);
+};
 

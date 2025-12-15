@@ -213,7 +213,11 @@ export default function PerformanceAppraisal() {
   });
 
   const handleDeleteAppraisal = (appraisalId: string) => {
-    if (window.confirm("정말로 이 평가를 삭제하시겠습니까? 연관된 모든 데이터가 삭제됩니다.")) {
+    if (
+      window.confirm(
+        "정말로 이 평가를 삭제하시겠습니까? 연관된 모든 데이터가 삭제됩니다.",
+      )
+    ) {
       mutateDeleteAppraisal(appraisalId);
     }
   };
@@ -559,16 +563,17 @@ export default function PerformanceAppraisal() {
                 </div>
 
                 {/* Delete Button */}
-                <div className="flex justify-end pt-2">
-                   <Button
-                      variant='ghost'
-                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                      size="sm"
-                      onClick={() => handleDeleteAppraisal(appraisal.appraisalId)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-1.5" />
-                      삭제
-                   </Button>
+                <div className='flex justify-end pt-2'>
+                  <Button
+                    variant='ghost'
+                    className='text-red-500 hover:text-red-600 hover:bg-red-50'
+                    size='sm'
+                    onClick={() =>
+                      handleDeleteAppraisal(appraisal.appraisalId)
+                    }>
+                    <Trash2 className='w-4 h-4 mr-1.5' />
+                    삭제
+                  </Button>
                 </div>
               </CardContent>
             </Card>
