@@ -2,7 +2,7 @@ import { Button } from "./ui/button";
 import { Sheet, SheetTrigger } from "./ui/sheet";
 import { ArrowLeft, Menu } from "lucide-react";
 import { navigation } from "@/utils";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const BACK_BUTTON_ROUTERS = ["/performance-appraisal/:appraisalId"];
 

@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GoalForm from "../widget/GoalForm";
@@ -12,7 +12,7 @@ import { GET_appraisalDetail } from "@/api/appraisal/appraisal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useCurrentUserStore } from "@/store/currentUserStore";
-import type { Goal } from "../type";
+import type { Goal, Appraisal } from "../type";
 
 export default function GoalDetail() {
   const { appraisalId } = useParams();
@@ -25,7 +25,7 @@ export default function GoalDetail() {
     queryKey: ["appraisal", appraisalId],
     queryFn: () => GET_appraisalDetail(appraisalId || ""),
     enabled: !!appraisalId,
-    select: (data) => data.data.list?.[0],
+    select: (data) => data.data.list?.[0] as Appraisal,
   });
 
   // 2. Fetch Existing Goals
@@ -155,28 +155,6 @@ export default function GoalDetail() {
     } catch (error) {
       console.error("Batch save error", error);
       toast.error("일부 작업을 처리하는 중 오류가 발생했습니다.");
-    }
-  };
-
-  // 4. Handlers
-  const handleSubmitGoals = (
-    newGoals: { title: string; description: string }[],
-  ) => {
-    if (!appraisalId) return;
-    postGoals({ appraisalId, goals: newGoals });
-  };
-
-  const handleUpdateGoal = (
-    goalId: string,
-    newTitle: string,
-    newDescription: string,
-  ) => {
-    updateGoal({ goalId, title: newTitle, description: newDescription });
-  };
-
-  const handleDeleteGoal = (goalId: string) => {
-    if (confirm("정말로 이 목표를 삭제하시겠습니까?")) {
-      deleteGoal(goalId);
     }
   };
 

@@ -1,13 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import type { Appraisal, DepartmentAppraisal, Goal, User } from "../type";
-import {
-  CheckCircle,
-  Goal as GoalIcon,
-  Plus,
-  Star,
-  Search,
-} from "lucide-react";
+import { CheckCircle, Goal as GoalIcon, Plus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,7 +22,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import GoalForm from "./GoalForm";
-import type { GoalFormData } from "../type.d";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -48,10 +41,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { useNavigate } from "react-router";
-
-// ... existing code ...
-
 import GoalAssessmentItem from "./GoalAssessmentItem";
 
 const AppraisalSection = ({
@@ -65,8 +54,6 @@ const AppraisalSection = ({
   departmentName: string;
   currentUserId: string;
 }) => {
-  const navigate = useNavigate();
-  // ... existing state ...
   const [isAddCommonGoalModalOpen, setIsAddCommonGoalModalOpen] =
     useState(false);
   const [selectedUserForFinal, setSelectedUserForFinal] = useState<User | null>(
@@ -110,42 +97,6 @@ const AppraisalSection = ({
       // toast.error("공통 목표 삭제에 실패했습니다");
     },
   });
-
-  const handleApplyCommonGoal = (goals: GoalFormData[]) => {
-    mutateAddCommonGoal({
-      appraisalId: appraisal.appraisalId,
-      departmentId: departmentId,
-      goals: goals,
-    });
-  };
-
-  const handleUpdateCommonGoal = (
-    oldTitle: string,
-    newTitle: string,
-    newDescription: string,
-  ) => {
-    mutateEditCommonGoal({
-      appraisalId: appraisal.appraisalId,
-      departmentId: departmentId,
-      oldTitle: oldTitle,
-      newTitle: newTitle,
-      newDescription: newDescription,
-    });
-  };
-
-  const handleDeleteCommonGoal = (title: string) => {
-    if (
-      confirm(
-        `'${title}' 목표를 정말 삭제하시겠습니까? 해당 목표를 가진 모든 팀원에서 삭제됩니다.`,
-      )
-    ) {
-      mutateDeleteCommonGoal({
-        appraisalId: appraisal.appraisalId,
-        departmentId: departmentId,
-        title: title,
-      });
-    }
-  };
 
   const { mutate: mutateAssessGoal } = useMutation({
     mutationFn: POST_goalAssessmentBy,
@@ -230,12 +181,17 @@ const AppraisalSection = ({
     .filter(([_, count]) => count > 1) // Only goals shared by more than 1 person
     .map(([title, count]) => {
       const goal = allGoals.find((g) => g.title === title);
+      if (!goal) return null;
       return {
         ...goal,
         count,
         totalUsers: appraisal.user.length,
       };
-    });
+    })
+    .filter((g) => g !== null) as (Goal & {
+    count: number;
+    totalUsers: number;
+  })[];
 
   return (
     <Card className='mb-6 border-none shadow-sm ring-1 ring-gray-100'>

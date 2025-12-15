@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { navigation } from "@/utils";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, ChevronDown, ChevronRight } from "lucide-react";
 import { useCurrentUserStore } from "@/store/currentUserStore";
@@ -8,14 +8,16 @@ import { useCurrentUserStore } from "@/store/currentUserStore";
 type NavItem = {
   id: string;
   name: string;
-  icon: React.ComponentType<{ className?: string }>;
-  path: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  path?: string;
   children?: NavItem[];
   detailPage?: boolean;
 };
 
-function isPathMatch(pathname: string, pattern: string): boolean {
+function isPathMatch(pathname: string, pattern?: string): boolean {
   // Exact match
+  if (!pattern) return false;
+  
   if (pathname === pattern) return true;
 
   // Convert route pattern to regex
@@ -74,7 +76,11 @@ function NavItemComponent({
       e.preventDefault();
       return;
     }
-    navigate(item.path);
+    if (item.path) {
+      navigate(item.path);
+    } else if (item.children) {
+      setIsExpanded(!isExpanded);
+    }
   };
 
   const handleChevronClick = (e: React.MouseEvent) => {
@@ -95,8 +101,8 @@ function NavItemComponent({
               : "text-gray-700 hover:bg-gray-100"
           }`}
           style={{ paddingLeft: `${1 + level * 1}rem` }}>
-          <Icon className='w-5 h-5' />
-          <span>{item.name}</span>
+          {Icon ? <Icon className='w-5 h-5' /> : <div className='w-5 h-5' />}
+          <span className='font-medium'>{item.name}</span>
         </button>
         {hasChildren && (
           <button

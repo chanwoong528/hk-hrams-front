@@ -1,5 +1,20 @@
 import { http } from "@/api";
 
+export interface HramsUserType {
+  userId: string;
+  koreanName: string;
+  email: string;
+  departments?: any[];
+  userStatus?: string;
+  created?: string;
+  updated?: string;
+}
+
+export interface Department {
+  departmentId: string;
+  departmentName: string;
+}
+
 export const GET_users = async (payload?: string) => {
   const response = await http.get("/user", {
     params: {
@@ -55,4 +70,9 @@ export const PATCH_user = async (payload: {
     ...(payload.userStatus && { userStatus: payload.userStatus }),
   });
   return response.data;
+};
+
+export const GET_leaders = async () => {
+  const { data } = await http.get("/user/leaders");
+  return data || { data: [] };
 };

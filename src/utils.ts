@@ -46,13 +46,36 @@ export const navigation = [
     icon: Target,
     path: "/goal-management",
   },
+  {
+    id: "leader-appraisal" as Page,
+    name: "리더 평가 관리",
+    icon: Users, // Assuming Users icon for leader appraisal
+    children: [
+      {
+        id: "leader-reviews" as Page,
+        name: "평가 및 대상자 관리",
+        path: "/leader-appraisal/reviews",
+        icon: Users,
+      },
+      {
+        id: "template-management" as Page,
+        name: "평가 템플릿 관리",
+        path: "/leader-appraisal/templates",
+        icon: ClipboardCheck,
+      },
+    ],
+  },
 ];
 export type Page =
   | "dashboard"
   | "users"
   | "departments"
   | "appraisals"
-  | "goals";
+  | "appraisal-detail"
+  | "goals"
+  | "leader-appraisal"
+  | "leader-reviews"
+  | "template-management";
 
 export function pickChangedOnly<T extends { id: string | number }>(
   previousArray: ReadonlyArray<T>,

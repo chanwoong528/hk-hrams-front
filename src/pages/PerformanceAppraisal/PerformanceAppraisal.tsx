@@ -5,7 +5,7 @@ import {
   Eye,
   // Edit,
   Calendar,
-  User,
+  User as UserIcon,
   // Target,
   Code,
   Book,
@@ -29,12 +29,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import UserMultiSelect from "./widget/UserMultiSelect";
+import type { HramsUserType } from "@/api/user/user";
 import {
   GET_appraisalsByDistinctType,
   PATCH_appraisal,
@@ -110,7 +111,7 @@ export default function PerformanceAppraisal() {
     appraisalTerm: APPRRAISAL_TERMS[0].value,
   });
 
-  const [excludedUsers, setExcludedUsers] = useState<User[]>([]);
+  const [excludedUsers, setExcludedUsers] = useState<HramsUserType[]>([]);
   const [patchFormData, setPatchFormData] = useState<{
     title?: string;
     description?: string;
@@ -187,8 +188,10 @@ export default function PerformanceAppraisal() {
     },
   });
   const { mutate: postStartAppraisal } = useMutation({
-    mutationFn: (payload: { appraisalId: string; excludedUsers: User[] }) =>
-      POST_startAppraisal(payload),
+    mutationFn: (payload: {
+      appraisalId: string;
+      excludedUsers: HramsUserType[];
+    }) => POST_startAppraisal(payload),
     onSuccess: () => toast.success("평가가 시작되었습니다"),
     onSettled: () => {
       setExcludedUsers([]);
@@ -245,7 +248,7 @@ export default function PerformanceAppraisal() {
     patchAppraisal({ appraisalId, ...patchFormData, status });
   };
 
-  const handleExcludedUsersChange = useCallback((value: User[]) => {
+  const handleExcludedUsersChange = useCallback((value: HramsUserType[]) => {
     setExcludedUsers(value);
   }, []);
 
@@ -471,7 +474,7 @@ export default function PerformanceAppraisal() {
                     }
                   />
                   <p className='flex items-center gap-2'>
-                    <User className='w-4 h-4' />
+                    <UserIcon className='w-4 h-4' />
                     {appraisal.submittedCount} / {appraisal.totalCount}
                   </p>
                 </div>

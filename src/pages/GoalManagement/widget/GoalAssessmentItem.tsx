@@ -19,6 +19,7 @@ interface GoalAssessmentItemProps {
   onSave: (goalId: string, grade: string, comment: string) => void;
   disabled?: boolean;
   targetUserId?: string;
+  currentUserId?: string;
 }
 
 const GoalAssessmentItem = ({

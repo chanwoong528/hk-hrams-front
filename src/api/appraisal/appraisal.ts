@@ -1,8 +1,9 @@
 import { http } from "@/api";
+import type { HramsUserType } from "@/api/user/user";
 
 export const POST_startAppraisal = async (payload: {
   appraisalId: string;
-  excludedUsers: User[];
+  excludedUsers: HramsUserType[];
 }) => {
   const response = await http.post(`/appraisal-user`, {
     appraisalId: payload.appraisalId,

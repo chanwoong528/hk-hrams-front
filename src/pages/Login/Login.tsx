@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { POST_signIn } from "@/api/auth/auth";
 import { useCurrentUserStore } from "@/store/currentUserStore";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("mooncw@hankookilbo.com");

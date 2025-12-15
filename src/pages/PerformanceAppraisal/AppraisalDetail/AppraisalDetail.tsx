@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router";
+import { useParams } from "react-router-dom";
 
 import { useDebounce } from "@uidotdev/usehooks";
 

@@ -3,8 +3,8 @@ export interface Goal {
   title: string;
   description: string;
   goalType?: string;
-  created: string; // ISO string (Date 형태로 쓰고 싶다면 Date 로 바꿔도 됨)
-  updated: string;
+  created?: string; // ISO string (Date 형태로 쓰고 싶다면 Date 로 바꿔도 됨)
+  updated?: string;
   goalAssessmentBy?: {
     goalAssessId: string;
     grade: string;
@@ -21,9 +21,11 @@ export interface User {
   userId: string;
   appraisalUserId?: string;
   status?: string;
+
   selfAssessment?: {
     grade: string;
     comment: string;
+    updated?: string;
   };
   assessments?: {
     grade: string;
@@ -32,6 +34,7 @@ export interface User {
     updated?: string;
   }[];
   koreanName: string;
+  email?: string;
   goals: Goal[];
 }
 
@@ -42,6 +45,11 @@ export interface Appraisal {
   description: string;
   endDate: string; // ISO string
   status: string;
+  createdBy?: string;
+  creator?: {
+    koreanName: string;
+    email: string;
+  };
   user: User[];
 }
 

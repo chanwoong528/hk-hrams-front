@@ -1,7 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { RouterProvider } from "react-router";
-import { createBrowserRouter } from "react-router";
+import { RouterProvider, createBrowserRouter } from "react-router-dom";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -17,6 +16,9 @@ import UserManagement from "@/pages/UserManagement/UserManagement";
 import Login from "@/pages/Login/Login";
 import GoalDetail from "@/pages/GoalManagement/GoalDetail/GoalDetail";
 import GoalGrade from "./pages/GoalManagement/GoalGrade/GoalGrade";
+import TemplateGenerator from "@/pages/LeaderAppraisal/admin/TemplateGenerator";
+import LeaderReviewManagement from "./pages/LeaderAppraisal/admin/LeaderReviewManagement";
+import TemplateManagement from "@/pages/LeaderAppraisal/admin/TemplateManagement";
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -62,6 +64,22 @@ const router = createBrowserRouter([
           {
             path: "performance-appraisal/:appraisalId",
             element: <AppraisalDetail />,
+          },
+          {
+            path: "leader-appraisal/reviews",
+            element: <LeaderReviewManagement />,
+          },
+          {
+            path: "leader-appraisal/templates",
+            element: <TemplateManagement />,
+          },
+          {
+            path: "leader-appraisal/templates/new",
+            element: <TemplateGenerator />,
+          },
+          {
+            path: "leader-appraisal/templates/:templateId/edit",
+            element: <TemplateGenerator />,
           },
           {
             path: "user-management",
