@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Target,
   Users,
+  TrendingUp,
 } from "lucide-react";
 
 export const navigation = [
@@ -65,6 +66,18 @@ export const navigation = [
       },
     ],
   },
+  {
+    id: "my-leader-reviews" as Page,
+    name: "나의 리더 평가",
+    icon: ClipboardCheck,
+    path: "/leader-appraisal/my",
+  },
+  {
+    id: "my-leader-results" as Page,
+    name: "나의 리더 평가 결과",
+    icon: TrendingUp, // Need to import TrendingUp or similar
+    path: "/leader-appraisal/results/my",
+  },
 ];
 export type Page =
   | "dashboard"
@@ -75,7 +88,9 @@ export type Page =
   | "goals"
   | "leader-appraisal"
   | "leader-reviews"
-  | "template-management";
+  | "template-management"
+  | "my-leader-reviews"
+  | "my-leader-results";
 
 export function pickChangedOnly<T extends { id: string | number }>(
   previousArray: ReadonlyArray<T>,

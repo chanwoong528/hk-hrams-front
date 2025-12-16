@@ -19,6 +19,10 @@ import GoalGrade from "./pages/GoalManagement/GoalGrade/GoalGrade";
 import TemplateGenerator from "@/pages/LeaderAppraisal/admin/TemplateGenerator";
 import LeaderReviewManagement from "./pages/LeaderAppraisal/admin/LeaderReviewManagement";
 import TemplateManagement from "@/pages/LeaderAppraisal/admin/TemplateManagement";
+import MyLeaderReviews from "@/pages/LeaderAppraisal/MyLeaderReviews";
+import LeaderReviewForm from "@/pages/LeaderAppraisal/LeaderReviewForm";
+import MyLeaderResults from "@/pages/LeaderAppraisal/MyLeaderResults";
+import LeaderResultDetail from "@/pages/LeaderAppraisal/LeaderResultDetail";
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -80,6 +84,22 @@ const router = createBrowserRouter([
           {
             path: "leader-appraisal/templates/:templateId/edit",
             element: <TemplateGenerator />,
+          },
+          {
+            path: "leader-appraisal/my",
+            element: <MyLeaderReviews />,
+          },
+          {
+            path: "leader-appraisal/answer/:assignmentId",
+            element: <LeaderReviewForm />,
+          },
+          {
+            path: "leader-appraisal/results/my",
+            element: <MyLeaderResults />,
+          },
+          {
+            path: "leader-appraisal/results/:reviewId",
+            element: <LeaderResultDetail />,
           },
           {
             path: "user-management",
