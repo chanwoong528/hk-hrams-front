@@ -46,7 +46,11 @@ export default function TemplateGenerator() {
       setTitle(existingTemplate.title);
       setDescription(existingTemplate.description || "");
       if (existingTemplate.questions) {
-        setQuestions([...existingTemplate.questions.sort((a, b) => (a.order || 0) - (b.order || 0))]);
+        setQuestions([
+          ...existingTemplate.questions.sort(
+            (a, b) => (a.order || 0) - (b.order || 0),
+          ),
+        ]);
       }
     }
   }, [existingTemplate]);
@@ -81,6 +85,7 @@ export default function TemplateGenerator() {
     setQuestions([
       ...questions,
       {
+        questionId: "",
         questionText: "",
         questionType: "LIKERT_5",
         order: questions.length,
@@ -91,7 +96,7 @@ export default function TemplateGenerator() {
   const handleQuestionChange = (
     index: number,
     field: keyof LeaderReviewQuestion,
-    value: any
+    value: any,
   ) => {
     const newQuestions = [...questions];
     newQuestions[index] = { ...newQuestions[index], [field]: value };
@@ -131,9 +136,12 @@ export default function TemplateGenerator() {
 
   return (
     <div className='p-6 space-y-6 max-w-4xl mx-auto pb-24'>
-      <div className="flex items-center mb-6">
-        <Button variant="ghost" className="mr-4" onClick={() => navigate("/leader-appraisal/templates")}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> 목록으로
+      <div className='flex items-center mb-6'>
+        <Button
+          variant='ghost'
+          className='mr-4'
+          onClick={() => navigate("/leader-appraisal/templates")}>
+          <ArrowLeft className='w-4 h-4 mr-2' /> 목록으로
         </Button>
         <h1 className='text-3xl font-bold tracking-tight'>
           {isEditMode ? "리더 평가 템플릿 수정" : "리더 평가 템플릿 생성기"}
@@ -185,15 +193,13 @@ export default function TemplateGenerator() {
             questions.map((q, index) => (
               <div
                 key={index}
-                className='p-4 border rounded-lg bg-card text-card-foreground shadow-sm relative group'
-              >
+                className='p-4 border rounded-lg bg-card text-card-foreground shadow-sm relative group'>
                 <div className='absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity'>
                   <Button
                     variant='ghost'
                     size='icon'
                     className='text-destructive hover:text-destructive/90 hover:bg-destructive/10'
-                    onClick={() => handleRemoveQuestion(index)}
-                  >
+                    onClick={() => handleRemoveQuestion(index)}>
                     <Trash2 className='w-4 h-4' />
                   </Button>
                 </div>
@@ -206,7 +212,11 @@ export default function TemplateGenerator() {
                         placeholder='질문 내용을 입력하세요'
                         value={q.questionText}
                         onChange={(e) =>
-                          handleQuestionChange(index, "questionText", e.target.value)
+                          handleQuestionChange(
+                            index,
+                            "questionText",
+                            e.target.value,
+                          )
                         }
                       />
                     </div>
@@ -219,8 +229,7 @@ export default function TemplateGenerator() {
                         value={q.questionType}
                         onValueChange={(value) =>
                           handleQuestionChange(index, "questionType", value)
-                        }
-                      >
+                        }>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -241,7 +250,7 @@ export default function TemplateGenerator() {
 
       <div className='flex justify-end'>
         <Button onClick={handleSubmit} size='lg' className='w-40'>
-          <Save className='w-4 h-4 mr-2' /> 
+          <Save className='w-4 h-4 mr-2' />
           {isEditMode ? "수정 완료" : "템플릿 저장"}
         </Button>
       </div>

@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 interface currentUserPayload {
   email: string;
   userId: string;
+  koreanName?: string;
   departments: {
     departmentId: string;
     departmentName: string;

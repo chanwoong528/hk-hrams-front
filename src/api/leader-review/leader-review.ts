@@ -5,6 +5,7 @@ export interface LeaderReviewTemplate {
   title: string;
   description: string;
   questions?: LeaderReviewQuestion[];
+  isActive: boolean;
 }
 
 export interface LeaderReviewQuestion {
