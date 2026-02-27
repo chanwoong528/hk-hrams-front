@@ -8,7 +8,7 @@ import setupTokenRefresh from "xior/plugins/token-refresh";
 
 export const http = xior.create({
   baseURL: import.meta.env.PROD
-    ? "https://dp29w4ct1mtiu.cloudfront.net"
+    ? "http://hk-hrams-alb-283672731.ap-northeast-2.elb.amazonaws.com"
     : "http://localhost:3000",
   headers: {
     "Content-Type": "application/json",
