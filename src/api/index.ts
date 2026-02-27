@@ -7,7 +7,9 @@ import errorRetry from "xior/plugins/error-retry";
 import setupTokenRefresh from "xior/plugins/token-refresh";
 
 export const http = xior.create({
-  baseURL: "http://localhost:3000",
+  baseURL: import.meta.env.PROD
+    ? "http://hk-hrams-alb-283672731.ap-northeast-2.elb.amazonaws.com"
+    : "http://localhost:3000",
   headers: {
     "Content-Type": "application/json",
   },
@@ -25,8 +27,8 @@ function shouldRefresh(response: XiorResponse) {
   const token = useCurrentUserStore.getState().accessToken;
   return Boolean(
     token &&
-      response?.data?.statusCode &&
-      [410].includes(response.data.statusCode as number),
+    response?.data?.statusCode &&
+    [410].includes(response.data.statusCode as number),
   );
 }
 
