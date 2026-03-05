@@ -118,6 +118,7 @@ export type SortConfig = {
 
 export const getColumns = (
   sortConfig: SortConfig,
+  navigate?: (path: string) => void,
 ): ColumnDef<DetailColumn>[] => [
   {
     id: "appraisalUserId",
@@ -234,6 +235,20 @@ export const getColumns = (
               Copy payment ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                const appraisalUserId = row.getValue(
+                  "appraisalUserId",
+                ) as string;
+                const path = `/competency-evaluation?appraisalUserId=${appraisalUserId}`;
+                if (navigate) {
+                  navigate(path);
+                } else {
+                  window.location.href = path;
+                }
+              }}>
+              역량 평가 수행 (리더)
+            </DropdownMenuItem>
             <DropdownMenuItem>View customer</DropdownMenuItem>
             <DropdownMenuItem>View payment details</DropdownMenuItem>
           </DropdownMenuContent>

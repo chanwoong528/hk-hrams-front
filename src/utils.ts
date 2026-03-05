@@ -78,6 +78,31 @@ export const navigation = [
     icon: TrendingUp, // Need to import TrendingUp or similar
     path: "/leader-appraisal/results/my",
   },
+  {
+    id: "competency-management" as Page,
+    name: "역량 평가 관리",
+    icon: ClipboardCheck,
+    children: [
+      {
+        id: "competency-setting" as Page,
+        name: "문항 설정 (리더)",
+        path: "/competency-setting",
+        icon: ClipboardCheck,
+      },
+      {
+        id: "competency-evaluation-self" as Page,
+        name: "나의 역량 평가",
+        path: "/competency-evaluation?mode=self",
+        icon: ClipboardCheck,
+      },
+      {
+        id: "competency-evaluation-team" as Page,
+        name: "팀원 역량 평가 (리더)",
+        path: "/competency-evaluation?mode=team",
+        icon: Users,
+      },
+    ],
+  },
 ];
 export type Page =
   | "dashboard"
@@ -90,7 +115,11 @@ export type Page =
   | "leader-reviews"
   | "template-management"
   | "my-leader-reviews"
-  | "my-leader-results";
+  | "my-leader-results"
+  | "competency-management"
+  | "competency-setting"
+  | "competency-evaluation-self"
+  | "competency-evaluation-team";
 
 export function pickChangedOnly<T extends { id: string | number }>(
   previousArray: ReadonlyArray<T>,

@@ -24,6 +24,9 @@ import LeaderReviewForm from "@/pages/LeaderAppraisal/LeaderReviewForm";
 import MyLeaderResults from "@/pages/LeaderAppraisal/MyLeaderResults";
 import LeaderResultDetail from "@/pages/LeaderAppraisal/LeaderResultDetail";
 
+import CompetencyQuestionSetting from "@/pages/CompetencyAssessment/CompetencyQuestionSetting";
+import CompetencyEvaluation from "@/pages/CompetencyAssessment/CompetencyEvaluation";
+
 import { Toaster } from "@/components/ui/sonner";
 
 import "./index.css";
@@ -104,6 +107,14 @@ const router = createBrowserRouter([
           {
             path: "user-management",
             element: <UserManagement />,
+          },
+          {
+            path: "competency-setting",
+            element: <CompetencyQuestionSetting />,
+          },
+          {
+            path: "competency-evaluation",
+            element: <CompetencyEvaluation />,
           },
         ],
       },

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 import { useDebounce } from "@uidotdev/usehooks";
 
@@ -43,11 +43,15 @@ export default function AppraisalDetail() {
     setPageInfo((prev) => ({ ...prev, page: 1 }));
   };
 
-  const columns = getColumns({
-    sortBy: sortInfo.sortBy,
-    sortOrder: sortInfo.sortOrder,
-    onSortChange: handleSortChange,
-  });
+  const navigate = useNavigate();
+  const columns = getColumns(
+    {
+      sortBy: sortInfo.sortBy,
+      sortOrder: sortInfo.sortOrder,
+      onSortChange: handleSortChange,
+    },
+    navigate,
+  );
 
   const { data: appraisalDetail, isLoading: isLoadingAppraisalDetail } =
     useQuery({
