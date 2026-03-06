@@ -12,17 +12,26 @@ type NavItem = {
   path?: string;
   children?: NavItem[];
   detailPage?: boolean;
+  admin?: boolean;
+  leader?: boolean;
 };
 
-function isPathMatch(pathname: string, pattern?: string): boolean {
+function isPathMatch(
+  pathname: string,
+  pattern?: string,
+  search?: string,
+): boolean {
   // Exact match
   if (!pattern) return false;
-  
-  if (pathname === pattern) return true;
+
+  const fullPath = search ? `${pathname}${search}` : pathname;
+
+  if (fullPath === pattern || pathname === pattern.split("?")[0]) return true;
 
   // Convert route pattern to regex
   // e.g., "/performance-appraisal/:appraisalId" -> "^\/performance-appraisal\/[^/]+$"
   const regexPattern = pattern
+    .split("?")[0] // Only match the pathname part for dynamic routes
     .split("/")
     .map((segment) => (segment.startsWith(":") ? "[^/]+" : segment))
     .join("\\/");
@@ -30,13 +39,19 @@ function isPathMatch(pathname: string, pattern?: string): boolean {
   return regex.test(pathname);
 }
 
-function isRouteActive(pathname: string, item: NavItem): boolean {
+function isRouteActive(
+  pathname: string,
+  search: string,
+  item: NavItem,
+): boolean {
   // Check if current path matches this item
-  if (isPathMatch(pathname, item.path)) return true;
+  if (isPathMatch(pathname, item.path, search)) return true;
 
   // Check if any child route matches
   if (item.children) {
-    return item.children.some((child) => isRouteActive(pathname, child));
+    return item.children.some((child) =>
+      isRouteActive(pathname, search, child),
+    );
   }
 
   return false;
@@ -45,12 +60,14 @@ function isRouteActive(pathname: string, item: NavItem): boolean {
 function NavItemComponent({
   item,
   pathname,
+  search,
   navigate,
   setSidebarOpen,
   level = 0,
 }: {
   item: NavItem;
   pathname: string;
+  search: string;
   navigate: (path: string) => void;
   setSidebarOpen: (open: boolean) => void;
   level?: number;
@@ -58,17 +75,19 @@ function NavItemComponent({
   const [isExpanded, setIsExpanded] = useState(() => {
     // Auto-expand if any child is active
     if (item.children) {
-      return item.children.some((child) => isRouteActive(pathname, child));
+      return item.children.some((child) =>
+        isRouteActive(pathname, search, child),
+      );
     }
     return false;
   });
 
-  const isActive = isRouteActive(pathname, item);
+  const isActive = isRouteActive(pathname, search, item);
   const hasChildren = item.children && item.children.length > 0;
   const Icon = item.icon;
   const isChildActive =
     hasChildren &&
-    item.children!.some((child) => isRouteActive(pathname, child));
+    item.children!.some((child) => isRouteActive(pathname, search, child));
 
   const handleItemClick = (e: React.MouseEvent) => {
     setSidebarOpen(false);
@@ -97,8 +116,8 @@ function NavItemComponent({
             isActive && !hasChildren
               ? "bg-blue-600 text-white"
               : isChildActive || (isActive && hasChildren)
-              ? "bg-blue-50 text-blue-700"
-              : "text-gray-700 hover:bg-gray-100"
+                ? "bg-blue-50 text-blue-700"
+                : "text-gray-700 hover:bg-gray-100"
           }`}
           style={{ paddingLeft: `${1 + level * 1}rem` }}>
           {Icon ? <Icon className='w-5 h-5' /> : <div className='w-5 h-5' />}
@@ -123,6 +142,7 @@ function NavItemComponent({
               key={child.id}
               item={child}
               pathname={pathname}
+              search={search}
               navigate={navigate}
               setSidebarOpen={setSidebarOpen}
               level={level + 1}
@@ -149,6 +169,52 @@ export default function SidebarContent({
     clearRefreshToken();
     navigate("/login");
   };
+
+  const isAdmin = !!currentUser?.departments?.some(
+    (d) => d.departmentName.toLowerCase() === "hr",
+  );
+  const isLeader = !!currentUser?.departments?.some((d) => d.isLeader);
+
+  const filterNavItems = (
+    items: NavItem[],
+    isAdmin: boolean,
+    isLeader: boolean,
+  ): NavItem[] => {
+    const filtered: NavItem[] = [];
+
+    for (const item of items) {
+      if (item.admin && !isAdmin) continue;
+      if (item.leader && !isLeader) continue;
+
+      const clonedItem = { ...item };
+
+      if (clonedItem.children) {
+        clonedItem.children = filterNavItems(
+          clonedItem.children,
+          isAdmin,
+          isLeader,
+        );
+        // If it originally had children but now has none after filtering, hide it.
+        if (
+          item.children &&
+          item.children.length > 0 &&
+          clonedItem.children.length === 0
+        ) {
+          continue;
+        }
+      }
+
+      filtered.push(clonedItem);
+    }
+
+    return filtered;
+  };
+
+  const visibleNavigation = filterNavItems(
+    navigation as NavItem[],
+    isAdmin,
+    isLeader,
+  );
   return (
     <div className='flex h-full flex-col'>
       <div className='p-6 border-b'>
@@ -156,13 +222,14 @@ export default function SidebarContent({
         <p className='text-sm text-gray-600 mt-1'>인사 성과 관리 시스템</p>
       </div>
       <nav className='flex-1 p-4 space-y-1 overflow-y-auto'>
-        {navigation
+        {visibleNavigation
           .filter((item) => !item.detailPage)
           .map((item) => (
             <NavItemComponent
               key={item.id}
-              item={item as NavItem}
+              item={item}
               pathname={location.pathname}
+              search={location.search}
               navigate={navigate}
               setSidebarOpen={setSidebarOpen}
             />

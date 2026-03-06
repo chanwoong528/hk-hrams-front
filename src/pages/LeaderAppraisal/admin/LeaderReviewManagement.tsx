@@ -24,9 +24,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Plus, Users, Calendar } from "lucide-react";
+import { Plus, Users, Calendar, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
+import { useNavigate } from "react-router-dom";
 import {
   GET_leaderReviews,
   GET_templates,
@@ -37,6 +38,7 @@ import type { HramsUserType } from "@/api/user/user";
 import UserMultiSelect from "@/pages/PerformanceAppraisal/widget/UserMultiSelect";
 
 export default function LeaderReviewManagement() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -226,6 +228,19 @@ export default function LeaderReviewManagement() {
                   <Users className='mr-1 h-3 w-3' />
                   {review.assignments?.length || 0} 명의 동료 평가자
                 </div>
+              </div>
+              <div className='mt-4 pt-4 border-t'>
+                <Button
+                  variant='outline'
+                  className='w-full'
+                  onClick={() =>
+                    navigate(
+                      `/leader-appraisal/results/${review.leaderReviewId}`,
+                    )
+                  }>
+                  <TrendingUp className='w-4 h-4 mr-2' />
+                  결과 상세 보기
+                </Button>
               </div>
             </CardContent>
           </Card>

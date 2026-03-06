@@ -1,18 +1,19 @@
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   GET_userCompetencyAssessments,
@@ -23,7 +24,18 @@ import {
   GET_appraisalsOfTeamMembers,
 } from "@/api/appraisal/appraisal";
 import { useCurrentUserStore } from "@/store/currentUserStore";
-import { User as UserIcon, Users, Save, SaveAll, Loader2 } from "lucide-react";
+import {
+  User as UserIcon,
+  Users,
+  Save,
+  SaveAll,
+  Loader2,
+  CheckCircle2,
+  Circle,
+  ChevronRight,
+  MessageSquare,
+  ClipboardList,
+} from "lucide-react";
 
 const GRADES = ["S", "A", "B", "C", "D"];
 
@@ -91,7 +103,7 @@ export default function CompetencyEvaluation() {
     const idInUrl = searchParams.get("appraisalUserId");
     if (idInUrl && idInUrl !== selectedAppraisalUserId) {
       setSelectedAppraisalUserId(idInUrl || "");
-      setLocalEdits({}); // Clear edits when target changes to prevent cross-contamination
+      setLocalEdits({});
     }
   }, [searchParams, selectedAppraisalUserId]);
 
@@ -137,7 +149,7 @@ export default function CompetencyEvaluation() {
     const newParams = new URLSearchParams(searchParams);
     newParams.set("appraisalUserId", val);
     setSearchParams(newParams);
-    setLocalEdits({}); // Reset local edits
+    setLocalEdits({});
   };
 
   // Grouping for UI
@@ -238,6 +250,7 @@ export default function CompetencyEvaluation() {
       toast.success("모든 평가가 성공적으로 저장되었습니다.");
       setLocalEdits({});
       queryClient.invalidateQueries({ queryKey: ["competencyAssessments"] });
+      queryClient.invalidateQueries({ queryKey: ["teamMembers"] }); // Refresh progress
     } catch (error) {
       console.error("Batch save failed:", error);
       toast.error("일부 평가 저장에 실패했습니다.");
@@ -249,285 +262,385 @@ export default function CompetencyEvaluation() {
   const hasUnsavedChanges = Object.keys(localEdits).length > 0;
 
   return (
-    <div className='p-4 lg:p-6 space-y-6'>
-      <div className='flex flex-col sm:flex-row gap-4 justify-between items-start'>
-        <div>
-          <h2 className='text-gray-900 font-bold text-2xl flex items-center gap-2'>
-            <Users className='w-6 h-6 text-blue-600' />
-            역량 평가 수행
-          </h2>
-          <p className='text-gray-600 mt-1'>
-            {currentTargetUser?.isSelf
-              ? "나의 역량 지표에 대해 스스로 평가하고 의견을 작성합니다."
-              : `${currentTargetUser?.name || "팀원"}님의 역량 지표에 대해 리더로서 평가를 진행합니다.`}
+    <div className='flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50/50'>
+      {/* Sidebar - Target List */}
+      <div className='w-80 border-r bg-white flex flex-col shrink-0'>
+        <div className='p-4 border-b bg-gray-50/50'>
+          <h3 className='font-bold text-gray-900 flex items-center gap-2'>
+            <Users className='w-5 h-5 text-blue-600' />
+            평가 대상 목록
+          </h3>
+          <p className='text-xs text-gray-500 mt-1'>
+            본인 및 팀원을 선택하여 평가를 진행하세요.
           </p>
         </div>
-
-        <div className='flex items-center gap-3'>
-          {hasUnsavedChanges && (
-            <span className='text-amber-600 text-sm font-bold animate-pulse'>
-              저장되지 않은 변경사항이 {Object.keys(localEdits).length}건
-              있습니다.
-            </span>
-          )}
-          <Button
-            onClick={handleSaveAll}
-            disabled={!hasUnsavedChanges || isSaving}
-            className='bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-lg'>
-            {isSaving ? (
-              <Loader2 className='w-4 h-4 animate-spin' />
-            ) : (
-              <SaveAll className='w-4 h-4' />
+        <ScrollArea className='flex-1'>
+          <div className='p-2 space-y-4'>
+            {/* My Evaluation Section */}
+            {myAppraisals && myAppraisals.length > 0 && (
+              <div className='space-y-1'>
+                <div className='px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider'>
+                  나의 평가
+                </div>
+                {myAppraisals.map((a) => (
+                  <button
+                    key={a.appraisalUserId}
+                    onClick={() => handleTargetChange(a.appraisalUserId)}
+                    className={`w-full flex flex-col items-start gap-1 px-3 py-3 rounded-lg transition-all text-left ${
+                      selectedAppraisalUserId === a.appraisalUserId
+                        ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}>
+                    <div className='flex items-center justify-between w-full'>
+                      <span className='font-semibold text-sm truncate'>
+                        {a.title}
+                      </span>
+                      {selectedAppraisalUserId === a.appraisalUserId && (
+                        <ChevronRight className='w-4 h-4' />
+                      )}
+                    </div>
+                    <div className='flex items-center gap-2'>
+                      <Badge
+                        variant='outline'
+                        className='text-[10px] py-0 h-4 bg-white'>
+                        본인
+                      </Badge>
+                    </div>
+                  </button>
+                ))}
+              </div>
             )}
-            평가 일괄 저장
-          </Button>
-        </div>
-      </div>
 
-      <div className='flex flex-wrap gap-4 items-end bg-white p-4 rounded-lg shadow-sm border'>
-        <div className='w-full sm:w-80 space-y-2'>
-          <Label className='text-xs font-bold text-gray-500'>
-            평가 대상 선택 (본인 및 팀원)
-          </Label>
-          <Select
-            value={selectedAppraisalUserId}
-            onValueChange={handleTargetChange}>
-            <SelectTrigger className='w-full'>
-              <SelectValue placeholder='평가 대상자를 선택하세요' />
-            </SelectTrigger>
-            <SelectContent>
-              {myAppraisals && myAppraisals.length > 0 && (
-                <>
-                  <SelectItem
-                    value='header-self'
-                    disabled
-                    className='font-bold text-blue-600'>
-                    --- 본인 평가 ---
-                  </SelectItem>
-                  {myAppraisals.map((a) => (
-                    <SelectItem
-                      key={a.appraisalUserId}
-                      value={a.appraisalUserId}>
-                      <span className='flex items-center gap-2'>
-                        <UserIcon className='w-3 h-3' />
-                        {a.title} (본인)
-                      </span>
-                    </SelectItem>
-                  ))}
-                </>
-              )}
-              {teamParticipations.length > 0 && (
-                <>
-                  <SelectItem
-                    value='header-team'
-                    disabled
-                    className='font-bold text-green-600 mt-2'>
-                    --- 팀원 평가 ---
-                  </SelectItem>
-                  {teamParticipations.map((tp) => (
-                    <SelectItem
+            {/* Team Evaluation Section */}
+            {teamParticipations.length > 0 && (
+              <div className='space-y-1'>
+                <div className='px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider'>
+                  팀원 평가
+                </div>
+                {teamParticipations.map((tp) => {
+                  const total = tp.leaderCompetencyTotal || 0;
+                  const completed = tp.leaderCompetencyCompleted || 0;
+                  const isFinished = total > 0 && total === completed;
+
+                  return (
+                    <button
                       key={tp.appraisalUserId}
-                      value={tp.appraisalUserId}>
-                      <span className='flex items-center gap-2'>
-                        {tp.koreanName} - {tp.appraisalTitle}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {(isLoadingMyAppraisals || isLoadingAssessments || isLoadingTeam) && (
-        <div className='text-center py-20'>평가 데이터를 불러오는 중...</div>
-      )}
-
-      {isError && (
-        <div className='text-red-500 text-center py-20 bg-red-50 rounded-lg border'>
-          데이터 조회에 실패했습니다. 권한이 없거나 만료된 세션일 수 있습니다.
-        </div>
-      )}
-
-      {!isLoadingAssessments && deptNames.length > 0 ? (
-        <Tabs defaultValue={deptNames[0]} className='w-full'>
-          <TabsList className='mb-4 bg-gray-100 p-1'>
-            {deptNames.map((dept) => (
-              <TabsTrigger key={dept} value={dept} className='px-6'>
-                {dept}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {deptNames.map((dept) => (
-            <TabsContent
-              key={dept}
-              value={dept}
-              className='space-y-6 animate-in fade-in h-full'>
-              {getGroupedAssessments(assessmentsByDept[dept]).map((group) => {
-                const myRecord = group.myRecord;
-                const selfRecord = group.selfRecord;
-
-                // Get current value from local state or original data
-                const currentEdit = myRecord
-                  ? localEdits[myRecord.assessmentId]
-                  : null;
-                const displayGrade =
-                  currentEdit?.grade !== undefined
-                    ? currentEdit.grade
-                    : myRecord?.grade;
-                const displayComment =
-                  currentEdit?.comment !== undefined
-                    ? currentEdit.comment
-                    : myRecord?.comment;
-                const isDirty = !!currentEdit;
-
-                return (
-                  <Card
-                    key={group.question}
-                    className={`overflow-hidden border-l-4 shadow-md transition-all duration-300 ${isDirty ? "border-l-amber-500 ring-1 ring-amber-100" : myRecord ? "border-l-blue-500" : "border-l-gray-300"}`}>
-                    <CardHeader className='pb-4 border-b bg-gray-50/50'>
-                      <div className='flex justify-between items-start'>
-                        <CardTitle className='text-lg text-gray-800 flex items-start gap-3'>
-                          <span
-                            className={`token ${myRecord ? (isDirty ? "bg-amber-500" : "bg-blue-600") : "bg-gray-400"} text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5`}>
-                            Q
-                          </span>
-                          {group.question}
-                        </CardTitle>
-                        {isDirty && (
-                          <span className='text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200'>
-                            저장 대기 중
-                          </span>
+                      onClick={() => handleTargetChange(tp.appraisalUserId)}
+                      className={`w-full flex flex-col items-start gap-1 px-3 py-3 rounded-lg transition-all text-left ${
+                        selectedAppraisalUserId === tp.appraisalUserId
+                          ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}>
+                      <div className='flex items-center justify-between w-full'>
+                        <span className='font-semibold text-sm truncate'>
+                          {tp.koreanName}
+                        </span>
+                        {isFinished ? (
+                          <CheckCircle2 className='w-4 h-4 text-green-500' />
+                        ) : (
+                          <Circle className='w-4 h-4 text-gray-300' />
                         )}
                       </div>
-                    </CardHeader>
-                    <CardContent className='p-6 bg-white space-y-6'>
-                      {/* Self Assessment Context (for Leader) or others */}
-                      {!currentTargetUser?.isSelf && selfRecord && (
-                        <div className='bg-green-50 p-4 rounded-lg border border-green-100 space-y-2'>
-                          <div className='flex items-center gap-2 text-green-800 font-bold text-sm'>
-                            <UserIcon className='w-4 h-4' />
-                            팀원 스스로의 평가 (Self-Assessment)
-                          </div>
-                          <div className='flex flex-wrap gap-4 text-sm'>
-                            <div className='bg-white px-3 py-1 rounded border border-green-200'>
-                              <span className='text-gray-500 mr-2'>등급:</span>
-                              <span className='font-bold text-green-700'>
-                                {selfRecord.grade || "-"}
-                              </span>
-                            </div>
-                            <div className='bg-white px-3 py-1 rounded border border-green-200 flex-1'>
-                              <span className='text-gray-500 mr-2'>의견:</span>
-                              <span className='text-gray-700'>
-                                {selfRecord.comment || "(의견 없음)"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {!myRecord && (
-                        <div className='bg-amber-50 p-3 rounded text-amber-800 text-sm flex items-center gap-2'>
-                          <span className='token bg-amber-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[10px]'>
-                            !
-                          </span>
-                          이 문항에 대한 평가 권한이 없습니다 (평가자로 지정되지
-                          않음).
-                        </div>
-                      )}
-
-                      <div
-                        className={`grid grid-cols-1 lg:grid-cols-4 gap-8 ${!myRecord || isSaving ? "opacity-50 pointer-events-none" : ""}`}>
-                        <div className='lg:col-span-1 space-y-3'>
-                          <Label className='text-sm font-bold text-gray-700 flex items-center gap-2'>
-                            {currentTargetUser?.isSelf
-                              ? "나의 등급 선택"
-                              : "리더 등급 선택"}
-                          </Label>
-                          <div className='grid grid-cols-5 lg:grid-cols-1 gap-2'>
-                            {GRADES.map((g) => (
-                              <button
-                                key={g}
-                                disabled={!myRecord || isSaving}
-                                onClick={() =>
-                                  myRecord &&
-                                  handleLocalUpdate(myRecord.assessmentId, {
-                                    grade: g,
-                                  })
-                                }
-                                className={`py-2 px-3 rounded-md text-center font-bold transition-all border ${
-                                  displayGrade === g
-                                    ? isDirty
-                                      ? "bg-amber-500 text-white border-amber-600"
-                                      : "bg-blue-600 text-white border-blue-600 shadow-inner scale-95"
-                                    : "bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:bg-blue-50"
-                                }`}>
-                                {g}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div className='lg:col-span-3 space-y-3'>
-                          <Label className='text-sm font-bold text-gray-700'>
-                            평가 의견 (선택사항)
-                          </Label>
-                          <Textarea
-                            disabled={!myRecord || isSaving}
-                            value={displayComment || ""}
-                            onChange={(e) =>
-                              myRecord &&
-                              handleLocalUpdate(myRecord.assessmentId, {
-                                comment: e.target.value,
-                              })
-                            }
-                            placeholder={
-                              myRecord
-                                ? `${currentTargetUser?.name || "대상자"}님의 역량 발휘 수준에 대한 구체적인 의견을 남겨주세요.`
-                                : "평가 권한이 없습니다."
-                            }
-                            className={`min-h-[120px] focus:ring-2 focus:ring-blue-500 border-gray-300 transition-colors ${isDirty ? "bg-amber-50/30 border-amber-200" : ""}`}
-                          />
-                        </div>
+                      <div className='flex items-center justify-between w-full text-[10px]'>
+                        <span className='opacity-70 truncate'>
+                          {tp.appraisalTitle}
+                        </span>
+                        <span className='font-bold ml-2 shrink-0'>
+                          {completed}/{total}
+                        </span>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </TabsContent>
-          ))}
+                      {/* Progress Bar Mini */}
+                      <div className='w-full h-1 bg-gray-100 rounded-full mt-1 overflow-hidden'>
+                        <div
+                          className={`h-full transition-all ${isFinished ? "bg-green-500" : "bg-blue-500"}`}
+                          style={{
+                            width: `${total > 0 ? (completed / total) * 100 : 0}%`,
+                          }}
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
 
-          <div className='mt-8 flex justify-center pb-20'>
+      {/* Main Content Area */}
+      <div className='flex-1 flex flex-col overflow-hidden'>
+        {/* Header */}
+        <header className='bg-white border-b px-6 py-4 flex items-center justify-between shrink-0'>
+          <div className='flex items-center gap-4'>
+            <div className='w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shadow-sm'>
+              <UserIcon className='w-6 h-6' />
+            </div>
+            <div>
+              <h2 className='text-lg font-bold text-gray-900 flex items-center gap-2'>
+                {currentTargetUser?.name || "대상을 선택하세요"}
+                {currentTargetUser?.isSelf && (
+                  <Badge className='bg-blue-100 text-blue-700 hover:bg-blue-100 border-none'>
+                    나의 역량 평가
+                  </Badge>
+                )}
+              </h2>
+              <p className='text-sm text-gray-500'>
+                {currentTargetUser?.isSelf
+                  ? "본인의 성과와 역량을 객관적으로 되돌아보며 솔직하게 작성해주세요."
+                  : "팀원의 역량 발휘 수준과 기여도를 공정하게 평가해주세요."}
+              </p>
+            </div>
+          </div>
+
+          <div className='flex items-center gap-4'>
+            {hasUnsavedChanges && (
+              <div className='flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full border border-amber-200 text-xs font-bold animate-pulse'>
+                <div className='w-2 h-2 bg-amber-500 rounded-full' />
+                {Object.keys(localEdits).length}건 수정됨
+              </div>
+            )}
             <Button
-              size='lg'
               onClick={handleSaveAll}
               disabled={!hasUnsavedChanges || isSaving}
-              className='bg-blue-600 hover:bg-blue-700 text-white gap-2 h-14 px-12 text-lg shadow-xl'>
+              className='bg-blue-600 hover:bg-blue-700 text-white shadow-lg px-6 gap-2 h-10'>
               {isSaving ? (
-                <Loader2 className='w-5 h-5 animate-spin' />
+                <Loader2 className='w-4 h-4 animate-spin' />
               ) : (
-                <Save className='w-5 h-5' />
+                <SaveAll className='w-4 h-4' />
               )}
-              전체 평가 저장하기
+              변경사항 모두 저장
             </Button>
           </div>
-        </Tabs>
-      ) : (
-        !isLoadingAssessments &&
-        selectedAppraisalUserId && (
-          <div className='text-center text-gray-500 py-32 bg-gray-50 rounded-xl border-4 border-dashed border-gray-200'>
-            <Users className='w-12 h-12 mx-auto text-gray-300 mb-4' />
-            <p className='text-xl font-medium'>
-              배정된 역량 평가 항목이 없습니다.
-            </p>
-            <p className='mt-2'>
-              부서장이 해당 주기의 역량 평가 문항을 아직 생성하지 않았을 수
-              있습니다.
-            </p>
-          </div>
-        )
-      )}
+        </header>
+
+        {/* Content Scroll Area */}
+        <main className='flex-1 overflow-y-auto p-6'>
+          {(isLoadingMyAppraisals || isLoadingAssessments || isLoadingTeam) && (
+            <div className='flex flex-col items-center justify-center h-full text-gray-400 gap-4'>
+              <Loader2 className='w-10 h-10 animate-spin text-blue-600' />
+              <p className='font-medium'>데이터를 불러오는 중입니다...</p>
+            </div>
+          )}
+
+          {!isLoadingAssessments && deptNames.length > 0 ? (
+            <div className='max-w-5xl mx-auto space-y-8 pb-20'>
+              <Tabs defaultValue={deptNames[0]} className='w-full'>
+                <TabsList className='mb-6 bg-white border p-1 rounded-xl shadow-sm'>
+                  {deptNames.map((dept) => (
+                    <TabsTrigger
+                      key={dept}
+                      value={dept}
+                      className='px-8 py-2 rounded-lg data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-none'>
+                      {dept}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                {deptNames.map((dept) => (
+                  <TabsContent key={dept} value={dept} className='space-y-6'>
+                    {getGroupedAssessments(assessmentsByDept[dept]).map(
+                      (group) => {
+                        const myRecord = group.myRecord;
+                        const selfRecord = group.selfRecord;
+                        const otherRecords = group.otherRecords; // Other evaluators if any
+
+                        // Get current value from local state or original data
+                        const currentEdit = myRecord
+                          ? localEdits[myRecord.assessmentId]
+                          : null;
+                        const displayGrade =
+                          currentEdit?.grade !== undefined
+                            ? currentEdit.grade
+                            : myRecord?.grade;
+                        const displayComment =
+                          currentEdit?.comment !== undefined
+                            ? currentEdit.comment
+                            : myRecord?.comment;
+                        const isDirty = !!currentEdit;
+
+                        return (
+                          <Card
+                            key={group.question}
+                            className={`transition-all duration-300 border-none shadow-sm ring-1 ${
+                              isDirty
+                                ? "ring-amber-400 bg-amber-50/10"
+                                : "ring-gray-200"
+                            }`}>
+                            <CardHeader className='pb-4 border-b bg-gray-50/30'>
+                              <div className='flex items-start gap-4'>
+                                <div className='w-8 h-8 rounded-lg bg-white border shadow-sm flex items-center justify-center font-bold text-gray-400 shrink-0 mt-1'>
+                                  Q
+                                </div>
+                                <div className='space-y-1'>
+                                  <CardTitle className='text-lg font-bold text-gray-800 leading-snug'>
+                                    {group.question}
+                                  </CardTitle>
+                                  {isDirty && (
+                                    <Badge className='bg-amber-100 text-amber-700 hover:bg-amber-100 border-none text-[10px]'>
+                                      저장 대기 중
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className='p-8 space-y-8'>
+                              {/* Display Other Feedbacks (Team member view sees Leader feedback) */}
+                              {currentTargetUser?.isSelf &&
+                                otherRecords.length > 0 && (
+                                  <div className='space-y-3'>
+                                    <div className='flex items-center gap-2 text-blue-700 font-bold text-sm'>
+                                      <MessageSquare className='w-4 h-4' />
+                                      동료 및 리더 피드백
+                                    </div>
+                                    <div className='grid gap-4'>
+                                      {otherRecords.map((rec: any) => (
+                                        <div
+                                          key={rec.assessmentId}
+                                          className='bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex items-start gap-4'>
+                                          <div className='w-10 h-10 rounded-full bg-white border border-blue-200 flex items-center justify-center text-blue-600 font-bold shrink-0'>
+                                            {rec.grade || "-"}
+                                          </div>
+                                          <div className='flex-1 space-y-1'>
+                                            <div className='text-xs font-bold text-blue-800 flex justify-between'>
+                                              <span>
+                                                리더:{" "}
+                                                {rec.evaluator?.koreanName}
+                                              </span>
+                                            </div>
+                                            <p className='text-sm text-gray-700 leading-relaxed'>
+                                              {rec.comment ||
+                                                "의견이 작성되지 않았습니다."}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                              {/* Self Assessment Context for Leader */}
+                              {!currentTargetUser?.isSelf && selfRecord && (
+                                <div className='space-y-3'>
+                                  <div className='flex items-center gap-2 text-green-700 font-bold text-sm'>
+                                    <ClipboardList className='w-4 h-4' />
+                                    팀원 자기평가 (Self-Assessment)
+                                  </div>
+                                  <div className='bg-green-50/50 p-5 rounded-2xl border border-green-100 flex items-start gap-4'>
+                                    <div className='w-12 h-12 rounded-2xl bg-white border border-green-200 flex flex-col items-center justify-center shrink-0 shadow-sm'>
+                                      <span className='text-[10px] text-green-600 font-bold'>
+                                        등급
+                                      </span>
+                                      <span className='text-lg font-black text-green-700'>
+                                        {selfRecord.grade || "-"}
+                                      </span>
+                                    </div>
+                                    <div className='flex-1 space-y-1'>
+                                      <p className='text-sm text-gray-700 leading-relaxed italic'>
+                                        {selfRecord.comment ||
+                                          "팀원이 작성한 의견이 없습니다."}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Evaluation Input */}
+                              {myRecord ? (
+                                <div className='grid grid-cols-1 lg:grid-cols-12 gap-10 pt-4 border-t border-dashed'>
+                                  <div className='lg:col-span-5 space-y-4'>
+                                    <Label className='text-sm font-bold text-gray-700 flex items-center gap-2'>
+                                      평가 등급 선택
+                                      <span className='text-xs font-normal text-gray-400'>
+                                        (필수 항목)
+                                      </span>
+                                    </Label>
+                                    <div className='flex flex-wrap gap-2'>
+                                      {GRADES.map((g) => (
+                                        <button
+                                          key={g}
+                                          disabled={isSaving}
+                                          onClick={() =>
+                                            handleLocalUpdate(
+                                              myRecord.assessmentId,
+                                              { grade: g },
+                                            )
+                                          }
+                                          className={`flex-1 min-w-[60px] py-4 rounded-xl text-center font-black text-lg transition-all border-2 ${
+                                            displayGrade === g
+                                              ? isDirty
+                                                ? "bg-amber-500 text-white border-amber-600 shadow-lg -translate-y-1"
+                                                : "bg-blue-600 text-white border-blue-700 shadow-lg -translate-y-1"
+                                              : "bg-white text-gray-400 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30"
+                                          }`}>
+                                          {g}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    <p className='text-[10px] text-gray-400 text-center'>
+                                      S: 탁월함 | A: 우수함 | B: 보통 | C: 지원
+                                      필요 | D: 개선 필요
+                                    </p>
+                                  </div>
+                                  <div className='lg:col-span-7 space-y-4'>
+                                    <Label className='text-sm font-bold text-gray-700'>
+                                      상세 의견 작성
+                                    </Label>
+                                    <Textarea
+                                      disabled={isSaving}
+                                      value={displayComment || ""}
+                                      onChange={(e) =>
+                                        handleLocalUpdate(
+                                          myRecord.assessmentId,
+                                          { comment: e.target.value },
+                                        )
+                                      }
+                                      placeholder={
+                                        currentTargetUser?.isSelf
+                                          ? "본인의 역량에 대해 구체적인 사례와 함께 의견을 남겨주세요."
+                                          : `${currentTargetUser?.name}님의 역량 발휘 수준에 대한 리더의 의견을 남겨주세요.`
+                                      }
+                                      className={`min-h-[160px] rounded-2xl focus:ring-2 focus:ring-blue-500 border-gray-200 transition-colors bg-gray-50/50 hover:bg-white focus:bg-white text-sm leading-relaxed ${
+                                        isDirty
+                                          ? "bg-amber-50/30 border-amber-200"
+                                          : ""
+                                      }`}
+                                    />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className='bg-gray-100 p-8 rounded-2xl text-center text-gray-500 border border-dashed border-gray-300'>
+                                  <Users className='w-8 h-8 mx-auto mb-2 opacity-30' />
+                                  본 문항에 대한 평가 권한이 없습니다.
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      },
+                    )}
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </div>
+          ) : (
+            !isLoadingAssessments &&
+            selectedAppraisalUserId && (
+              <div className='flex flex-col items-center justify-center h-full text-center p-20'>
+                <div className='w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-gray-300 mb-6'>
+                  <ClipboardList className='w-10 h-10' />
+                </div>
+                <h3 className='text-xl font-bold text-gray-800'>
+                  배정된 역량 평가 항목이 없습니다.
+                </h3>
+                <p className='text-gray-500 mt-2 max-w-sm'>
+                  평가 주기가 시작되지 않았거나, 현재 부서에 배정된 문항이 없을
+                  수 있습니다.
+                </p>
+              </div>
+            )
+          )}
+        </main>
+      </div>
     </div>
   );
 }

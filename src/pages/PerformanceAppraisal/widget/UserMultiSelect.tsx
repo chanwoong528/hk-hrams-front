@@ -21,8 +21,8 @@ export default memo(
     users?: HramsUserType[];
   }) {
     const { data: fetchedUsers, isLoading: isLoadingUsers } = useQuery({
-      queryKey: ["users", "all"],
-      queryFn: () => GET_users("all"),
+      queryKey: ["users"],
+      queryFn: () => GET_users(),
       select: (data) => data.data.list,
       enabled: !propsUsers, // Only fetch if no users provided
     });

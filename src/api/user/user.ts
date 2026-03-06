@@ -28,13 +28,14 @@ export const GET_usersByPagination = async (
   page: number = 1,
   limit: number = 10,
   keyword?: string,
+  departmentId?: string,
 ) => {
-  console.log("@@@keyword>> ", keyword);
   const response = await http.get("/user", {
     params: {
       page,
       limit,
       ...(keyword && { keyword }),
+      ...(departmentId && { departmentId }),
     },
   });
 
@@ -75,4 +76,18 @@ export const PATCH_user = async (payload: {
 export const GET_leaders = async () => {
   const { data } = await http.get("/user/leaders");
   return data || { data: [] };
+};
+
+export const POST_bulkUsers = async (payload: {
+  users: { koreanName: string; email: string }[];
+  departments?: Department[];
+}) => {
+  const departmentIds = payload.departments?.map((d) => d.departmentId) ?? [];
+  const response = await http.post("/user/bulk", {
+    users: payload.users.map((u) => ({
+      ...u,
+      departments: departmentIds,
+    })),
+  });
+  return response.data;
 };

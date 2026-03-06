@@ -59,3 +59,24 @@ export const PATCH_competencyAssessment = async (
   );
   return response.data;
 };
+
+// 4. 출제된 역량 평가 문항 조회 (HR / 리더)
+export interface CompetencyQuestionGroupDto {
+  appraisalId: string;
+  appraisalTitle: string;
+  departmentId: string;
+  departmentName: string;
+  creatorId: string;
+  creatorName: string;
+  lastModifierId?: string;
+  lastModifierName?: string;
+  created: string;
+  questions: string[];
+}
+
+export const GET_competencyQuestions = async (): Promise<
+  CompetencyQuestionGroupDto[]
+> => {
+  const response = await http.get("/competency-question");
+  return response.data?.data || [];
+};

@@ -1,11 +1,21 @@
 import {
-  Building2,
   ClipboardCheck,
   LayoutDashboard,
   Target,
   Users,
   TrendingUp,
+  ListTodo,
+  Settings,
+  FileCog,
+  UserCheck,
+  Award,
+  UserCog,
+  LayoutTemplate,
+  ClipboardEdit,
 } from "lucide-react";
+
+// admin true
+// leader true
 
 export const navigation = [
   {
@@ -13,93 +23,90 @@ export const navigation = [
     name: "대시보드",
     icon: LayoutDashboard,
     path: "/",
+    admin: true,
   },
   {
-    id: "users" as Page,
-    name: "사용자 관리",
-    icon: Users,
-    path: "/user-management",
-  },
-  {
-    id: "departments" as Page,
-    name: "부서 관리",
-    icon: Building2,
-    path: "/department-management",
-  },
-  {
-    id: "appraisals" as Page,
-    name: "성과 평가",
-    icon: ClipboardCheck,
-    path: "/performance-appraisal",
-    children: [],
-  },
-  {
-    id: "appraisal-detail" as Page,
-    name: "성과 평가 상세",
-    icon: ClipboardCheck,
-    path: "/performance-appraisal/:appraisalId",
-    detailPage: true,
+    id: "dashboard-todo" as Page,
+    name: "todo 대시보드",
+    icon: ListTodo,
+    path: "/todo",
   },
 
   {
-    id: "goals" as Page,
-    name: "목표 관리",
-    icon: Target,
-    path: "/goal-management",
+    id: "organization-management" as Page,
+    name: "조직 관리",
+    icon: Users,
+    path: "/organization-management",
+    admin: true,
   },
+
   {
-    id: "leader-appraisal" as Page,
-    name: "리더 평가 관리",
-    icon: Users, // Assuming Users icon for leader appraisal
+    id: "appraisals" as Page,
+    name: "인사 평가",
+    icon: ClipboardCheck,
+
     children: [
       {
-        id: "leader-reviews" as Page,
-        name: "평가 및 대상자 관리",
-        path: "/leader-appraisal/reviews",
-        icon: Users,
+        id: "appraisal-management" as Page,
+        name: "인사 평가 관리",
+        icon: Settings,
+        path: "/performance-appraisal",
+        admin: true,
       },
       {
-        id: "template-management" as Page,
-        name: "평가 템플릿 관리",
-        path: "/leader-appraisal/templates",
-        icon: ClipboardCheck,
+        id: "goals" as Page,
+        name: "목표 관리",
+        icon: Target,
+        path: "/goal-management",
       },
-    ],
-  },
-  {
-    id: "my-leader-reviews" as Page,
-    name: "나의 리더 평가",
-    icon: ClipboardCheck,
-    path: "/leader-appraisal/my",
-  },
-  {
-    id: "my-leader-results" as Page,
-    name: "나의 리더 평가 결과",
-    icon: TrendingUp, // Need to import TrendingUp or similar
-    path: "/leader-appraisal/results/my",
-  },
-  {
-    id: "competency-management" as Page,
-    name: "역량 평가 관리",
-    icon: ClipboardCheck,
-    children: [
       {
         id: "competency-setting" as Page,
-        name: "문항 설정 (리더)",
+        name: "문항 설정",
         path: "/competency-setting",
-        icon: ClipboardCheck,
+        icon: FileCog,
+        // admin: true,
+        leader: true,
       },
       {
         id: "competency-evaluation-self" as Page,
         name: "나의 역량 평가",
         path: "/competency-evaluation?mode=self",
-        icon: ClipboardCheck,
+        icon: UserCheck,
+      },
+    ],
+  },
+
+  {
+    id: "leader-appraisal" as Page,
+    name: "리더 평가",
+    icon: Award,
+    children: [
+      {
+        id: "leader-reviews" as Page,
+        name: "평가 및 대상자 관리",
+        path: "/leader-appraisal/reviews",
+        icon: UserCog,
+        admin: true,
       },
       {
-        id: "competency-evaluation-team" as Page,
-        name: "팀원 역량 평가 (리더)",
-        path: "/competency-evaluation?mode=team",
-        icon: Users,
+        id: "template-management" as Page,
+        name: "평가 템플릿 관리",
+        path: "/leader-appraisal/templates",
+        icon: LayoutTemplate,
+        admin: true,
+      },
+      {
+        id: "my-leader-reviews" as Page,
+        name: "나의 리더 평가",
+        icon: ClipboardEdit,
+        path: "/leader-appraisal/my",
+      },
+      {
+        id: "my-leader-results" as Page,
+        name: "나의 리더 평가 결과",
+        icon: TrendingUp,
+        path: "/leader-appraisal/results/my",
+        admin: true,
       },
     ],
   },

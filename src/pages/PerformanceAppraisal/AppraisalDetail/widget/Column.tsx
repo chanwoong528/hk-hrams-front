@@ -6,8 +6,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 // const columns: ColumnDef<AppraisalTarget>[] = [
@@ -108,6 +106,8 @@ interface DetailColumn {
   appraisal: Appraisal;
   owner: User;
   departments: Department[];
+  competencyTotal: number;
+  competencySubmitted: number;
 }
 
 export type SortConfig = {
@@ -203,11 +203,64 @@ export const getColumns = (
   },
   {
     accessorKey: "status",
-    header: () => <p className='text-right pr-2'>Status</p>,
+    header: () => <p className='text-right pr-2'>목표 상태</p>,
     cell: ({ row }) => {
+      const rawStatus = (row.getValue("status") as string)?.toLowerCase();
+      let statusText = "기본";
+      let badgeVariant: "default" | "secondary" | "outline" | "destructive" =
+        "secondary";
+
+      if (rawStatus === "submitted") {
+        statusText = "목표 제출됨";
+        badgeVariant = "default";
+      } else if (rawStatus === "finished") {
+        statusText = "평가 완료";
+        badgeVariant = "outline";
+      } else if (rawStatus === "in_progress") {
+        statusText = "작성 중";
+        badgeVariant = "secondary";
+      } else {
+        statusText = rawStatus || "진행 전";
+      }
+
+      return (
+        <div className='text-right pr-2'>
+          <Badge
+            variant={badgeVariant}
+            className={
+              badgeVariant === "default"
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
+                : ""
+            }>
+            {statusText}
+          </Badge>
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "competency",
+    header: () => <p className='text-right pr-2'>역량 평가</p>,
+    cell: ({ row }) => {
+      const total = row.original.competencyTotal || 0;
+      const submitted = row.original.competencySubmitted || 0;
+      const isComplete = total > 0 && submitted >= total;
+
       return (
         <div className='text-right font-medium pr-2'>
-          {(row.getValue("status") as string) ?? "진행중"}
+          {total === 0 ? (
+            <span className='text-gray-400'>대상 아님</span>
+          ) : (
+            <Badge
+              variant={isComplete ? "outline" : "secondary"}
+              className={
+                isComplete
+                  ? ""
+                  : "bg-amber-100 text-amber-700 hover:bg-amber-100"
+              }>
+              {submitted} / {total} 완료
+            </Badge>
+          )}
         </div>
       );
     },
@@ -225,16 +278,6 @@ export const getColumns = (
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() =>
-                navigator.clipboard.writeText(
-                  row.getValue("appraisalUserId") as string,
-                )
-              }>
-              Copy payment ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
                 const appraisalUserId = row.getValue(
@@ -249,8 +292,6 @@ export const getColumns = (
               }}>
               역량 평가 수행 (리더)
             </DropdownMenuItem>
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       );

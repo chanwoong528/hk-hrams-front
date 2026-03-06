@@ -172,10 +172,13 @@ const AppraisalSection = ({
 
   // Logic to find common goals (goals with same title across *some* users)
   const allGoals = appraisal.user.flatMap((u) => u.goals);
-  const goalCounts = allGoals.reduce((acc, goal) => {
-    acc[goal.title] = (acc[goal.title] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const goalCounts = allGoals.reduce(
+    (acc, goal) => {
+      acc[goal.title] = (acc[goal.title] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   const commonGoals = Object.entries(goalCounts)
     .filter(([_, count]) => count > 1) // Only goals shared by more than 1 person
@@ -423,18 +426,22 @@ const AppraisalSection = ({
                         <Button
                           size='sm'
                           variant={isFullyAssessed ? "outline" : "default"}
-                          disabled={user.status !== "submitted"}
                           className={
-                            isFullyAssessed && user.status === "submitted"
-                              ? "text-gray-600 hover:bg-gray-50 bg-white border border-gray-200" // Added explicit styles for finished state
-                              : "bg-blue-600 hover:bg-blue-700 shadow-sm disabled:bg-gray-300 text-white"
+                            isFullyAssessed &&
+                            (user.status === "submitted" ||
+                              user.status === "finished")
+                              ? "text-gray-600 hover:bg-gray-50 bg-white border border-gray-200"
+                              : "bg-blue-600 hover:bg-blue-700 shadow-sm text-white"
                           }>
-                          {isFullyAssessed ? ( // Simplified check: if fully assessed, show check
+                          {isFullyAssessed ? (
                             <CheckCircle className='w-3.5 h-3.5 mr-1.5 text-green-600' />
                           ) : (
                             <Star className='w-3.5 h-3.5 mr-1.5' />
                           )}
-                          목표 평가
+                          {user.status === "submitted" ||
+                          user.status === "finished"
+                            ? "목표 평가"
+                            : "목표 확인"}
                         </Button>
                       </DialogTrigger>
                       <DialogContent className='max-w-4xl max-h-[85vh] overflow-y-auto bg-slate-50 p-0 gap-0'>
@@ -608,8 +615,8 @@ const AppraisalSection = ({
                             !canEdit
                               ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400"
                               : isFinalAssessed
-                              ? "bg-purple-100 text-purple-700 hover:bg-purple-100 border border-purple-200"
-                              : "bg-purple-600 hover:bg-purple-700 text-white"
+                                ? "bg-purple-100 text-purple-700 hover:bg-purple-100 border border-purple-200"
+                                : "bg-purple-600 hover:bg-purple-700 text-white"
                           }`}
                           disabled={!canEdit}
                           onClick={() => {
@@ -634,10 +641,10 @@ const AppraisalSection = ({
                           {!isSubmittedOrFinished
                             ? "제출 대기"
                             : !isFinalAssessed
-                            ? "최종 평가"
-                            : canEdit
-                            ? "평가 수정"
-                            : "평가 완료"}
+                              ? "최종 평가"
+                              : canEdit
+                                ? "평가 수정"
+                                : "평가 완료"}
                         </Button>
                       );
                     })()}
