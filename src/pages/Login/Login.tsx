@@ -91,9 +91,9 @@ export default function Login() {
           <div className='mt-6 p-4 bg-blue-50 rounded-lg'>
             <p className='text-sm text-gray-700 mb-2'>데모 계정:</p>
             <div className='space-y-1 text-sm text-gray-600'>
-              <div>• 리더 계정 mooncw@hankookilbo.com / 123456789</div>
-              <div>• 팀원 계정 user002@example.com / 1234</div>
-              <div>• 팀원 user[002]@example.comuser@company.com / 1234</div>
+              <div>• 리더 계정 junsik@hankookilbo.com / 1234</div>
+              <div>• 팀원 계정 mooncw@hankookilbo.com / 123456789</div>
+              <div>• admin hr 계정 gwwell@hankookilbo.com / 1234</div>
             </div>
           </div>
         </CardContent>

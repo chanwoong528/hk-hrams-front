@@ -33,13 +33,21 @@ export default function GoalManagement() {
     isLoading: isLoadingTeamMembersAppraisals,
   } = useQuery({
     queryKey: ["teamMembersAppraisals"],
-    queryFn: () =>
-      GET_appraisalsOfTeamMembers(
-        currentUser?.departments.map((dept) => dept.departmentId) || [],
-      ),
-    select: (data: { data: DepartmentAppraisal[] }) => data.data,
+    queryFn: () => {
+      const deptIds =
+        currentUser?.departments.map((dept) => dept.departmentId) || [];
+      console.log("Fetching team members for depts:", deptIds);
+      return GET_appraisalsOfTeamMembers(deptIds);
+    },
+    select: (data: { data: DepartmentAppraisal[] }) => {
+      console.log("Team members data received:", data.data);
+      return data.data;
+    },
     enabled: isLeader,
   });
+
+  console.log("isLeader boolean:", isLeader);
+  console.log("currentUser departments:", currentUser?.departments);
 
   // 2. Custom Hooks for Logic
   const { handleSelfAssessment } = useGoalAssessment({

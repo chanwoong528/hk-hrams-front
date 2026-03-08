@@ -8,11 +8,10 @@ import RootLayout from "@/components/layout/RootLayout";
 import AuthenticatedLayout from "@/components/layout/AuthenticatedLayout";
 
 import Dashboard from "@/pages/Dashboard";
-import DepartmentManagement from "@/pages/DepartmentManagement/DepartmentManagement";
+import OrganizationManagement from "@/pages/OrganizationManagement/OrganizationManagement";
 import GoalManagement from "@/pages/GoalManagement/GoalManagement";
 import PerformanceAppraisal from "@/pages/PerformanceAppraisal/PerformanceAppraisal";
 import AppraisalDetail from "@/pages/PerformanceAppraisal/AppraisalDetail/AppraisalDetail";
-import UserManagement from "@/pages/UserManagement/UserManagement";
 import Login from "@/pages/Login/Login";
 import GoalDetail from "@/pages/GoalManagement/GoalDetail/GoalDetail";
 import GoalGrade from "./pages/GoalManagement/GoalGrade/GoalGrade";
@@ -23,6 +22,10 @@ import MyLeaderReviews from "@/pages/LeaderAppraisal/MyLeaderReviews";
 import LeaderReviewForm from "@/pages/LeaderAppraisal/LeaderReviewForm";
 import MyLeaderResults from "@/pages/LeaderAppraisal/MyLeaderResults";
 import LeaderResultDetail from "@/pages/LeaderAppraisal/LeaderResultDetail";
+
+import CompetencyQuestionSetting from "@/pages/CompetencyAssessment/CompetencyQuestionSetting";
+import CompetencyEvaluation from "@/pages/CompetencyAssessment/CompetencyEvaluation";
+import RoleRoute from "@/components/auth/RoleRoute";
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -43,11 +46,19 @@ const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <Dashboard />,
+            element: (
+              <RoleRoute adminOnly>
+                <Dashboard />
+              </RoleRoute>
+            ),
           },
           {
-            path: "department-management",
-            element: <DepartmentManagement />,
+            path: "organization-management",
+            element: (
+              <RoleRoute adminOnly>
+                <OrganizationManagement />
+              </RoleRoute>
+            ),
           },
           {
             path: "goal-management",
@@ -63,27 +74,51 @@ const router = createBrowserRouter([
           },
           {
             path: "performance-appraisal",
-            element: <PerformanceAppraisal />,
+            element: (
+              <RoleRoute adminOnly>
+                <PerformanceAppraisal />
+              </RoleRoute>
+            ),
           },
           {
             path: "performance-appraisal/:appraisalId",
-            element: <AppraisalDetail />,
+            element: (
+              <RoleRoute adminOnly>
+                <AppraisalDetail />
+              </RoleRoute>
+            ),
           },
           {
             path: "leader-appraisal/reviews",
-            element: <LeaderReviewManagement />,
+            element: (
+              <RoleRoute adminOnly>
+                <LeaderReviewManagement />
+              </RoleRoute>
+            ),
           },
           {
             path: "leader-appraisal/templates",
-            element: <TemplateManagement />,
+            element: (
+              <RoleRoute adminOnly>
+                <TemplateManagement />
+              </RoleRoute>
+            ),
           },
           {
             path: "leader-appraisal/templates/new",
-            element: <TemplateGenerator />,
+            element: (
+              <RoleRoute adminOnly>
+                <TemplateGenerator />
+              </RoleRoute>
+            ),
           },
           {
             path: "leader-appraisal/templates/:templateId/edit",
-            element: <TemplateGenerator />,
+            element: (
+              <RoleRoute adminOnly>
+                <TemplateGenerator />
+              </RoleRoute>
+            ),
           },
           {
             path: "leader-appraisal/my",
@@ -95,15 +130,31 @@ const router = createBrowserRouter([
           },
           {
             path: "leader-appraisal/results/my",
-            element: <MyLeaderResults />,
+            element: (
+              <RoleRoute adminOnly>
+                <MyLeaderResults />
+              </RoleRoute>
+            ),
           },
           {
             path: "leader-appraisal/results/:reviewId",
-            element: <LeaderResultDetail />,
+            element: (
+              <RoleRoute adminOnly>
+                <LeaderResultDetail />
+              </RoleRoute>
+            ),
           },
           {
-            path: "user-management",
-            element: <UserManagement />,
+            path: "competency-setting",
+            element: (
+              <RoleRoute adminOnly leaderOnly>
+                <CompetencyQuestionSetting />
+              </RoleRoute>
+            ),
+          },
+          {
+            path: "competency-evaluation",
+            element: <CompetencyEvaluation />,
           },
         ],
       },
