@@ -1,13 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,7 +21,6 @@ import { useCurrentUserStore } from "@/store/currentUserStore";
 import {
   User as UserIcon,
   Users,
-  Save,
   SaveAll,
   Loader2,
   CheckCircle2,
@@ -160,11 +153,7 @@ export default function CompetencyEvaluation() {
   }, [myAppraisals, teamParticipations, selectedAppraisalUserId, searchParams]);
 
   // 3. Fetch assessments for the selected target
-  const {
-    data: assessments,
-    isLoading: isLoadingAssessments,
-    isError,
-  } = useQuery({
+  const { data: assessments, isLoading: isLoadingAssessments } = useQuery({
     queryKey: ["competencyAssessments", selectedAppraisalUserId],
     queryFn: () => GET_userCompetencyAssessments(selectedAppraisalUserId),
     enabled: !!selectedAppraisalUserId,
