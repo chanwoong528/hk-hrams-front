@@ -129,9 +129,13 @@ function DraggableDepartmentItem({
     <div
       ref={dropRef as any}
       className={`transition-all duration-200 my-4 `}
-      style={{ paddingInlineStart: `${depth * 32}px` }}>
+      style={{ paddingInlineStart: `${depth * 32}px` }}
+      onClick={(e) => e.stopPropagation()}>
       <div
-        onClick={onSelect}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect();
+        }}
         className={`flex items-center gap-3 p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer ${
           isSelected
             ? "bg-blue-50 border-blue-400 ring-2 ring-blue-200"

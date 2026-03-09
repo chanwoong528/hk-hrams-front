@@ -8,6 +8,7 @@ import RootLayout from "@/components/layout/RootLayout";
 import AuthenticatedLayout from "@/components/layout/AuthenticatedLayout";
 
 import Dashboard from "@/pages/Dashboard";
+import TodoDashboard from "@/pages/TodoDashboard/TodoDashboard";
 import OrganizationManagement from "@/pages/OrganizationManagement/OrganizationManagement";
 import GoalManagement from "@/pages/GoalManagement/GoalManagement";
 import PerformanceAppraisal from "@/pages/PerformanceAppraisal/PerformanceAppraisal";
@@ -25,6 +26,7 @@ import LeaderResultDetail from "@/pages/LeaderAppraisal/LeaderResultDetail";
 
 import CompetencyQuestionSetting from "@/pages/CompetencyAssessment/CompetencyQuestionSetting";
 import CompetencyEvaluation from "@/pages/CompetencyAssessment/CompetencyEvaluation";
+import EvaluationReport from "@/pages/EvaluationReport/EvaluationReport";
 import RoleRoute from "@/components/auth/RoleRoute";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -51,6 +53,10 @@ const router = createBrowserRouter([
                 <Dashboard />
               </RoleRoute>
             ),
+          },
+          {
+            path: "todo",
+            element: <TodoDashboard />,
           },
           {
             path: "organization-management",
@@ -155,6 +161,14 @@ const router = createBrowserRouter([
           {
             path: "competency-evaluation",
             element: <CompetencyEvaluation />,
+          },
+          {
+            path: "evaluation-report",
+            element: <EvaluationReport />,
+          },
+          {
+            path: "evaluation-report/:appraisalUserId",
+            element: <EvaluationReport />,
           },
         ],
       },

@@ -12,6 +12,7 @@ import {
   UserCog,
   LayoutTemplate,
   ClipboardEdit,
+  FileText,
 } from "lucide-react";
 
 // admin true
@@ -73,6 +74,12 @@ export const navigation = [
         path: "/competency-evaluation?mode=self",
         icon: UserCheck,
       },
+      {
+        id: "evaluation-report" as Page,
+        name: "나의 평가 리포트",
+        path: "/evaluation-report",
+        icon: FileText,
+      },
     ],
   },
 
@@ -113,6 +120,7 @@ export const navigation = [
 ];
 export type Page =
   | "dashboard"
+  | "dashboard-todo"
   | "users"
   | "departments"
   | "appraisals"

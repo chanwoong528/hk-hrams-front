@@ -254,8 +254,12 @@ export default function DepartmentTreeWidget({
           </div>
         </div>
       </CardHeader>
-      <CardContent className='flex-1 overflow-y-auto px-2 sm:px-6'>
-        <div className='bg-blue-50/50 p-3 rounded-lg flex items-center gap-3 mb-4 text-sm text-blue-800'>
+      <CardContent
+        className='flex-1 overflow-y-auto px-2 sm:px-6'
+        onClick={() => onSelectDepartment(null)}>
+        <div
+          className='bg-blue-50/50 p-3 rounded-lg flex items-center gap-3 mb-4 text-sm text-blue-800'
+          onClick={(e) => e.stopPropagation()}>
           <Building2 className='w-5 h-5 text-blue-600 flex-shrink-0' />
           <p>사용자를 끌어다 부서에 놓으면 부서원이 추가됩니다.</p>
         </div>

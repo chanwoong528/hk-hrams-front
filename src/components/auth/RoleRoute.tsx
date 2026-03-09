@@ -12,9 +12,12 @@ export default function RoleRoute({
   adminOnly,
   leaderOnly,
 }: RoleRouteProps) {
-  const { currentUser } = useCurrentUserStore();
+  const { currentUser, accessToken } = useCurrentUserStore();
 
   if (!currentUser) {
+    if (accessToken) {
+      return null;
+    }
     return <Navigate to='/login' replace />;
   }
 
@@ -28,12 +31,12 @@ export default function RoleRoute({
 
   if (adminOnly && leaderOnly) {
     if (!isAdmin && !isLeader) {
-      return <Navigate to='/goal-management' replace />;
+      return <Navigate to='/todo' replace />;
     }
   } else if (adminOnly && !isAdmin) {
-    return <Navigate to='/goal-management' replace />;
+    return <Navigate to='/todo' replace />;
   } else if (leaderOnly && !isLeader) {
-    return <Navigate to='/goal-management' replace />;
+    return <Navigate to='/todo' replace />;
   }
 
   return <>{children}</>;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -35,7 +35,17 @@ import {
   ChevronRight,
   MessageSquare,
   ClipboardList,
+  Building2,
+  FileText,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { GET_departments } from "@/api/department/department";
 
 const GRADES = ["S", "A", "B", "C", "D"];
 
@@ -46,8 +56,16 @@ interface LocalEdit {
 
 export default function CompetencyEvaluation() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { currentUser } = useCurrentUserStore();
+  const [hrSelectedDeptId, setHrSelectedDeptId] = useState<string>("");
+
+  const isHR = useMemo(() => {
+    return (
+      currentUser?.departments?.some((d) => d.departmentName === "HR") || false
+    );
+  }, [currentUser]);
 
   const [selectedAppraisalUserId, setSelectedAppraisalUserId] =
     useState<string>(searchParams.get("appraisalUserId") || "");
@@ -75,15 +93,32 @@ export default function CompetencyEvaluation() {
   const { data: teamData, isLoading: isLoadingTeam } = useQuery({
     queryKey: ["teamMembers", leaderDeptIds],
     queryFn: () => GET_appraisalsOfTeamMembers(leaderDeptIds),
-    enabled: leaderDeptIds.length > 0,
+    enabled: !isHR && leaderDeptIds.length > 0,
+    select: (data) => data.data as any[],
+  });
+
+  // 3. Fetch All Departments (for HR)
+  const { data: allDepartments } = useQuery({
+    queryKey: ["allDepartments"],
+    queryFn: () => GET_departments("flat"),
+    enabled: isHR,
+    select: (data) => data.data as any[],
+  });
+
+  // 4. Fetch HR View Team Members
+  const { data: hrTeamData, isLoading: isLoadingHRTeam } = useQuery({
+    queryKey: ["hrTeamMembers", hrSelectedDeptId],
+    queryFn: () => GET_appraisalsOfTeamMembers([hrSelectedDeptId]),
+    enabled: isHR && !!hrSelectedDeptId,
     select: (data) => data.data as any[],
   });
 
   // Flatten team members
   const teamParticipations = useMemo(() => {
-    if (!teamData) return [];
+    const activeData = isHR ? hrTeamData : teamData;
+    if (!activeData) return [];
     const list: any[] = [];
-    teamData.forEach((dept) => {
+    activeData.forEach((dept) => {
       dept.appraisal.forEach((appr: any) => {
         appr.user.forEach((user: any) => {
           list.push({
@@ -96,7 +131,7 @@ export default function CompetencyEvaluation() {
       });
     });
     return list;
-  }, [teamData]);
+  }, [teamData, hrTeamData, isHR]);
 
   // Sync state with URL
   useEffect(() => {
@@ -221,8 +256,48 @@ export default function CompetencyEvaluation() {
     return null;
   }, [myAppraisals, teamParticipations, selectedAppraisalUserId, currentUser]);
 
+  // Determine if self-assessment should be read-only
+  // Read-only when ALL questions have both: (1) self grade completed (2) leader grade completed
+  const isSelfReadOnly = useMemo(() => {
+    if (!currentTargetUser?.isSelf || !assessments || assessments.length === 0)
+      return false;
+
+    // Group all assessments by competencyId
+    const grouped: Record<
+      string,
+      { hasSelfGrade: boolean; hasLeaderGrade: boolean }
+    > = {};
+
+    assessments.forEach((item: any) => {
+      const qId = item.competencyQuestion?.competencyId;
+      if (!qId) return;
+      if (!grouped[qId]) {
+        grouped[qId] = { hasSelfGrade: false, hasLeaderGrade: false };
+      }
+
+      const ownerId = item.appraisalUser?.owner?.userId;
+      const evaluatorId = item.evaluator?.userId;
+      const isOwnerSelf = !!(ownerId && evaluatorId && ownerId === evaluatorId);
+
+      if (isOwnerSelf && item.grade) {
+        grouped[qId].hasSelfGrade = true;
+      }
+      if (!isOwnerSelf && item.grade) {
+        grouped[qId].hasLeaderGrade = true;
+      }
+    });
+
+    const questionIds = Object.keys(grouped);
+    if (questionIds.length === 0) return false;
+
+    return questionIds.every(
+      (qId) => grouped[qId].hasSelfGrade && grouped[qId].hasLeaderGrade,
+    );
+  }, [currentTargetUser?.isSelf, assessments]);
+
   // Handle local changes
   const handleLocalUpdate = (assessmentId: string, updates: LocalEdit) => {
+    if (isSelfReadOnly) return; // Prevent edits when read-only
     setLocalEdits((prev) => ({
       ...prev,
       [assessmentId]: {
@@ -265,13 +340,40 @@ export default function CompetencyEvaluation() {
     <div className='flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50/50'>
       {/* Sidebar - Target List */}
       <div className='w-80 border-r bg-white flex flex-col shrink-0'>
-        <div className='p-4 border-b bg-gray-50/50'>
+        <div className='p-4 border-b bg-gray-50/50 space-y-3'>
           <h3 className='font-bold text-gray-900 flex items-center gap-2'>
             <Users className='w-5 h-5 text-blue-600' />
             평가 대상 목록
           </h3>
-          <p className='text-xs text-gray-500 mt-1'>
-            본인 및 팀원을 선택하여 평가를 진행하세요.
+          {isHR && (
+            <div className='space-y-1.5'>
+              <Label className='text-[10px] font-bold text-gray-400 flex items-center gap-1'>
+                <Building2 className='w-3 h-3' />
+                부서 선택 (HR 전용)
+              </Label>
+              <Select
+                value={hrSelectedDeptId}
+                onValueChange={setHrSelectedDeptId}>
+                <SelectTrigger className='h-8 text-xs bg-white'>
+                  <SelectValue placeholder='조회할 부서 선택' />
+                </SelectTrigger>
+                <SelectContent>
+                  {allDepartments?.map((dept: any) => (
+                    <SelectItem
+                      key={dept.id}
+                      value={dept.id}
+                      className='text-xs'>
+                      {dept.text}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <p className='text-xs text-gray-500'>
+            {isHR
+              ? "부서를 선택하여 전 사원의 평가 현황을 조회하세요."
+              : "본인 및 팀원을 선택하여 평가를 진행하세요."}
           </p>
         </div>
         <ScrollArea className='flex-1'>
@@ -315,7 +417,7 @@ export default function CompetencyEvaluation() {
             {teamParticipations.length > 0 && (
               <div className='space-y-1'>
                 <div className='px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider'>
-                  팀원 평가
+                  {isHR ? "사원 평가 현황" : "팀원 평가"}
                 </div>
                 {teamParticipations.map((tp) => {
                   const total = tp.leaderCompetencyTotal || 0;
@@ -389,10 +491,27 @@ export default function CompetencyEvaluation() {
                   ? "본인의 성과와 역량을 객관적으로 되돌아보며 솔직하게 작성해주세요."
                   : "팀원의 역량 발휘 수준과 기여도를 공정하게 평가해주세요."}
               </p>
+              {isSelfReadOnly && (
+                <div className='mt-2 flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full border border-green-200 text-xs font-bold'>
+                  <CheckCircle2 className='w-3.5 h-3.5' />
+                  리더 평가 완료 — 자가평가가 확정되었습니다
+                </div>
+              )}
             </div>
           </div>
 
           <div className='flex items-center gap-4'>
+            {isSelfReadOnly && selectedAppraisalUserId && (
+              <Button
+                variant='outline'
+                className='gap-2 text-green-700 border-green-200 hover:bg-green-50'
+                onClick={() =>
+                  navigate(`/evaluation-report/${selectedAppraisalUserId}`)
+                }>
+                <FileText className='w-4 h-4' />
+                리포트 보기
+              </Button>
+            )}
             {hasUnsavedChanges && (
               <div className='flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full border border-amber-200 text-xs font-bold animate-pulse'>
                 <div className='w-2 h-2 bg-amber-500 rounded-full' />
@@ -401,7 +520,7 @@ export default function CompetencyEvaluation() {
             )}
             <Button
               onClick={handleSaveAll}
-              disabled={!hasUnsavedChanges || isSaving}
+              disabled={!hasUnsavedChanges || isSaving || isSelfReadOnly}
               className='bg-blue-600 hover:bg-blue-700 text-white shadow-lg px-6 gap-2 h-10'>
               {isSaving ? (
                 <Loader2 className='w-4 h-4 animate-spin' />
@@ -415,7 +534,10 @@ export default function CompetencyEvaluation() {
 
         {/* Content Scroll Area */}
         <main className='flex-1 overflow-y-auto p-6'>
-          {(isLoadingMyAppraisals || isLoadingAssessments || isLoadingTeam) && (
+          {(isLoadingMyAppraisals ||
+            isLoadingAssessments ||
+            isLoadingTeam ||
+            isLoadingHRTeam) && (
             <div className='flex flex-col items-center justify-center h-full text-gray-400 gap-4'>
               <Loader2 className='w-10 h-10 animate-spin text-blue-600' />
               <p className='font-medium'>데이터를 불러오는 중입니다...</p>
@@ -484,13 +606,15 @@ export default function CompetencyEvaluation() {
                               </div>
                             </CardHeader>
                             <CardContent className='p-8 space-y-8'>
-                              {/* Display Other Feedbacks (Team member view sees Leader feedback) */}
-                              {currentTargetUser?.isSelf &&
+                              {/* Display Other Feedbacks (Team member view sees Leader feedback, HR sees all) */}
+                              {(currentTargetUser?.isSelf || isHR) &&
                                 otherRecords.length > 0 && (
                                   <div className='space-y-3'>
                                     <div className='flex items-center gap-2 text-blue-700 font-bold text-sm'>
                                       <MessageSquare className='w-4 h-4' />
-                                      동료 및 리더 피드백
+                                      {isHR
+                                        ? "평가자별 피드백 현황"
+                                        : "동료 및 리더 피드백"}
                                     </div>
                                     <div className='grid gap-4'>
                                       {otherRecords.map((rec: any) => (
@@ -503,7 +627,7 @@ export default function CompetencyEvaluation() {
                                           <div className='flex-1 space-y-1'>
                                             <div className='text-xs font-bold text-blue-800 flex justify-between'>
                                               <span>
-                                                리더:{" "}
+                                                평가자:{" "}
                                                 {rec.evaluator?.koreanName}
                                               </span>
                                             </div>
@@ -546,67 +670,97 @@ export default function CompetencyEvaluation() {
 
                               {/* Evaluation Input */}
                               {myRecord ? (
-                                <div className='grid grid-cols-1 lg:grid-cols-12 gap-10 pt-4 border-t border-dashed'>
-                                  <div className='lg:col-span-5 space-y-4'>
-                                    <Label className='text-sm font-bold text-gray-700 flex items-center gap-2'>
-                                      평가 등급 선택
-                                      <span className='text-xs font-normal text-gray-400'>
-                                        (필수 항목)
-                                      </span>
-                                    </Label>
-                                    <div className='flex flex-wrap gap-2'>
-                                      {GRADES.map((g) => (
-                                        <button
-                                          key={g}
-                                          disabled={isSaving}
-                                          onClick={() =>
+                                (() => {
+                                  // Block leader from evaluating until team member completes self-assessment
+                                  const isLeaderBlocked =
+                                    !currentTargetUser?.isSelf &&
+                                    (!selfRecord || !selfRecord.grade);
+
+                                  if (isLeaderBlocked) {
+                                    return (
+                                      <div className='bg-gray-50 p-8 rounded-2xl text-center border border-dashed border-gray-300 space-y-2'>
+                                        <ClipboardList className='w-8 h-8 mx-auto text-gray-300' />
+                                        <p className='text-sm font-bold text-gray-500'>
+                                          팀원이 자가평가를 완료하지 않았습니다
+                                        </p>
+                                        <p className='text-xs text-gray-400'>
+                                          팀원의 자가평가가 완료된 후 리더
+                                          평가를 진행할 수 있습니다.
+                                        </p>
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                    <div className='grid grid-cols-1 lg:grid-cols-12 gap-10 pt-4 border-t border-dashed'>
+                                      <div className='lg:col-span-5 space-y-4'>
+                                        <Label className='text-sm font-bold text-gray-700 flex items-center gap-2'>
+                                          평가 등급 선택
+                                          <span className='text-xs font-normal text-gray-400'>
+                                            (필수 항목)
+                                          </span>
+                                        </Label>
+                                        <div className='flex flex-wrap gap-2'>
+                                          {GRADES.map((g) => (
+                                            <button
+                                              key={g}
+                                              disabled={
+                                                isSaving || isSelfReadOnly
+                                              }
+                                              onClick={() =>
+                                                handleLocalUpdate(
+                                                  myRecord.assessmentId,
+                                                  { grade: g },
+                                                )
+                                              }
+                                              className={`flex-1 min-w-[60px] py-4 rounded-xl text-center font-black text-lg transition-all border-2 ${
+                                                isSelfReadOnly
+                                                  ? displayGrade === g
+                                                    ? "bg-green-600 text-white border-green-700 cursor-not-allowed"
+                                                    : "bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed"
+                                                  : displayGrade === g
+                                                    ? isDirty
+                                                      ? "bg-amber-500 text-white border-amber-600 shadow-lg -translate-y-1"
+                                                      : "bg-blue-600 text-white border-blue-700 shadow-lg -translate-y-1"
+                                                    : "bg-white text-gray-400 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30"
+                                              }`}>
+                                              {g}
+                                            </button>
+                                          ))}
+                                        </div>
+                                        <p className='text-[10px] text-gray-400 text-center'>
+                                          S: 탁월함 | A: 우수함 | B: 보통 | C:
+                                          지원 필요 | D: 개선 필요
+                                        </p>
+                                      </div>
+                                      <div className='lg:col-span-7 space-y-4'>
+                                        <Label className='text-sm font-bold text-gray-700'>
+                                          상세 의견 작성
+                                        </Label>
+                                        <Textarea
+                                          disabled={isSaving || isSelfReadOnly}
+                                          value={displayComment || ""}
+                                          onChange={(e) =>
                                             handleLocalUpdate(
                                               myRecord.assessmentId,
-                                              { grade: g },
+                                              { comment: e.target.value },
                                             )
                                           }
-                                          className={`flex-1 min-w-[60px] py-4 rounded-xl text-center font-black text-lg transition-all border-2 ${
-                                            displayGrade === g
-                                              ? isDirty
-                                                ? "bg-amber-500 text-white border-amber-600 shadow-lg -translate-y-1"
-                                                : "bg-blue-600 text-white border-blue-700 shadow-lg -translate-y-1"
-                                              : "bg-white text-gray-400 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30"
-                                          }`}>
-                                          {g}
-                                        </button>
-                                      ))}
+                                          placeholder={
+                                            currentTargetUser?.isSelf
+                                              ? "본인의 역량에 대해 구체적인 사례와 함께 의견을 남겨주세요."
+                                              : `${currentTargetUser?.name}님의 역량 발휘 수준에 대한 리더의 의견을 남겨주세요.`
+                                          }
+                                          className={`min-h-[160px] rounded-2xl focus:ring-2 focus:ring-blue-500 border-gray-200 transition-colors bg-gray-50/50 hover:bg-white focus:bg-white text-sm leading-relaxed ${
+                                            isDirty
+                                              ? "bg-amber-50/30 border-amber-200"
+                                              : ""
+                                          }`}
+                                        />
+                                      </div>
                                     </div>
-                                    <p className='text-[10px] text-gray-400 text-center'>
-                                      S: 탁월함 | A: 우수함 | B: 보통 | C: 지원
-                                      필요 | D: 개선 필요
-                                    </p>
-                                  </div>
-                                  <div className='lg:col-span-7 space-y-4'>
-                                    <Label className='text-sm font-bold text-gray-700'>
-                                      상세 의견 작성
-                                    </Label>
-                                    <Textarea
-                                      disabled={isSaving}
-                                      value={displayComment || ""}
-                                      onChange={(e) =>
-                                        handleLocalUpdate(
-                                          myRecord.assessmentId,
-                                          { comment: e.target.value },
-                                        )
-                                      }
-                                      placeholder={
-                                        currentTargetUser?.isSelf
-                                          ? "본인의 역량에 대해 구체적인 사례와 함께 의견을 남겨주세요."
-                                          : `${currentTargetUser?.name}님의 역량 발휘 수준에 대한 리더의 의견을 남겨주세요.`
-                                      }
-                                      className={`min-h-[160px] rounded-2xl focus:ring-2 focus:ring-blue-500 border-gray-200 transition-colors bg-gray-50/50 hover:bg-white focus:bg-white text-sm leading-relaxed ${
-                                        isDirty
-                                          ? "bg-amber-50/30 border-amber-200"
-                                          : ""
-                                      }`}
-                                    />
-                                  </div>
-                                </div>
+                                  );
+                                })()
                               ) : (
                                 <div className='bg-gray-100 p-8 rounded-2xl text-center text-gray-500 border border-dashed border-gray-300'>
                                   <Users className='w-8 h-8 mx-auto mb-2 opacity-30' />

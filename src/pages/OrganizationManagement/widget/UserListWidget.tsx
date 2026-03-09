@@ -203,6 +203,7 @@ export default function UserListWidget({
     }) => POST_user(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
       toast.success("사용자가 추가되었습니다");
       setModalType(null);
       setFormData({
@@ -228,6 +229,7 @@ export default function UserListWidget({
     }) => PATCH_user(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
       toast.success("사용자 정보가 업데이트되었습니다");
       setSelectedUser(null);
       setFormData({

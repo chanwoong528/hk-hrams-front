@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, ChevronDown, ChevronRight } from "lucide-react";
 import { useCurrentUserStore } from "@/store/currentUserStore";
+import { useQueryClient } from "@tanstack/react-query";
 
 type NavItem = {
   id: string;
@@ -161,12 +162,12 @@ export default function SidebarContent({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, clearAccessToken, clearRefreshToken } =
-    useCurrentUserStore();
+  const { currentUser, clearCurrentUser } = useCurrentUserStore();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
-    clearAccessToken();
-    clearRefreshToken();
+    clearCurrentUser();
+    queryClient.clear();
     navigate("/login");
   };
 
