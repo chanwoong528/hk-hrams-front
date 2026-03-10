@@ -92,7 +92,7 @@ export default function Login() {
             <p className='text-sm text-gray-700 mb-2'>데모 계정:</p>
             <div className='space-y-1 text-sm text-gray-600'>
               <div>• 리더 계정 junsik@hankookilbo.com / 1234</div>
-              <div>• 팀원 계정 mooncw@hankookilbo.com / 123456789</div>
+              <div>• 팀원 계정 nullyj@hankookilbo.com / 1234</div>
               <div>• admin hr 계정 gwwell@hankookilbo.com / 1234</div>
             </div>
           </div>
