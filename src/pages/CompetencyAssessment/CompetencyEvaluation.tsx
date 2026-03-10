@@ -409,9 +409,14 @@ export default function CompetencyEvaluation() {
                   {isHR ? "사원 평가 현황" : "팀원 평가"}
                 </div>
                 {teamParticipations.map((tp) => {
-                  const total = tp.leaderCompetencyTotal || 0;
-                  const completed = tp.leaderCompetencyCompleted || 0;
-                  const isFinished = total > 0 && total === completed;
+                  const totalSelf = tp.selfCompetencyTotal || 0;
+                  const completedSelf = tp.selfCompetencyCompleted || 0;
+                  const isSelfFinished =
+                    totalSelf > 0 && totalSelf === completedSelf;
+
+                  const totalMy = tp.myCompetencyTotal || 0;
+                  const completedMy = tp.myCompetencyCompleted || 0;
+                  const isFinished = totalMy > 0 && totalMy === completedMy;
 
                   return (
                     <button
@@ -434,18 +439,26 @@ export default function CompetencyEvaluation() {
                       </div>
                       <div className='flex items-center justify-between w-full text-[10px]'>
                         <span className='opacity-70 truncate'>
-                          {tp.appraisalTitle}
+                          {isHR
+                            ? tp.appraisalTitle
+                            : isSelfFinished
+                              ? "나의 평가 진행률"
+                              : "팀원 자가평가 대기 중"}
                         </span>
                         <span className='font-bold ml-2 shrink-0'>
-                          {completed}/{total}
+                          {isHR
+                            ? `${completedSelf}/${totalSelf} (자가평가)`
+                            : isSelfFinished
+                              ? `${completedMy}/${totalMy}`
+                              : `${completedSelf}/${totalSelf}`}
                         </span>
                       </div>
                       {/* Progress Bar Mini */}
                       <div className='w-full h-1 bg-gray-100 rounded-full mt-1 overflow-hidden'>
                         <div
-                          className={`h-full transition-all ${isFinished ? "bg-green-500" : "bg-blue-500"}`}
+                          className={`h-full transition-all ${isFinished ? "bg-green-500" : isHR && isSelfFinished ? "bg-green-500" : "bg-blue-500"}`}
                           style={{
-                            width: `${total > 0 ? (completed / total) * 100 : 0}%`,
+                            width: `${isHR || !isSelfFinished ? (totalSelf > 0 ? (completedSelf / totalSelf) * 100 : 0) : totalMy > 0 ? (completedMy / totalMy) * 100 : 0}%`,
                           }}
                         />
                       </div>

@@ -24,7 +24,9 @@ export default function RoleRoute({
   const isAdmin =
     currentUser.email === "mooncw@hankookilbo.com" ||
     !!currentUser.departments?.some(
-      (d) => d.departmentName.toLowerCase() === "hr",
+      (d) =>
+        d.departmentName.toLowerCase() === "hr" ||
+        d.departmentName === "인사팀",
     );
 
   const isLeader = !!currentUser.departments?.some((d) => d.isLeader);

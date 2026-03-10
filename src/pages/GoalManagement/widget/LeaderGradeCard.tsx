@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
+import { useCurrentUserStore } from "@/store/currentUserStore";
 import type { Appraisal, DepartmentAppraisal, Goal, User } from "../type";
 import { CheckCircle, Goal as GoalIcon, Plus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,30 @@ const AppraisalSection = ({
   );
   const [finalGrade, setFinalGrade] = useState("");
   const [finalComment, setFinalComment] = useState("");
+
+  const { currentUser } = useCurrentUserStore();
+
+  const isAdmin =
+    currentUser?.email === "mooncw@hankookilbo.com" ||
+    !!currentUser?.departments?.some(
+      (d: any) =>
+        d.departmentName.toLowerCase() === "hr" ||
+        d.departmentName === "인사팀",
+    );
+
+  const currentUserRank =
+    currentUser?.departments?.reduce(
+      (min, d) => Math.min(min, d.rank ?? 99),
+      99,
+    ) ?? 99;
+
+  const rankAllowed =
+    (appraisal.minGradeRank == null ||
+      currentUserRank <= appraisal.minGradeRank) &&
+    (appraisal.maxGradeRank == null ||
+      currentUserRank >= appraisal.maxGradeRank);
+
+  const isSpectator = isAdmin || !rankAllowed;
 
   const queryClient = useQueryClient();
   // ... mutations ...
@@ -365,15 +390,21 @@ const AppraisalSection = ({
               // Calculate assessment progress
               const totalGoals = user.goals.length;
               const assessedGoals = user.goals.filter((g) =>
-                g.goalAssessmentBy?.some((a) => a.gradedBy === currentUserId),
+                isSpectator
+                  ? g.goalAssessmentBy && g.goalAssessmentBy.length > 0
+                  : g.goalAssessmentBy?.some(
+                      (a) => a.gradedBy === currentUserId,
+                    ),
               ).length;
               const isFullyAssessed =
                 totalGoals > 0 && totalGoals === assessedGoals;
 
               // Check if Final Assessment is already done by current user
-              const isFinalAssessed = user.assessments?.some(
-                (a) => a.assessedById === currentUserId,
-              );
+              const isFinalAssessed = isSpectator
+                ? user.assessments && user.assessments.length > 0
+                : user.assessments?.some(
+                    (a) => a.assessedById === currentUserId,
+                  );
 
               return (
                 <TableRow
@@ -541,6 +572,7 @@ const AppraisalSection = ({
                                     currentUserId={currentUserId}
                                     targetUserId={user.userId}
                                     onSave={handleSaveAssessment}
+                                    isSpectator={isSpectator}
                                   />
                                 ))}
                             </div>
@@ -570,9 +602,19 @@ const AppraisalSection = ({
 
                     {/* Final Assessment Button */}
                     {(() => {
-                      const existingAssessment = user.assessments?.find(
-                        (a) => a.assessedById === currentUserId,
-                      );
+                      const finalAssessment = user.assessments
+                        ?.slice()
+                        .sort(
+                          (a, b) =>
+                            new Date(b.updated || 0).getTime() -
+                            new Date(a.updated || 0).getTime(),
+                        )[0];
+
+                      const existingAssessment = isSpectator
+                        ? finalAssessment
+                        : user.assessments?.find(
+                            (a) => a.assessedById === currentUserId,
+                          );
 
                       // Edit Logic:
                       // 1. If not assessed yet -> Enabled (if user submitted)
@@ -585,7 +627,7 @@ const AppraisalSection = ({
                         user.status === "finished";
 
                       let canEdit = false;
-                      if (isSubmittedOrFinished) {
+                      if (!isSpectator && isSubmittedOrFinished) {
                         if (!isFinalAssessed) {
                           canEdit = true;
                         } else if (
@@ -606,46 +648,59 @@ const AppraisalSection = ({
                       }
 
                       return (
-                        <Button
-                          size='sm'
-                          variant={
-                            isFullyAssessed && canEdit ? "default" : "secondary"
-                          }
-                          className={`ml-2 ${
-                            !canEdit
-                              ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400"
-                              : isFinalAssessed
-                                ? "bg-purple-100 text-purple-700 hover:bg-purple-100 border border-purple-200"
-                                : "bg-purple-600 hover:bg-purple-700 text-white"
-                          }`}
-                          disabled={!canEdit}
-                          onClick={() => {
-                            if (!isSubmittedOrFinished) {
-                              toast.error(
-                                "평가 대상자가 아직 최종 평가를 제출하지 않았습니다.",
-                              );
-                              return;
+                        <div className='flex items-center justify-end gap-2'>
+                          {existingAssessment && (
+                            <Badge
+                              variant='secondary'
+                              className='text-white bg-purple-500 hover:bg-purple-600 rounded-md shadow-sm'>
+                              {existingAssessment.grade}등급
+                            </Badge>
+                          )}
+                          <Button
+                            size='sm'
+                            variant={
+                              isFullyAssessed && canEdit
+                                ? "default"
+                                : "secondary"
                             }
+                            className={`ml-2 ${
+                              !canEdit
+                                ? isSpectator
+                                  ? "bg-purple-100 text-purple-700 border border-purple-200"
+                                  : "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400"
+                                : isFinalAssessed
+                                  ? "bg-purple-100 text-purple-700 hover:bg-purple-100 border border-purple-200"
+                                  : "bg-purple-600 hover:bg-purple-700 text-white"
+                            }`}
+                            disabled={!canEdit && !isSpectator}
+                            onClick={() => {
+                              if (!isSubmittedOrFinished) {
+                                toast.error(
+                                  "평가 대상자가 아직 최종 평가를 제출하지 않았습니다.",
+                                );
+                                return;
+                              }
 
-                            if (existingAssessment) {
-                              setFinalGrade(existingAssessment.grade);
-                              setFinalComment(existingAssessment.comment);
-                            } else {
-                              setFinalGrade("");
-                              setFinalComment("");
-                            }
+                              if (existingAssessment) {
+                                setFinalGrade(existingAssessment.grade);
+                                setFinalComment(existingAssessment.comment);
+                              } else {
+                                setFinalGrade("");
+                                setFinalComment("");
+                              }
 
-                            setSelectedUserForFinal(user);
-                          }}>
-                          <CheckCircle className='w-3.5 h-3.5 mr-1.5' />
-                          {!isSubmittedOrFinished
-                            ? "제출 대기"
-                            : !isFinalAssessed
-                              ? "최종 평가"
-                              : canEdit
-                                ? "평가 수정"
-                                : "평가 완료"}
-                        </Button>
+                              setSelectedUserForFinal(user);
+                            }}>
+                            <CheckCircle className='w-3.5 h-3.5 mr-1.5' />
+                            {!isSubmittedOrFinished
+                              ? "제출 대기"
+                              : !isFinalAssessed
+                                ? "최종 평가"
+                                : canEdit
+                                  ? "평가 수정"
+                                  : "평가 완료"}
+                          </Button>
+                        </div>
                       );
                     })()}
                   </TableCell>
@@ -686,6 +741,31 @@ const AppraisalSection = ({
                 </div>
               </div>
             )}
+            {/* Other Evaluators Reference */}
+            {selectedUserForFinal?.assessments
+              ?.filter((a) => a.assessedById !== currentUserId)
+              .map((a, idx) => (
+                <div
+                  key={idx}
+                  className='bg-blue-50/50 p-3 rounded-lg border border-blue-100 mb-4'>
+                  <h5 className='text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2'>
+                    <span className='w-1.5 h-1.5 rounded-full bg-blue-500'></span>
+                    이전 평가자 의견 (참고용)
+                  </h5>
+                  <div className='text-sm'>
+                    <div className='flex items-center gap-2 mb-1'>
+                      <span className='text-gray-500'>등급:</span>
+                      <Badge variant='outline' className='bg-white'>
+                        {a.grade}등급
+                      </Badge>
+                    </div>
+                    <div className='text-blue-900 bg-white p-2 rounded border border-blue-100 mt-1 whitespace-pre-wrap'>
+                      {a.comment || "코멘트 없음"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
             <div className='space-y-2'>
               <Label>등급</Label>
               <Select value={finalGrade} onValueChange={setFinalGrade}>
@@ -717,9 +797,15 @@ const AppraisalSection = ({
               onClick={() => setSelectedUserForFinal(null)}>
               취소
             </Button>
-            <Button onClick={handleFinalAssessment} className='bg-blue-600'>
-              평가 제출
-            </Button>
+            {!isSpectator && (
+              <Button onClick={handleFinalAssessment} className='bg-blue-600'>
+                {selectedUserForFinal?.assessments?.some(
+                  (a) => a.assessedById === currentUserId,
+                )
+                  ? "종합 평가 수정"
+                  : "평가 제출"}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

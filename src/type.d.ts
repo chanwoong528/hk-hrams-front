@@ -1,6 +1,7 @@
 interface Department {
   departmentId: string;
   departmentName: string;
+  rank: number;
 
   leaderId?: string;
   leader?: User;
@@ -24,7 +25,7 @@ interface User {
   created: string;
   updated: string;
   userStatus: "active" | "inactive";
-  departments: Department[];
+  departments: (Department & { isLeader: boolean })[];
 }
 
 interface Appraisal {

@@ -20,6 +20,7 @@ interface GoalAssessmentItemProps {
   disabled?: boolean;
   targetUserId?: string;
   currentUserId?: string;
+  isSpectator?: boolean;
 }
 
 const GoalAssessmentItem = ({
@@ -28,10 +29,11 @@ const GoalAssessmentItem = ({
   onSave,
   disabled = false,
   targetUserId,
+  isSpectator = false,
 }: GoalAssessmentItemProps) => {
-  const myAssessment = goal.goalAssessmentBy?.find(
-    (a) => a.gradedBy === currentUserId,
-  );
+  const myAssessment = isSpectator
+    ? goal.goalAssessmentBy?.[0]
+    : goal.goalAssessmentBy?.find((a) => a.gradedBy === currentUserId);
 
   // Check if target user (team member) has completed their assessment
   // If targetUserId is provided, we check if they have assessed this goal.
@@ -229,10 +231,10 @@ const GoalAssessmentItem = ({
                               assessment.grade === "S"
                                 ? "bg-purple-50 text-purple-700 border-purple-200"
                                 : assessment.grade === "A"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : assessment.grade === "B"
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : "bg-gray-50 text-gray-700 border-gray-200"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : assessment.grade === "B"
+                                    ? "bg-green-50 text-green-700 border-green-200"
+                                    : "bg-gray-50 text-gray-700 border-gray-200"
                             }`}>
                             {assessment.grade} 등급
                           </Badge>
@@ -276,7 +278,7 @@ const GoalAssessmentItem = ({
                 );
               })}
 
-              {!myAssessment && !isEditing && (
+              {!myAssessment && !isEditing && !isSpectator && (
                 <TableRow
                   className={`bg-white ${
                     !hasUserAssessed

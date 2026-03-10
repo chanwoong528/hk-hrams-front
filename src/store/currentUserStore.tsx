@@ -9,6 +9,7 @@ interface currentUserPayload {
     departmentId: string;
     departmentName: string;
     isLeader?: boolean;
+    rank?: number;
   }[];
 }
 

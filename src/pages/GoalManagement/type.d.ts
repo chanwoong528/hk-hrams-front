@@ -46,6 +46,8 @@ export interface Appraisal {
   endDate: string; // ISO string
   status: string;
   createdBy?: string;
+  minGradeRank?: number;
+  maxGradeRank?: number;
   creator?: {
     koreanName: string;
     email: string;
