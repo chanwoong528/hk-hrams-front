@@ -99,17 +99,19 @@ export function AppraisalCard({
           {totalGoals > 0 && (
             <div className='flex flex-col gap-1 items-end'>
               <Button
-                disabled={isSubmitted || !isAllGoalsAssessed}
+                disabled={isSubmitted || isFinished || !isAllGoalsAssessed}
                 className='bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed'
                 onClick={handleFinalAssessmentClick}>
                 <ListChecks className='w-4 h-4 mr-2' />
-                최종 자가 평가
+                {isFinished ? "자가 평가 완료" : "최종 자가 평가"}
               </Button>
-              {!isAllGoalsAssessed && (
+              {(isFinished || !isAllGoalsAssessed) && (
                 <span className='text-xs text-red-500 font-medium'>
-                  {isSubmitted
-                    ? "이미 최종 제출되었습니다."
-                    : `평가 진행률: ${assessedGoalsCount} / ${totalGoals} (모든 목표를 평가해야 합니다)`}
+                  {isFinished
+                    ? "평가가 최종 완료되었습니다."
+                    : isSubmitted 
+                      ? "이미 최종 제출되었습니다."
+                      : `평가 진행률: ${assessedGoalsCount} / ${totalGoals} (모든 목표를 평가해야 합니다)`}
                 </span>
               )}
             </div>

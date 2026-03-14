@@ -31,6 +31,10 @@ export interface User {
     grade: string;
     comment: string;
     assessedById: string;
+    assessedByUser?: {
+      userId: string;
+      koreanName: string;
+    };
     updated?: string;
   }[];
   koreanName: string;

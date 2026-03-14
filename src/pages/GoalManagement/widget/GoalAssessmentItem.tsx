@@ -206,22 +206,32 @@ const GoalAssessmentItem = ({
                         toggleExpansion(assessment.goalAssessId, e)
                       }>
                       <TableCell className='font-medium text-gray-900'>
-                        {isMe ? (
-                          <div className='flex items-center gap-2'>
-                            <span className='font-semibold'>
-                              {assessment.gradedByUser?.koreanName || "본인"}
-                            </span>
-                            <Badge
-                              variant='secondary'
-                              className='bg-blue-100 text-blue-700 text-xs px-1.5 py-0 rounded-sm'>
-                              Me
-                            </Badge>
-                          </div>
-                        ) : (
-                          <span className='font-semibold text-gray-700'>
-                            {assessment.gradedByUser?.koreanName || "평가자"}
-                          </span>
-                        )}
+                        {(() => {
+                          const isTargetUser = assessment.gradedBy === targetUserId;
+                          const name = assessment.gradedByUser?.koreanName || (isTargetUser ? "본인" : "평가자");
+                          
+                          return (
+                            <div className='flex items-center gap-2'>
+                              <span className={isMe || isTargetUser ? 'font-semibold' : 'font-medium text-gray-700'}>
+                                {name}
+                              </span>
+                              {isMe && (
+                                <Badge
+                                  variant='secondary'
+                                  className='bg-blue-100 text-blue-700 text-xs px-1.5 py-0 rounded-sm'>
+                                  Me
+                                </Badge>
+                              )}
+                              {isTargetUser && (
+                                <Badge
+                                  variant='outline'
+                                  className='bg-gray-100 text-gray-600 text-xs px-1.5 py-0 rounded-sm border-gray-200'>
+                                  Self
+                                </Badge>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className='flex items-center gap-2'>

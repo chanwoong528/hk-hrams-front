@@ -308,7 +308,7 @@ export default function PerformanceAppraisal() {
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        appraisalType: e.target.value,
+                        appraisalYear: e.target.value,
                       })
                     }
                     disabled

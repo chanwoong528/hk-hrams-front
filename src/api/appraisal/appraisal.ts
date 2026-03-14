@@ -20,12 +20,16 @@ export const POST_appraisal = async (payload: {
   appraisalYear: string;
   appraisalType: string;
   appraisalTerm: string;
+  minGradeRank?: number;
+  maxGradeRank?: number;
 }) => {
   const response = await http.post("/appraisal", {
     title: payload.title,
     appraisalType: `${payload.appraisalYear}-${payload.appraisalType}-${payload.appraisalTerm}`,
     description: payload.description,
     endDate: payload.endDate,
+    minGradeRank: payload.minGradeRank,
+    maxGradeRank: payload.maxGradeRank,
     // exceptionUserList: payload.excludedUsers.map((user) => user.userId),
   });
   return response.data;
@@ -37,6 +41,8 @@ export const PATCH_appraisal = async (payload: {
   description?: string;
   endDate?: string;
   status?: string;
+  minGradeRank?: number;
+  maxGradeRank?: number;
 }) => {
   console.log("@@@@@@@@@@@@@@@ payload>> ", payload);
 
@@ -45,6 +51,12 @@ export const PATCH_appraisal = async (payload: {
     ...(payload.description && { description: payload.description }),
     ...(payload.endDate && { endDate: payload.endDate }),
     ...(payload.status && { status: payload.status }),
+    ...(payload.minGradeRank !== undefined && {
+      minGradeRank: payload.minGradeRank,
+    }),
+    ...(payload.maxGradeRank !== undefined && {
+      maxGradeRank: payload.maxGradeRank,
+    }),
   };
   const response = await http.patch(
     `/appraisal/${payload.appraisalId}`,

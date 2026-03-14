@@ -11,6 +11,7 @@ interface currentUserPayload {
     isLeader?: boolean;
     rank?: number;
   }[];
+  lv?: string;
 }
 
 interface CurrentUserStore {

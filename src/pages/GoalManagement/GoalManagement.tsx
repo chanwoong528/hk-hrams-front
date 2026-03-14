@@ -38,6 +38,8 @@ export default function GoalManagement() {
 
   const isLeader =
     isAdmin ||
+    currentUser?.lv === "reviewer" ||
+    currentUser?.lv === "both" ||
     (currentUser?.departments.some((dept) => dept.isLeader) ?? false);
 
   const {

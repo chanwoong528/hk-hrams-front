@@ -87,6 +87,9 @@ function DraggableUserRow({
       <TableCell className='text-gray-600 hidden sm:table-cell'>
         {user.email}
       </TableCell>
+      <TableCell className='text-gray-600 font-medium'>
+        {user.jobGroup || "-"}
+      </TableCell>
       <TableCell>
         <div className='flex gap-1 flex-wrap'>
           {user.departments?.length > 0 ? (
@@ -165,11 +168,13 @@ export default function UserListWidget({
     email: string;
     departments: Department[];
     userStatus: "active" | "inactive";
+    jobGroup: string;
   }>({
     koreanName: "",
     email: "",
     departments: [],
     userStatus: "active",
+    jobGroup: "",
   });
 
   const { data: usersData, isLoading: isLoadingUsers } = useQuery({
@@ -200,6 +205,7 @@ export default function UserListWidget({
       koreanName: string;
       email: string;
       departments: Department[];
+      jobGroup?: string;
     }) => POST_user(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -211,6 +217,7 @@ export default function UserListWidget({
         email: "",
         departments: [],
         userStatus: "active",
+        jobGroup: "",
       });
     },
     onError: () => {
@@ -226,6 +233,7 @@ export default function UserListWidget({
       tobeDeletedDepartments: string[];
       tobeAddedDepartments: string[];
       userStatus: "active" | "inactive";
+      jobGroup?: string;
     }) => PATCH_user(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -237,6 +245,7 @@ export default function UserListWidget({
         email: "",
         departments: [],
         userStatus: "active",
+        jobGroup: "",
       });
     },
     onError: () => {
@@ -249,6 +258,7 @@ export default function UserListWidget({
       koreanName: formData.koreanName,
       email: formData.email,
       departments: formData.departments,
+      jobGroup: formData.jobGroup,
     });
   };
 
@@ -262,7 +272,8 @@ export default function UserListWidget({
       koreanName: user.koreanName,
       email: user.email,
       departments: user.departments || [],
-      userStatus: user.userStatus,
+      userStatus: user.userStatus as "active" | "inactive",
+      jobGroup: user.jobGroup || "",
     });
   };
 
@@ -282,6 +293,7 @@ export default function UserListWidget({
         tobeDeletedDepartments: tobeDeleted.map((d) => d.id),
         tobeAddedDepartments: tobeAdded.map((d) => d.id),
         userStatus: formData.userStatus,
+        jobGroup: formData.jobGroup,
       });
     }
   };
@@ -339,6 +351,16 @@ export default function UserListWidget({
                           departments: value,
                         });
                       }}
+                    />
+                  </div>
+                  <div className='space-y-2'>
+                    <Label>직군</Label>
+                    <Input
+                      value={formData.jobGroup}
+                      onChange={(e) =>
+                        setFormData({ ...formData, jobGroup: e.target.value })
+                      }
+                      placeholder='개발 / 디자인 / 경영지원 등'
                     />
                   </div>
                 </div>
@@ -405,6 +427,7 @@ export default function UserListWidget({
                   <TableHead className='w-12'></TableHead>
                   <TableHead>이름</TableHead>
                   <TableHead className='hidden sm:table-cell'>이메일</TableHead>
+                  <TableHead>직군</TableHead>
                   <TableHead>부서</TableHead>
                   <TableHead className='hidden md:table-cell'>상태</TableHead>
                   <TableHead className='text-right'>작업</TableHead>
@@ -422,7 +445,7 @@ export default function UserListWidget({
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className='text-center py-8 text-gray-500'>
                       검색 결과가 없습니다.
                     </TableCell>
@@ -481,6 +504,16 @@ export default function UserListWidget({
                     departments: value,
                   });
                 }}
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>직군</Label>
+              <Input
+                value={formData.jobGroup}
+                onChange={(e) =>
+                  setFormData({ ...formData, jobGroup: e.target.value })
+                }
+                placeholder='개발 / 디자인 / 경영지원 등'
               />
             </div>
             <div className='space-y-2'>

@@ -57,3 +57,8 @@ export const PATCH_departmentById = async (department: DepartmentTreeData) => {
     throw error;
   }
 };
+
+export const DELETE_department = async (id: string) => {
+  const response = await http.delete(`/department/${id}`);
+  return response.data;
+};

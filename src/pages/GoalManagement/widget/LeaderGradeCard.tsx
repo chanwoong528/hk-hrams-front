@@ -79,47 +79,40 @@ const AppraisalSection = ({
       99,
     ) ?? 99;
 
+  // Corrected Rank Filtering Logic:
+  // If 0 is CEO (Top). Smaller number = more senior.
+  // User says: Max Rank 2 should block Rank 1 and 2.
+  // This means: Allowed if rank > 2.
+  // And for Min Rank (Bottom limit): Allowed if rank <= minGradeRank.
   const rankAllowed =
     (appraisal.minGradeRank == null ||
       currentUserRank <= appraisal.minGradeRank) &&
     (appraisal.maxGradeRank == null ||
       currentUserRank >= appraisal.maxGradeRank);
 
-  const isSpectator = isAdmin || !rankAllowed;
+  const isSpectator = !isAdmin && !rankAllowed;
 
   const queryClient = useQueryClient();
-  // ... mutations ...
+
   const { mutate: mutateAddCommonGoal } = useMutation({
     mutationFn: POST_commonGoal,
     onSuccess: () => {
-      // toast.success("공통 목표가 추가되었습니다");
       setIsAddCommonGoalModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["teamMembersAppraisals"] });
-    },
-    onError: () => {
-      // toast.error("공통 목표 추가에 실패했습니다");
     },
   });
 
   const { mutate: mutateEditCommonGoal } = useMutation({
     mutationFn: PATCH_commonGoal,
     onSuccess: () => {
-      // toast.success("공통 목표가 수정되었습니다");
       queryClient.invalidateQueries({ queryKey: ["teamMembersAppraisals"] });
-    },
-    onError: () => {
-      // toast.error("공통 목표 수정에 실패했습니다");
     },
   });
 
   const { mutate: mutateDeleteCommonGoal } = useMutation({
     mutationFn: DELETE_commonGoal,
     onSuccess: () => {
-      // toast.success("공통 목표가 삭제되었습니다");
       queryClient.invalidateQueries({ queryKey: ["teamMembersAppraisals"] });
-    },
-    onError: () => {
-      // toast.error("공통 목표 삭제에 실패했습니다");
     },
   });
 
@@ -150,28 +143,22 @@ const AppraisalSection = ({
 
   const handleFinalAssessment = () => {
     if (!selectedUserForFinal) return;
-
-    if (selectedUserForFinal.status !== "submitted") {
+    if (
+      selectedUserForFinal.status !== "submitted" &&
+      selectedUserForFinal.status !== "finished"
+    ) {
       toast.error("평가 대상자가 아직 최종 평가를 제출하지 않았습니다.");
       return;
     }
-
     if (!finalGrade) {
       toast.error("등급을 선택해주세요");
       return;
     }
-
-    // Check if user is evaluating themselves or a leader is evaluating a member
-    // Logic: If currentUserId == selectedUserForFinal.userId, it's Self Assessment. else Leader Assessment.
-    // However, the backend might infer role, or we pass types.
-    // Usually 'assessType' and 'assessTerm' are needed. Let's hardcode or infer.
-    // Assuming 'performance' and 'final' for now based on context.
-
     mutateAppraisalAssessment({
-      appraisalId: selectedUserForFinal.appraisalUserId!, // Use appraisalUserId not appraisalId
+      appraisalId: selectedUserForFinal.appraisalUserId!,
       assessedById: currentUserId,
-      assessType: "performance", // TODO: Dynamic?
-      assessTerm: "final", // TODO: Dynamic?
+      assessType: "performance",
+      assessTerm: "final",
       grade: finalGrade,
       comment: finalComment,
     });
@@ -186,7 +173,6 @@ const AppraisalSection = ({
       toast.error("사용자 정보를 찾을 수 없습니다.");
       return;
     }
-
     mutateAssessGoal({
       goalId: goalId,
       grade: grade,
@@ -195,7 +181,6 @@ const AppraisalSection = ({
     });
   };
 
-  // Logic to find common goals (goals with same title across *some* users)
   const allGoals = appraisal.user.flatMap((u) => u.goals);
   const goalCounts = allGoals.reduce(
     (acc, goal) => {
@@ -206,20 +191,13 @@ const AppraisalSection = ({
   );
 
   const commonGoals = Object.entries(goalCounts)
-    .filter(([_, count]) => count > 1) // Only goals shared by more than 1 person
-    .map(([title, count]) => {
+    .filter(([_, count]) => count > 1)
+    .map(([title]) => {
       const goal = allGoals.find((g) => g.title === title);
       if (!goal) return null;
-      return {
-        ...goal,
-        count,
-        totalUsers: appraisal.user.length,
-      };
+      return goal;
     })
-    .filter((g) => g !== null) as (Goal & {
-    count: number;
-    totalUsers: number;
-  })[];
+    .filter((g) => g !== null) as Goal[];
 
   return (
     <Card className='mb-6 border-none shadow-sm ring-1 ring-gray-100'>
@@ -234,142 +212,84 @@ const AppraisalSection = ({
             </Badge>
           </CardTitle>
           <div className='flex gap-2'>
-            {/* <Button
-              variant='outline'
-              size='sm'
-              className='bg-white hover:bg-gray-50 text-gray-700'
-              onClick={() => navigate(`/goal-grade/${appraisal.appraisalId}`)}>
-              <Search className='w-3.5 h-3.5 mr-1.5' />
-              상세 보기
-            </Button> */}
-            <Dialog
-              open={isAddCommonGoalModalOpen}
-              onOpenChange={setIsAddCommonGoalModalOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  size='sm'
-                  variant='secondary'
-                  className='bg-white border hover:bg-gray-50 text-purple-700 border-purple-100 hover:text-purple-800'>
-                  <Plus className='w-3.5 h-3.5 mr-1.5' />
-                  공통 목표 관리
-                </Button>
-              </DialogTrigger>
-              <DialogContent className='max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto px-4 sm:px-6'>
-                <DialogHeader>
-                  <DialogTitle>
+            {!isSpectator && (
+              <Dialog
+                open={isAddCommonGoalModalOpen}
+                onOpenChange={setIsAddCommonGoalModalOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    size='sm'
+                    variant='secondary'
+                    className='bg-white border hover:bg-gray-50 text-purple-700 border-purple-100 hover:text-purple-800'>
+                    <Plus className='w-3.5 h-3.5 mr-1.5' />
                     공통 목표 관리
-                    <span className='ml-2 text-sm text-gray-500 font-normal'>
-                      - {departmentName}
-                    </span>
-                  </DialogTitle>
-                </DialogHeader>
-                <GoalForm
-                  onSaveAll={async (newGoals, updatedGoals, deletedGoalIds) => {
-                    const promises = [];
-
-                    // 1. Create New Common Goals
-                    if (newGoals.length > 0) {
-                      promises.push(
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className='max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto px-4 sm:px-6'>
+                  <DialogHeader>
+                    <DialogTitle>
+                      공통 목표 관리
+                      <span className='ml-2 text-sm text-gray-500 font-normal'>
+                        - {departmentName}
+                      </span>
+                    </DialogTitle>
+                  </DialogHeader>
+                  <GoalForm
+                    onSaveAll={async (
+                      newGoals,
+                      updatedGoals,
+                      deletedGoalIds,
+                    ) => {
+                      if (newGoals.length > 0) {
                         mutateAddCommonGoal({
                           appraisalId: appraisal.appraisalId,
                           departmentId: departmentId,
                           goals: newGoals,
-                        }),
-                      );
-                    }
-
-                    // 2. Update Existing Common Goals
-                    updatedGoals.forEach((goal) => {
-                      // We need the old title to identify the goal for update
-                      // But the unified form only gives us the new state.
-                      // This is tricky because `updateCommonGoalByLeader` expects `oldTitle`.
-                      // However, `GoalForm` tracks goals by ID now if we provided IDs.
-                      // `commonGoals` passed to `GoalForm` has IDs?
-                      // Let's check `commonGoals` construction.
-                      // It maps `allGoals`. `allGoals` have `goalId`.
-                      // So `updatedGoals` will have `goalId`.
-                      // But `FEATURE GAP`: Common Goal Update API (`PATCH_commonGoal`) asks for `oldTitle`.
-                      // It should probably ask for `goalId`?
-                      // Or `GoalService.updateCommonGoalByLeader` logic relies on `oldTitle` to update *all user's* matching goals.
-                      // Updating by `goalId` only updates ONE specific user's goal.
-                      // WE NEED TO FIX THE API OR THE FORM.
-                      //
-                      // Given I cannot easily change the "update by title" logic instantly without breaking semantics (Common Goal = Shared Title),
-                      // I will temporarily fetch the OLD title using the ID from the original list?
-                      // But `GoalForm` doesn't pass old title.
-                      //
-                      // ALTERNATIVE:
-                      // `GoalForm` passes `updatedGoals`.
-                      // I can find the original goal in `commonGoals` list by `goalId`?
-                      // `commonGoals` is derived inside the render.
-                      // I should probably memoize it or just find it.
-                      //
-                      // WAIT: `commonGoals` is constructed on the fly.
-                      // I will implement a lookup here.
-
-                      const originalGoal = commonGoals.find(
-                        (g) => g.goalId === goal.goalId,
-                      );
-                      if (originalGoal) {
-                        // Only call update if title or description changed
+                        });
+                      }
+                      updatedGoals.forEach((goal) => {
+                        const originalGoal = commonGoals.find(
+                          (g) => g.goalId === goal.goalId,
+                        );
                         if (
-                          originalGoal.title !== goal.title ||
-                          originalGoal.description !== goal.description
+                          originalGoal &&
+                          (originalGoal.title !== goal.title ||
+                            originalGoal.description !== goal.description)
                         ) {
                           mutateEditCommonGoal({
                             appraisalId: appraisal.appraisalId,
                             departmentId: departmentId,
-                            oldTitle: originalGoal.title, // Use original title
+                            oldTitle: originalGoal.title,
                             newTitle: goal.title,
                             newDescription: goal.description,
                           });
                         }
-                      }
-                    });
-
-                    // 3. Delete Common Goals
-                    deletedGoalIds.forEach((id) => {
-                      const originalGoal = commonGoals.find(
-                        (g) => g.goalId === id,
-                      );
-                      if (originalGoal) {
-                        mutateDeleteCommonGoal({
-                          appraisalId: appraisal.appraisalId,
-                          departmentId: departmentId,
-                          title: originalGoal.title,
-                        });
-                      }
-                    });
-
-                    await Promise.all(promises);
-                    const actionSummaries = [];
-                    if (newGoals.length > 0)
-                      actionSummaries.push(`추가 ${newGoals.length}건`);
-                    if (updatedGoals.length > 0)
-                      actionSummaries.push(`수정 ${updatedGoals.length}건`);
-                    if (deletedGoalIds.length > 0)
-                      actionSummaries.push(`삭제 ${deletedGoalIds.length}건`);
-
-                    if (actionSummaries.length > 0) {
-                      toast.success(
-                        `공통 목표가 저장되었습니다 (${actionSummaries.join(
-                          ", ",
-                        )})`,
-                      );
-                    } else {
-                      toast.info("변경사항이 없습니다");
-                    }
-                  }}
-                  showLeft={false}
-                  existingGoals={commonGoals as any}
-                  appraisalInfo={{
-                    title: `[${departmentName}] 공통 목표 관리`,
-                    description:
-                      "이곳에서 등록하는 목표는 해당 부서의 모든 팀원에게 일괄 적용됩니다.",
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
+                      });
+                      deletedGoalIds.forEach((id) => {
+                        const originalGoal = commonGoals.find(
+                          (g) => g.goalId === id,
+                        );
+                        if (originalGoal) {
+                          mutateDeleteCommonGoal({
+                            appraisalId: appraisal.appraisalId,
+                            departmentId: departmentId,
+                            title: originalGoal.title,
+                          });
+                        }
+                      });
+                      toast.success("공통 목표 변경 사항이 저장되었습니다.");
+                    }}
+                    showLeft={false}
+                    existingGoals={commonGoals as any}
+                    appraisalInfo={{
+                      title: `[${departmentName}] 공통 목표 관리`,
+                      description:
+                        "이곳에서 등록하는 목표는 해당 부서의 모든 팀원에게 일괄 적용됩니다.",
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -387,7 +307,6 @@ const AppraisalSection = ({
           </TableHeader>
           <TableBody>
             {appraisal.user.map((user) => {
-              // Calculate assessment progress
               const totalGoals = user.goals.length;
               const assessedGoals = user.goals.filter((g) =>
                 isSpectator
@@ -398,8 +317,6 @@ const AppraisalSection = ({
               ).length;
               const isFullyAssessed =
                 totalGoals > 0 && totalGoals === assessedGoals;
-
-              // Check if Final Assessment is already done by current user
               const isFinalAssessed = isSpectator
                 ? user.assessments && user.assessments.length > 0
                 : user.assessments?.some(
@@ -434,7 +351,6 @@ const AppraisalSection = ({
                         }`}>
                         {assessedGoals} / {totalGoals} 완료
                       </span>
-                      {/* Simple Progress Bar */}
                       <div className='h-1.5 w-24 bg-gray-100 rounded-full overflow-hidden'>
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${
@@ -496,98 +412,29 @@ const AppraisalSection = ({
                                 </p>
                               </div>
                             </div>
-                            <div className='flex items-center gap-3 text-sm'>
-                              <div className='text-right px-4 border-r'>
-                                <p className='text-gray-500'>전체 목표</p>
-                                <p className='font-bold text-gray-900'>
-                                  {totalGoals}건
-                                </p>
-                              </div>
-                              <div className='text-right px-1'>
-                                <p className='text-gray-500'>평가 완료</p>
-                                <p
-                                  className={`font-bold ${
-                                    isFullyAssessed
-                                      ? "text-green-600"
-                                      : "text-blue-600"
-                                  }`}>
-                                  {assessedGoals}건
-                                </p>
-                              </div>
-                            </div>
                           </DialogTitle>
                         </DialogHeader>
 
                         <div className='p-6 space-y-6'>
                           {user.goals.length > 0 ? (
                             <div className='grid gap-5'>
-                              {[...user.goals]
-                                .sort((a, b) => {
-                                  // Check status for Goal A
-                                  const aLeaderAssessed =
-                                    a.goalAssessmentBy?.some(
-                                      (assess) =>
-                                        assess.gradedBy === currentUserId,
-                                    );
-                                  const aMemberAssessed =
-                                    a.goalAssessmentBy?.some(
-                                      (assess) =>
-                                        assess.gradedBy === user.userId,
-                                    );
-
-                                  // Check status for Goal B
-                                  const bLeaderAssessed =
-                                    b.goalAssessmentBy?.some(
-                                      (assess) =>
-                                        assess.gradedBy === currentUserId,
-                                    );
-                                  const bMemberAssessed =
-                                    b.goalAssessmentBy?.some(
-                                      (assess) =>
-                                        assess.gradedBy === user.userId,
-                                    );
-
-                                  // Priority 1: Both Not Assessed (Not Started)
-                                  const aNotStarted =
-                                    !aMemberAssessed && !aLeaderAssessed;
-                                  const bNotStarted =
-                                    !bMemberAssessed && !bLeaderAssessed;
-                                  if (aNotStarted && !bNotStarted) return -1;
-                                  if (!aNotStarted && bNotStarted) return 1;
-
-                                  // Priority 2: Member Done, Leader Not (Ready for Leader)
-                                  const aReady =
-                                    aMemberAssessed && !aLeaderAssessed;
-                                  const bReady =
-                                    bMemberAssessed && !bLeaderAssessed;
-                                  if (aReady && !bReady) return -1;
-                                  if (!aReady && bReady) return 1;
-
-                                  return 0; // Equal priority (e.g. both Done)
-                                })
-                                .map((goal) => (
-                                  <GoalAssessmentItem
-                                    key={goal.goalId}
-                                    goal={goal}
-                                    currentUserId={currentUserId}
-                                    targetUserId={user.userId}
-                                    onSave={handleSaveAssessment}
-                                    isSpectator={isSpectator}
-                                  />
-                                ))}
+                              {[...user.goals].map((goal) => (
+                                <GoalAssessmentItem
+                                  key={goal.goalId}
+                                  goal={goal}
+                                  currentUserId={currentUserId}
+                                  targetUserId={user.userId}
+                                  onSave={handleSaveAssessment}
+                                  isSpectator={isSpectator}
+                                />
+                              ))}
                             </div>
                           ) : (
                             <div className='text-center py-16 bg-white rounded-xl border border-dashed'>
-                              <div className='w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4'>
-                                <GoalIcon className='w-8 h-8 text-gray-300' />
-                              </div>
+                              <GoalIcon className='w-8 h-8 text-gray-300 mx-auto mb-4' />
                               <h3 className='text-lg font-semibold text-gray-900'>
                                 등록된 목표가 없습니다
                               </h3>
-                              <p className='text-gray-500 mt-2 max-w-sm mx-auto'>
-                                팀원이 아직 목표를 등록하지 않았습니다. 목표가
-                                등록되면 평가를 진행할 수 있습니다.
-                              </p>
                             </div>
                           )}
                         </div>
@@ -600,10 +447,11 @@ const AppraisalSection = ({
                       </DialogContent>
                     </Dialog>
 
-                    {/* Final Assessment Button */}
                     {(() => {
-                      const finalAssessment = user.assessments
-                        ?.slice()
+                      // Find final assessments excluding self-assessment for summary view
+                      const otherAssessments = user.assessments?.filter(a => a.assessedById !== user.userId) || [];
+                      const finalAssessment = otherAssessments
+                        .slice()
                         .sort(
                           (a, b) =>
                             new Date(b.updated || 0).getTime() -
@@ -615,12 +463,6 @@ const AppraisalSection = ({
                         : user.assessments?.find(
                             (a) => a.assessedById === currentUserId,
                           );
-
-                      // Edit Logic:
-                      // 1. If not assessed yet -> Enabled (if user submitted)
-                      // 2. If assessed -> Check timestamps
-                      //    - If user.selfAssessment.updated > existingAssessment.updated -> Enabled (New data)
-                      //    - Else -> Disabled (Locked)
 
                       const isSubmittedOrFinished =
                         user.status === "submitted" ||
@@ -648,31 +490,26 @@ const AppraisalSection = ({
                       }
 
                       return (
-                        <div className='flex items-center justify-end gap-2'>
+                        <div className='inline-flex items-center gap-2 ml-2'>
                           {existingAssessment && (
                             <Badge
                               variant='secondary'
-                              className='text-white bg-purple-500 hover:bg-purple-600 rounded-md shadow-sm'>
+                              className='text-white bg-purple-500 rounded-md'>
                               {existingAssessment.grade}등급
                             </Badge>
                           )}
                           <Button
                             size='sm'
-                            variant={
-                              isFullyAssessed && canEdit
-                                ? "default"
-                                : "secondary"
-                            }
-                            className={`ml-2 ${
+                            disabled={!canEdit && !isSpectator}
+                            className={
                               !canEdit
                                 ? isSpectator
                                   ? "bg-purple-100 text-purple-700 border border-purple-200"
                                   : "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400"
                                 : isFinalAssessed
-                                  ? "bg-purple-100 text-purple-700 hover:bg-purple-100 border border-purple-200"
+                                  ? "bg-purple-100 text-purple-700 border border-purple-200"
                                   : "bg-purple-600 hover:bg-purple-700 text-white"
-                            }`}
-                            disabled={!canEdit && !isSpectator}
+                            }
                             onClick={() => {
                               if (!isSubmittedOrFinished) {
                                 toast.error(
@@ -680,7 +517,6 @@ const AppraisalSection = ({
                                 );
                                 return;
                               }
-
                               if (existingAssessment) {
                                 setFinalGrade(existingAssessment.grade);
                                 setFinalComment(existingAssessment.comment);
@@ -688,7 +524,6 @@ const AppraisalSection = ({
                                 setFinalGrade("");
                                 setFinalComment("");
                               }
-
                               setSelectedUserForFinal(user);
                             }}>
                             <CheckCircle className='w-3.5 h-3.5 mr-1.5' />
@@ -734,41 +569,53 @@ const AppraisalSection = ({
                       {selectedUserForFinal.selfAssessment.grade}등급
                     </Badge>
                   </div>
-                  <div className='text-gray-600 bg-white p-2 rounded border border-gray-100 mt-1 whitespace-pre-wrap'>
+                  <div className='text-gray-600 bg-white p-2 rounded border border-gray-100 mt-1 whitespace-pre-wrap text-xs'>
                     {selectedUserForFinal.selfAssessment.comment ||
                       "코멘트 없음"}
                   </div>
                 </div>
               </div>
             )}
-            {/* Other Evaluators Reference */}
-            {selectedUserForFinal?.assessments
-              ?.filter((a) => a.assessedById !== currentUserId)
-              .map((a, idx) => (
-                <div
-                  key={idx}
-                  className='bg-blue-50/50 p-3 rounded-lg border border-blue-100 mb-4'>
-                  <h5 className='text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2'>
-                    <span className='w-1.5 h-1.5 rounded-full bg-blue-500'></span>
-                    이전 평가자 의견 (참고용)
-                  </h5>
-                  <div className='text-sm'>
-                    <div className='flex items-center gap-2 mb-1'>
-                      <span className='text-gray-500'>등급:</span>
-                      <Badge variant='outline' className='bg-white'>
-                        {a.grade}등급
-                      </Badge>
+            <div className='space-y-4'>
+              <Label>기존 평가 내역</Label>
+              <div className='space-y-3'>
+                {selectedUserForFinal?.assessments
+                  ?.filter((a) => a.assessedById !== selectedUserForFinal.userId)
+                  .map((as, idx) => (
+                  <div key={idx} className='bg-white p-3 rounded-lg border border-gray-100 shadow-sm'>
+                    <div className='flex items-center justify-between mb-2'>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-xs font-bold text-gray-500 uppercase tracking-wider'>
+                          {as.assessedByUser?.koreanName || "평가자"}
+                        </span>
+                        <Badge variant='outline' className='bg-purple-50 text-purple-700 border-purple-100'>
+                          {as.grade}등급
+                        </Badge>
+                      </div>
+                      {as.updated && (
+                        <span className='text-[10px] text-gray-400 font-normal'>
+                          {new Date(as.updated).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
-                    <div className='text-blue-900 bg-white p-2 rounded border border-blue-100 mt-1 whitespace-pre-wrap'>
-                      {a.comment || "코멘트 없음"}
-                    </div>
+                    <p className='text-xs text-gray-600 leading-relaxed whitespace-pre-wrap'>
+                      {as.comment || "코멘트 없음"}
+                    </p>
                   </div>
-                </div>
-              ))}
+                ))}
+                {(!selectedUserForFinal?.assessments || selectedUserForFinal.assessments.length === 0) && (
+                  <div className='text-center py-4 text-xs text-gray-400 italic'>
+                    아직 등록된 종합 평가가 없습니다.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className='h-px bg-gray-100 my-4' />
 
             <div className='space-y-2'>
-              <Label>등급</Label>
-              <Select value={finalGrade} onValueChange={setFinalGrade}>
+              <Label>{isSpectator ? "등급 (조회)" : "나의 평가 등급"}</Label>
+              <Select disabled={isSpectator} value={finalGrade} onValueChange={setFinalGrade}>
                 <SelectTrigger>
                   <SelectValue placeholder='등급 선택' />
                 </SelectTrigger>
@@ -782,9 +629,10 @@ const AppraisalSection = ({
               </Select>
             </div>
             <div className='space-y-2'>
-              <Label>종합 코멘트</Label>
+              <Label>{isSpectator ? "종합 코멘트 (조회)" : "나의 종합 코멘트"}</Label>
               <Textarea
-                placeholder='종합 평가 의견을 작성해주세요.'
+                disabled={isSpectator}
+                placeholder={isSpectator ? "평가 내역이 없습니다." : "종합 평가 의견을 작성해주세요."}
                 value={finalComment}
                 onChange={(e) => setFinalComment(e.target.value)}
                 className='min-h-[100px]'
@@ -821,10 +669,6 @@ const LeaderGradeCard = ({
   currentUserId?: string;
 }) => {
   if (!departmentAppraisals) return null;
-
-  if (currentUserId) {
-    console.log("Logged as:", currentUserId);
-  }
 
   return (
     <Tabs

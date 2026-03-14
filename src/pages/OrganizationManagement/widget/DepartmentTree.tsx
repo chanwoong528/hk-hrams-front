@@ -19,6 +19,7 @@ export default function DepartmentTree({
   treeData,
   setTreeData,
   onEdit,
+  onDelete,
   onDropUser,
   selectedDepartmentId,
   onSelectDepartment,
@@ -26,6 +27,7 @@ export default function DepartmentTree({
   treeData: DepartmentTreeData[];
   setTreeData: (treeData: DepartmentTreeData[]) => void;
   onEdit: (dept: DepartmentTreeData) => void;
+  onDelete: (id: string) => void;
   onDropUser: (userId: string, targetDeptId: string) => void;
   selectedDepartmentId: string | null;
   onSelectDepartment: (id: string | null) => void;
@@ -70,6 +72,7 @@ export default function DepartmentTree({
           isOpen={isOpen}
           hasChild={hasChild}
           onEdit={onEdit}
+          onDelete={onDelete}
           onDropUser={onDropUser}
           isSelected={selectedDepartmentId === node.id.toString()}
           onSelect={() => {
@@ -79,8 +82,9 @@ export default function DepartmentTree({
         />
       )}
       classes={{
-        root: "box-border h-full py-8",
-        draggingSource: "bg-blue-50",
+        root: "box-border h-full py-8 overflow-x-auto overflow-y-hidden",
+        draggingSource: "opacity-30",
+        dropTarget: "bg-blue-50/50",
       }}
     />
   );
@@ -95,6 +99,7 @@ interface DraggableDepartmentItemProps {
   depth: number;
   hasChild: boolean;
   onEdit: (dept: DepartmentTreeData) => void;
+  onDelete: (id: string) => void;
   onDropUser: (userId: string, targetDeptId: string) => void;
   isSelected: boolean;
   onSelect: () => void;
@@ -108,6 +113,7 @@ function DraggableDepartmentItem({
   depth,
   hasChild,
   onEdit,
+  onDelete,
   onDropUser,
   isSelected,
   onSelect,
@@ -125,89 +131,138 @@ function DraggableDepartmentItem({
     }),
   });
 
+  const indentSize = 24;
+
   return (
     <div
       ref={dropRef as any}
-      className={`transition-all duration-200 my-4 `}
-      style={{ paddingInlineStart: `${depth * 32}px` }}
+      className={`relative py-1 transition-all duration-200 group mr-2`}
+      style={{ paddingLeft: `${depth * indentSize}px` }}
       onClick={(e) => e.stopPropagation()}>
+      {/* Connecting Lines */}
+      {depth > 0 && (
+        <>
+          {/* Vertical Line from parent */}
+          <div
+            className='absolute left-0 top-0 w-px bg-gray-200 group-last:h-1/2 h-full'
+            style={{ left: `${(depth - 1) * indentSize + 20}px` }}
+          />
+          {/* Horizontal Line to this item */}
+          <div
+            className='absolute top-1/2 h-px bg-gray-200'
+            style={{
+              left: `${(depth - 1) * indentSize + 20}px`,
+              width: `${indentSize - 20}px`,
+            }}
+          />
+        </>
+      )}
+
       <div
         onClick={(e) => {
           e.stopPropagation();
           onSelect();
         }}
-        className={`flex items-center gap-3 p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer ${
+        className={`relative flex items-center gap-2 p-3 border rounded-xl transition-all duration-300 cursor-pointer overflow-hidden ${
           isSelected
-            ? "bg-blue-50 border-blue-400 ring-2 ring-blue-200"
+            ? "bg-white border-blue-500 shadow-lg shadow-blue-100 ring-1 ring-blue-500"
             : isDropTarget || isOver
-              ? "bg-blue-50 border-blue-300"
-              : "bg-white"
+              ? "bg-blue-50 border-blue-300 ring-2 ring-blue-100"
+              : "bg-white border-gray-100 hover:border-blue-200 hover:shadow-md"
         }`}>
-        <div className='flex-1 flex items-center gap-3 '>
-          {/* Drag Handle */}
+        {/* Item Decorator (Accent Sidebar) */}
+        <div
+          className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${
+            isSelected ? "bg-blue-500" : "bg-gray-100 group-hover:bg-blue-300"
+          }`}
+        />
+
+        <div className='flex-1 flex items-center gap-3 min-w-0 ml-1'>
+          {/* Drag Handle & Toggle */}
+          <div className='flex items-center gap-1 shrink-0'>
+            <div
+              className={`p-1.5 hover:bg-gray-100 rounded-md cursor-grab active:cursor-grabbing text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity`}>
+              <GripVertical className='w-3.5 h-3.5' />
+            </div>
+
+            {hasChild ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle(node.id.toString());
+                }}
+                className={`p-1 rounded-md hover:bg-gray-100 transition-transform ${isOpen ? "rotate-0" : "-rotate-90"}`}>
+                <ChevronDown className='w-4 h-4 text-gray-500' />
+              </button>
+            ) : (
+              <div className='w-6' />
+            )}
+          </div>
+
+          {/* Department Icon */}
           <div
-            className={`cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded `}>
-            <GripVertical className='w-4 h-4 text-gray-400' />
+            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+              isSelected ? "bg-blue-500 text-white" : "bg-blue-50 text-blue-600"
+            }`}>
+            <Building2 className='w-5 h-5' />
           </div>
 
-          {hasChild ? (
-            <button
-              onClick={() => onToggle(node.id.toString())}
-              className='text-gray-400 hover:text-gray-600'>
-              {isOpen ? (
-                <ChevronDown className='w-5 h-5 text-gray-600' />
-              ) : (
-                <ChevronRight className='w-5 h-5 text-gray-600' />
-              )}
-            </button>
-          ) : (
-            <div className='w-5' />
-          )}
-
-          <div className='w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center'>
-            <Building2 className={`w-5 h-5 text-blue-600`} />
-          </div>
-
-          <div className='flex-1'>
+          {/* Info Section */}
+          <div className='flex-1 flex flex-col gap-0.5 min-w-0'>
             <div className='flex items-center gap-2'>
-              <h3 className={`text-gray-900`}>{node.text}</h3>
+              <span className='font-bold text-gray-900 text-[15px] whitespace-nowrap'>
+                {node.text}
+              </span>
               {depth === 0 && (
-                <Badge className='bg-purple-100 text-purple-700'>본부</Badge>
+                <Badge
+                  variant='secondary'
+                  className='bg-purple-50 text-purple-700 border-purple-100 text-[10px] py-0 px-2 h-5 font-semibold shrink-0'>
+                  본부
+                </Badge>
               )}
               {isOver && (
-                <Badge className='bg-blue-100 text-blue-700 animate-pulse'>
+                <Badge className='bg-blue-500 text-white border-none text-[10px] py-0 px-2 h-5 shrink-0 animate-pulse'>
                   배치하기
                 </Badge>
               )}
             </div>
-            <div className='flex items-center gap-4 text-sm text-gray-600 mt-1'>
-              <span className='flex items-center gap-1'>
-                <Flag className='w-4 h-4' />
-                {leaderName}
-              </span>
-              <span className='flex items-center gap-1'>
-                <Users className='w-4 h-4' />
-                {userCount}
-              </span>
+            <div className='flex items-center gap-3 text-xs text-gray-400 font-medium'>
+              <div className='flex items-center gap-1 shrink-0'>
+                <Flag className='w-3 h-3 text-gray-300' />
+                <span className={isSelected ? "text-blue-400" : ""}>
+                  {leaderName}
+                </span>
+              </div>
+              <div className='flex items-center gap-1 shrink-0'>
+                <Users className='w-3 h-3 text-gray-300' />
+                <span>{userCount}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className='flex gap-2'>
+        {/* Actions (Always Visible) */}
+        <div className='flex gap-1 shrink-0 p-1'>
           <Button
             variant='outline'
-            size='sm'
-            onClick={() => onEdit(node as unknown as DepartmentTreeData)}>
-            <Edit className='w-4 h-4' />
+            size='icon'
+            className='h-8 w-8 text-gray-600 hover:text-blue-600 hover:bg-blue-50 border-gray-100 shadow-sm'
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(node as unknown as DepartmentTreeData);
+            }}>
+            <Edit className='w-3.5 h-3.5' />
           </Button>
-          {depth > 0 && (
-            <Button
-              variant='outline'
-              size='sm'
-              className='text-red-600 hover:text-red-700'>
-              <Trash2 className='w-4 h-4' />
-            </Button>
-          )}
+          <Button
+            variant='outline'
+            size='icon'
+            className='h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 border-gray-100 shadow-sm'
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(node.id.toString());
+            }}>
+            <Trash2 className='w-3.5 h-3.5' />
+          </Button>
         </div>
       </div>
     </div>

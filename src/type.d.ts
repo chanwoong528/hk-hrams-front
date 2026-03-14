@@ -25,6 +25,7 @@ interface User {
   created: string;
   updated: string;
   userStatus: "active" | "inactive";
+  jobGroup?: string;
   departments: (Department & { isLeader: boolean })[];
 }
 

@@ -74,19 +74,17 @@ export default function CompetencyEvaluation() {
     select: (data) => data.data as any[],
   });
 
-  // 2. Fetch Team Members if leader
-  const leaderDeptIds = useMemo(() => {
+  // 2. Fetch Team Members Hierarchy (Rank and Leader base)
+  const allMyDeptIds = useMemo(() => {
     return (
-      currentUser?.departments
-        ?.filter((d) => d.isLeader)
-        .map((d) => d.departmentId) || []
+      currentUser?.departments?.map((d) => d.departmentId) || []
     );
   }, [currentUser]);
 
   const { data: teamData, isLoading: isLoadingTeam } = useQuery({
-    queryKey: ["teamMembers", leaderDeptIds],
-    queryFn: () => GET_appraisalsOfTeamMembers(leaderDeptIds),
-    enabled: !isHR && leaderDeptIds.length > 0,
+    queryKey: ["teamMembers", allMyDeptIds],
+    queryFn: () => GET_appraisalsOfTeamMembers(allMyDeptIds),
+    enabled: !isHR && allMyDeptIds.length > 0,
     select: (data) => data.data as any[],
   });
 
@@ -442,8 +440,8 @@ export default function CompetencyEvaluation() {
                           {isHR
                             ? tp.appraisalTitle
                             : isSelfFinished
-                              ? "나의 평가 진행률"
-                              : "팀원 자가평가 대기 중"}
+                              ? "평가 진행률"
+                              : "자가평가 대기 중"}
                         </span>
                         <span className='font-bold ml-2 shrink-0'>
                           {isHR

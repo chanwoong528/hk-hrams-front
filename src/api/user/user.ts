@@ -6,6 +6,7 @@ export interface HramsUserType {
   email: string;
   departments?: any[];
   userStatus?: string;
+  jobGroup?: string;
   created?: string;
   updated?: string;
 }
@@ -46,11 +47,13 @@ export const POST_user = async (payload: {
   koreanName: string;
   email: string;
   departments: Department[];
+  jobGroup?: string;
 }) => {
   const response = await http.post("/user", {
     koreanName: payload.koreanName,
     email: payload.email,
     departments: payload.departments.map((d) => d.departmentId),
+    jobGroup: payload.jobGroup,
   });
   return response.data;
 };
@@ -61,6 +64,7 @@ export const PATCH_user = async (payload: {
   tobeDeletedDepartments: string[];
   tobeAddedDepartments: string[];
   userStatus: "active" | "inactive";
+  jobGroup?: string;
 }) => {
   console.log("@@@payload>> ", payload);
   const response = await http.patch(`/user/${payload.userId}`, {
@@ -69,6 +73,7 @@ export const PATCH_user = async (payload: {
     tobeDeletedDepartments: payload.tobeDeletedDepartments,
     tobeAddedDepartments: payload.tobeAddedDepartments,
     ...(payload.userStatus && { userStatus: payload.userStatus }),
+    jobGroup: payload.jobGroup,
   });
   return response.data;
 };
@@ -79,7 +84,7 @@ export const GET_leaders = async () => {
 };
 
 export const POST_bulkUsers = async (payload: {
-  users: { koreanName: string; email: string }[];
+  users: { koreanName: string; email: string; jobGroup?: string }[];
   departments?: Department[];
 }) => {
   const departmentIds = payload.departments?.map((d) => d.departmentId) ?? [];
