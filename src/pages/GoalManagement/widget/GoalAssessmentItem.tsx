@@ -20,6 +20,7 @@ interface GoalAssessmentItemProps {
   disabled?: boolean;
   targetUserId?: string;
   currentUserId?: string;
+  isSpectator?: boolean;
 }
 
 const GoalAssessmentItem = ({
@@ -28,10 +29,11 @@ const GoalAssessmentItem = ({
   onSave,
   disabled = false,
   targetUserId,
+  isSpectator = false,
 }: GoalAssessmentItemProps) => {
-  const myAssessment = goal.goalAssessmentBy?.find(
-    (a) => a.gradedBy === currentUserId,
-  );
+  const myAssessment = isSpectator
+    ? goal.goalAssessmentBy?.[0]
+    : goal.goalAssessmentBy?.find((a) => a.gradedBy === currentUserId);
 
   // Check if target user (team member) has completed their assessment
   // If targetUserId is provided, we check if they have assessed this goal.
@@ -204,22 +206,32 @@ const GoalAssessmentItem = ({
                         toggleExpansion(assessment.goalAssessId, e)
                       }>
                       <TableCell className='font-medium text-gray-900'>
-                        {isMe ? (
-                          <div className='flex items-center gap-2'>
-                            <span className='font-semibold'>
-                              {assessment.gradedByUser?.koreanName || "본인"}
-                            </span>
-                            <Badge
-                              variant='secondary'
-                              className='bg-blue-100 text-blue-700 text-xs px-1.5 py-0 rounded-sm'>
-                              Me
-                            </Badge>
-                          </div>
-                        ) : (
-                          <span className='font-semibold text-gray-700'>
-                            {assessment.gradedByUser?.koreanName || "평가자"}
-                          </span>
-                        )}
+                        {(() => {
+                          const isTargetUser = assessment.gradedBy === targetUserId;
+                          const name = assessment.gradedByUser?.koreanName || (isTargetUser ? "본인" : "평가자");
+                          
+                          return (
+                            <div className='flex items-center gap-2'>
+                              <span className={isMe || isTargetUser ? 'font-semibold' : 'font-medium text-gray-700'}>
+                                {name}
+                              </span>
+                              {isMe && (
+                                <Badge
+                                  variant='secondary'
+                                  className='bg-blue-100 text-blue-700 text-xs px-1.5 py-0 rounded-sm'>
+                                  Me
+                                </Badge>
+                              )}
+                              {isTargetUser && (
+                                <Badge
+                                  variant='outline'
+                                  className='bg-gray-100 text-gray-600 text-xs px-1.5 py-0 rounded-sm border-gray-200'>
+                                  Self
+                                </Badge>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className='flex items-center gap-2'>
@@ -229,10 +241,10 @@ const GoalAssessmentItem = ({
                               assessment.grade === "S"
                                 ? "bg-purple-50 text-purple-700 border-purple-200"
                                 : assessment.grade === "A"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : assessment.grade === "B"
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : "bg-gray-50 text-gray-700 border-gray-200"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : assessment.grade === "B"
+                                    ? "bg-green-50 text-green-700 border-green-200"
+                                    : "bg-gray-50 text-gray-700 border-gray-200"
                             }`}>
                             {assessment.grade} 등급
                           </Badge>
@@ -276,7 +288,7 @@ const GoalAssessmentItem = ({
                 );
               })}
 
-              {!myAssessment && !isEditing && (
+              {!myAssessment && !isEditing && !isSpectator && (
                 <TableRow
                   className={`bg-white ${
                     !hasUserAssessed

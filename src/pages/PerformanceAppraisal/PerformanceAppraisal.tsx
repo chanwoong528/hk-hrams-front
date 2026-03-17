@@ -62,6 +62,8 @@ interface AppraisalFormData {
   appraisalYear: string;
   appraisalType: string;
   appraisalTerm: string;
+  minGradeRank?: number;
+  maxGradeRank?: number;
 }
 
 const APPRRAISAL_TYPES = [
@@ -109,6 +111,8 @@ export default function PerformanceAppraisal() {
     appraisalYear: new Date().getFullYear().toString(),
     appraisalType: APPRRAISAL_TYPES[0].value,
     appraisalTerm: APPRRAISAL_TERMS[0].value,
+    minGradeRank: undefined,
+    maxGradeRank: undefined,
   });
 
   const [excludedUsers, setExcludedUsers] = useState<HramsUserType[]>([]);
@@ -149,6 +153,8 @@ export default function PerformanceAppraisal() {
         appraisalYear: new Date().getFullYear().toString(),
         appraisalType: APPRRAISAL_TYPES[0].value,
         appraisalTerm: APPRRAISAL_TERMS[0].value,
+        minGradeRank: undefined,
+        maxGradeRank: undefined,
       });
     },
     onError: () => {
@@ -302,7 +308,7 @@ export default function PerformanceAppraisal() {
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        appraisalType: e.target.value,
+                        appraisalYear: e.target.value,
                       })
                     }
                     disabled
@@ -364,6 +370,47 @@ export default function PerformanceAppraisal() {
                   onChange={handleExcludedUsersChange}
                 />
               </div> */}
+
+              <div className='grid grid-cols-2 gap-4'>
+                <div className='space-y-2'>
+                  <Label>최소 평가자 직급 (Rank)</Label>
+                  <Input
+                    type='number'
+                    value={formData.minGradeRank ?? ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        minGradeRank: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='예: 3'
+                  />
+                  <p className='text-xs text-gray-500'>
+                    가장 낮은 직급 (숫자가 클수록 낮음)
+                  </p>
+                </div>
+                <div className='space-y-2'>
+                  <Label>최대 평가자 직급 (Rank)</Label>
+                  <Input
+                    type='number'
+                    value={formData.maxGradeRank ?? ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        maxGradeRank: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='예: 0'
+                  />
+                  <p className='text-xs text-gray-500'>
+                    가장 높은 직급 (0이 가장 높음)
+                  </p>
+                </div>
+              </div>
 
               <div className='space-y-2'>
                 <Label>설명</Label>

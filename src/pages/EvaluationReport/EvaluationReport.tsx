@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -6,9 +7,21 @@ import {
   type GoalReportItem,
   type FinalAssessmentItem,
 } from "@/api/evaluation-report/evaluation-report";
-import { GET_appraisalsByDistinctType } from "@/api/appraisal/appraisal";
+import {
+  GET_appraisalsByDistinctType,
+  GET_appraisalsOfTeamMembers,
+} from "@/api/appraisal/appraisal";
+import { GET_departments } from "@/api/department/department";
+import { useCurrentUserStore } from "@/store/currentUserStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
@@ -274,12 +287,55 @@ function FinalAssessmentSection({ items }: { items: FinalAssessmentItem[] }) {
 // Selection page: lists all my appraisals to pick from
 function AppraisalSelectionView() {
   const navigate = useNavigate();
+  const { currentUser } = useCurrentUserStore();
+
+  const isHR = useMemo(() => {
+    return (
+      currentUser?.departments?.some(
+        (d) => d.departmentName === "HR" || d.departmentName === "인사팀",
+      ) || currentUser?.email === "mooncw@hankookilbo.com"
+    );
+  }, [currentUser]);
+
+  const [hrSelectedDeptId, setHrSelectedDeptId] = useState<string>("");
 
   const { data: myAppraisals, isLoading } = useQuery({
     queryKey: ["myAppraisals"],
     queryFn: () => GET_appraisalsByDistinctType("my-appraisal"),
     select: (data) => data.data as any[],
   });
+
+  const { data: allDepartments } = useQuery({
+    queryKey: ["allDepartments"],
+    queryFn: () => GET_departments("flat"),
+    enabled: isHR,
+    select: (data) => data.data as any[],
+  });
+
+  const { data: hrTeamData, isLoading: isLoadingHrTeam } = useQuery({
+    queryKey: ["hrTeamMembers", hrSelectedDeptId],
+    queryFn: () => GET_appraisalsOfTeamMembers([hrSelectedDeptId]),
+    enabled: isHR && !!hrSelectedDeptId,
+    select: (data) => data.data as any[],
+  });
+
+  const hrParticipations = useMemo(() => {
+    if (!hrTeamData) return [];
+    const list: any[] = [];
+    hrTeamData.forEach((dept) => {
+      dept.appraisal.forEach((appr: any) => {
+        appr.user.forEach((user: any) => {
+          list.push({
+            ...user,
+            appraisalTitle: appr.title,
+            appraisalId: appr.appraisalId,
+            deptName: dept.departmentName,
+          });
+        });
+      });
+    });
+    return list;
+  }, [hrTeamData]);
 
   if (isLoading) {
     return (
@@ -297,7 +353,9 @@ function AppraisalSelectionView() {
           <FileText className='w-6 h-6 text-blue-600' />
           나의 평가 리포트
         </h1>
-        <p className='text-sm text-gray-500 mt-2'>조회할 평가를 선택하세요.</p>
+        <p className='text-sm text-gray-500 mt-2'>
+          조회할 본인의 평가를 선택하세요.
+        </p>
       </div>
 
       {!myAppraisals || myAppraisals.length === 0 ? (
@@ -336,6 +394,84 @@ function AppraisalSelectionView() {
               <ChevronRight className='w-5 h-5 text-gray-300 group-hover:text-blue-500 transition-colors' />
             </button>
           ))}
+        </div>
+      )}
+
+      {isHR && (
+        <div className='mt-12'>
+          <div className='border-t pt-8 mb-6'>
+            <h2 className='text-xl font-bold text-gray-900 flex items-center gap-2 mb-2'>
+              <Users className='w-5 h-5 text-purple-600' />
+              [HR 전용] 사원 평가 리포트 목록
+            </h2>
+            <p className='text-sm text-gray-500 mb-6'>
+              부서를 선택하여 해당 부서원들의 종합 리포트를 열람하세요.
+            </p>
+
+            <div className='w-full sm:w-72 mb-6'>
+              <Select
+                value={hrSelectedDeptId}
+                onValueChange={setHrSelectedDeptId}>
+                <SelectTrigger className='h-10 bg-white'>
+                  <SelectValue placeholder='조회할 부서 선택' />
+                </SelectTrigger>
+                <SelectContent>
+                  {allDepartments?.map((dept: any) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.text}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {!hrSelectedDeptId ? (
+            <Card className='border-none shadow-sm ring-1 ring-gray-200'>
+              <CardContent className='p-8 text-center text-gray-400'>
+                <p>부서를 선택해주세요.</p>
+              </CardContent>
+            </Card>
+          ) : isLoadingHrTeam ? (
+            <div className='flex justify-center p-8'>
+              <Loader2 className='w-8 h-8 animate-spin text-purple-600' />
+            </div>
+          ) : hrParticipations.length === 0 ? (
+            <Card className='border-none shadow-sm ring-1 ring-gray-200'>
+              <CardContent className='p-8 text-center text-gray-400'>
+                <p>해당 부서에 평가 대상자가 없습니다.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className='grid gap-3'>
+              {hrParticipations.map((appraisal: any) => (
+                <button
+                  key={appraisal.appraisalUserId}
+                  onClick={() =>
+                    navigate(`/evaluation-report/${appraisal.appraisalUserId}`)
+                  }
+                  className='w-full flex items-center justify-between p-5 rounded-xl bg-white ring-1 ring-gray-200 hover:ring-purple-300 hover:bg-purple-50/30 transition-all text-left group'>
+                  <div className='flex items-center gap-4'>
+                    <div className='w-11 h-11 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 group-hover:bg-purple-200 transition-colors'>
+                      <User className='w-5 h-5' />
+                    </div>
+                    <div>
+                      <h3 className='font-bold text-gray-800 flex items-center gap-2'>
+                        {appraisal.koreanName}
+                        <Badge variant='outline' className='text-[10px] ml-2'>
+                          {appraisal.deptName}
+                        </Badge>
+                      </h3>
+                      <p className='text-xs text-gray-500 mt-1'>
+                        {appraisal.appraisalTitle}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className='w-5 h-5 text-gray-300 group-hover:text-purple-500 transition-colors' />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

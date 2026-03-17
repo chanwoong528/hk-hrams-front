@@ -14,11 +14,11 @@ import { POST_bulkUsers } from "@/api/user/user";
 import { Plus, Trash2, Users } from "lucide-react";
 import DepartmentSelect from "./DepartmentSelect";
 
-const COLUMN_LABELS = ["이름", "이메일"];
+const COLUMN_LABELS = ["이름", "이메일", "직군"];
 const INITIAL_ROW_COUNT = 5;
 
 function createEmptyRow(): CellBase[] {
-  return [{ value: "" }, { value: "" }];
+  return [{ value: "" }, { value: "" }, { value: "" }];
 }
 
 function createInitialData(): Matrix<CellBase> {
@@ -77,6 +77,7 @@ export default function BulkUserAddDialog({
       .map((row: (CellBase | undefined)[]) => ({
         koreanName: (row[0]?.value as string)?.trim() ?? "",
         email: (row[1]?.value as string)?.trim() ?? "",
+        jobGroup: (row[2]?.value as string)?.trim() ?? "",
       }))
       .filter(
         (u: { koreanName: string; email: string }) =>

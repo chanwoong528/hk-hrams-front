@@ -6,6 +6,7 @@ import {
   GET_departments,
   PATCH_manyDepartments,
   POST_department,
+  DELETE_department,
 } from "@/api/department/department";
 import { PATCH_user } from "@/api/user/user";
 import { pickChangedOnly } from "@/utils";
@@ -40,6 +41,7 @@ export default function DepartmentTreeWidget({
     leaderName: "",
     leaderId: "",
     departmentId: "",
+    rank: 0,
   });
 
   const { data: flatData, isLoading: isLoadingDepartments } = useQuery({
@@ -52,8 +54,11 @@ export default function DepartmentTreeWidget({
   });
 
   const { mutate: postDepartment } = useMutation({
-    mutationFn: (department: { departmentName: string; leaderId?: string }) =>
-      POST_department(department),
+    mutationFn: (department: {
+      departmentName: string;
+      leaderId?: string;
+      rank?: number;
+    }) => POST_department(department),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments", "flat"] });
       toast.success("부서 정보가 추가되었습니다");
@@ -63,6 +68,7 @@ export default function DepartmentTreeWidget({
         leaderName: "",
         leaderId: "",
         departmentId: "",
+        rank: 0,
       });
     },
     onError: () => {
@@ -82,10 +88,22 @@ export default function DepartmentTreeWidget({
         leaderName: "",
         leaderId: "",
         departmentId: "",
+        rank: 0,
       });
     },
     onError: () => {
       toast.error("부서 정보 업데이트에 실패했습니다");
+    },
+  });
+
+  const { mutate: deleteDepartment } = useMutation({
+    mutationFn: (id: string) => DELETE_department(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["departments", "flat"] });
+      toast.success("부서가 삭제되었습니다");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "부서 삭제에 실패했습니다");
     },
   });
 
@@ -117,6 +135,7 @@ export default function DepartmentTreeWidget({
     postDepartment({
       departmentName: formData.name,
       leaderId: formData.leaderId,
+      rank: formData.rank,
     });
   };
 
@@ -129,9 +148,16 @@ export default function DepartmentTreeWidget({
           departmentId: formData.departmentId,
           departmentName: formData.name,
           leaderId: formData.leaderId,
+          rank: formData.rank,
         },
       },
     ] as unknown as DepartmentTreeData[]);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("정말 이 부서를 삭제하시겠습니까?")) {
+      deleteDepartment(id);
+    }
   };
 
   const handleCancel = () => {
@@ -145,6 +171,7 @@ export default function DepartmentTreeWidget({
       leaderName: dept.data.leader?.koreanName || "",
       leaderId: dept.data.leader?.userId || "",
       departmentId: dept.data.departmentId,
+      rank: dept.data.rank ?? 0,
     });
   };
 
@@ -174,8 +201,8 @@ export default function DepartmentTreeWidget({
   }
 
   return (
-    <Card className='h-full flex flex-col gap-0 border-0 shadow-none lg:shadow-sm lg:border'>
-      <CardHeader className='flex-shrink-0'>
+    <Card className='h-full flex flex-col gap-0 border-0 shadow-none lg:shadow-sm lg:border min-w-[450px]'>
+      <CardHeader className='shrink-0'>
         <div className='flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center'>
           <div>
             <CardTitle>조직도 관리</CardTitle>
@@ -186,7 +213,7 @@ export default function DepartmentTreeWidget({
               onOpenChange={(open) => setModalType(open ? "add" : null)}>
               <DialogTrigger asChild>
                 <Button size='sm' className='bg-blue-600 hover:bg-blue-700'>
-                  <Plus className='w-4 h-4 mr-1' />
+                  <Plus className='w-4 h-4 mr-1 shrink-0' />
                   추가
                 </Button>
               </DialogTrigger>
@@ -203,6 +230,20 @@ export default function DepartmentTreeWidget({
                         setFormData({ ...formData, name: e.target.value })
                       }
                       placeholder='예: 개발팀'
+                    />
+                  </div>
+                  <div className='space-y-2'>
+                    <Label>순위 (Rank)</Label>
+                    <Input
+                      type='number'
+                      value={formData.rank}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          rank: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      placeholder='0'
                     />
                   </div>
                   <div className='space-y-2'>
@@ -255,18 +296,19 @@ export default function DepartmentTreeWidget({
         </div>
       </CardHeader>
       <CardContent
-        className='flex-1 overflow-y-auto px-2 sm:px-6'
+        className='flex-1 overflow-y-auto overflow-x-auto px-2 sm:px-6'
         onClick={() => onSelectDepartment(null)}>
         <div
           className='bg-blue-50/50 p-3 rounded-lg flex items-center gap-3 mb-4 text-sm text-blue-800'
           onClick={(e) => e.stopPropagation()}>
-          <Building2 className='w-5 h-5 text-blue-600 flex-shrink-0' />
+          <Building2 className='w-5 h-5 text-blue-600 shrink-0' />
           <p>사용자를 끌어다 부서에 놓으면 부서원이 추가됩니다.</p>
         </div>
         <DepartmentTree
           treeData={treeData}
           setTreeData={setTreeData}
           onEdit={handleOpenEdit}
+          onDelete={handleDelete}
           onDropUser={handleDropUser}
           selectedDepartmentId={selectedDepartmentId}
           onSelectDepartment={onSelectDepartment}
@@ -288,6 +330,19 @@ export default function DepartmentTreeWidget({
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
+                }
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>순위 (Rank)</Label>
+              <Input
+                type='number'
+                value={formData.rank}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    rank: parseInt(e.target.value) || 0,
+                  })
                 }
               />
             </div>

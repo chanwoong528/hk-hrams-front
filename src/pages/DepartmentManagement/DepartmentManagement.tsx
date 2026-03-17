@@ -40,6 +40,7 @@ export default function DepartmentManagement() {
     leaderName: "",
     leaderId: "",
     departmentId: "",
+    rank: 0,
   });
 
   const { data: flatData, isLoading: isLoadingDepartments } = useQuery({
@@ -55,8 +56,11 @@ export default function DepartmentManagement() {
     mutate: postDepartment,
     // isPending: isPostingDepartment
   } = useMutation({
-    mutationFn: (department: { departmentName: string; leaderId?: string }) =>
-      POST_department(department),
+    mutationFn: (department: {
+      departmentName: string;
+      leaderId?: string;
+      rank?: number;
+    }) => POST_department(department),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments", "flat"] });
       toast.success("부서 정보가 추가되었습니다");
@@ -66,6 +70,7 @@ export default function DepartmentManagement() {
         leaderName: "",
         leaderId: "",
         departmentId: "",
+        rank: 0,
       });
     },
     onError: () => {
@@ -88,6 +93,7 @@ export default function DepartmentManagement() {
         leaderName: "",
         leaderId: "",
         departmentId: "",
+        rank: 0,
       });
     },
     onError: () => {
@@ -104,6 +110,7 @@ export default function DepartmentManagement() {
     postDepartment({
       departmentName: formData.name,
       leaderId: formData.leaderId,
+      rank: formData.rank,
     });
   };
 
@@ -116,6 +123,7 @@ export default function DepartmentManagement() {
           departmentId: formData.departmentId,
           departmentName: formData.name,
           leaderId: formData.leaderId,
+          rank: formData.rank,
         },
       },
     ] as unknown as DepartmentTreeData[]);
@@ -132,6 +140,7 @@ export default function DepartmentManagement() {
       leaderName: dept.data.leader?.koreanName || "",
       leaderId: dept.data.leader?.userId || "",
       departmentId: dept.data.departmentId,
+      rank: dept.data.rank ?? 0,
     });
   };
 
@@ -173,6 +182,20 @@ export default function DepartmentManagement() {
                     setFormData({ ...formData, name: e.target.value })
                   }
                   placeholder='예: 개발팀'
+                />
+              </div>
+              <div className='space-y-2'>
+                <Label>순위 (Rank)</Label>
+                <Input
+                  type='number'
+                  value={formData.rank}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      rank: parseInt(e.target.value) || 0,
+                    })
+                  }
+                  placeholder='0'
                 />
               </div>
               <div className='space-y-2'>
@@ -294,6 +317,19 @@ export default function DepartmentManagement() {
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
+                }
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>순위 (Rank)</Label>
+              <Input
+                type='number'
+                value={formData.rank}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    rank: parseInt(e.target.value) || 0,
+                  })
                 }
               />
             </div>

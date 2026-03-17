@@ -7,6 +7,10 @@ import {
   Settings2,
   Target,
   Building2,
+  FileText,
+  Save,
+  Download,
+  Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,12 +27,25 @@ import { toast } from "sonner";
 import {
   POST_createCompetencyQuestions,
   GET_competencyQuestions,
+  GET_competencyTemplates,
+  POST_createCompetencyTemplate,
+  DELETE_competencyTemplate,
 } from "@/api/competency/competency";
-import type { CompetencyQuestionGroupDto } from "@/api/competency/competency";
+import type { CompetencyTemplateDto } from "@/api/competency/competency";
 import { useCurrentUserStore } from "@/store/currentUserStore";
 import { GET_appraisalsByDistinctType } from "@/api/appraisal/appraisal";
+import { GET_usersByPagination } from "@/api/user/user";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function CompetencyQuestionSetting() {
   const queryClient = useQueryClient();
@@ -36,11 +53,18 @@ export default function CompetencyQuestionSetting() {
 
   const [appraisalId, setAppraisalId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+  const [jobGroup, setJobGroup] = useState("all");
   const [questions, setQuestions] = useState<string[]>([""]);
 
   // Inline editing state
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingQuestions, setEditingQuestions] = useState<string[]>([]);
+
+  // Template state
+  const [isTemplateLoadOpen, setIsTemplateLoadOpen] = useState(false);
+  const [isTemplateSaveOpen, setIsTemplateSaveOpen] = useState(false);
+  const [templateTitle, setTemplateTitle] = useState("");
+  const [templateDesc, setTemplateDesc] = useState("");
 
   // Fetch appraisals for the dropdown
   const { data: appraisals, isLoading: isLoadingAppraisals } = useQuery({
@@ -57,6 +81,26 @@ export default function CompetencyQuestionSetting() {
     },
   );
 
+  const { data: templates, isLoading: isLoadingTemplates } = useQuery({
+    queryKey: ["competencyTemplates"],
+    queryFn: GET_competencyTemplates,
+  });
+  
+  // Fetch users of selected department to get available job groups
+  const { data: deptUsers, isLoading: isLoadingDeptUsers } = useQuery({
+    queryKey: ["users-for-jobgroups", departmentId],
+    queryFn: () => GET_usersByPagination(1, 1000, "", departmentId),
+    enabled: !!departmentId,
+  });
+
+  const availableJobGroups = Array.from(
+    new Set(
+      deptUsers?.data?.list
+        ?.map((u: any) => u.jobGroup)
+        .filter((jg: string | undefined) => !!jg) || []
+    )
+  ) as string[];
+
   // Automatically select the first leader department if available
   useEffect(() => {
     if (currentUser?.departments?.length) {
@@ -65,11 +109,32 @@ export default function CompetencyQuestionSetting() {
       else setDepartmentId(currentUser.departments[0].departmentId); // Fallback
     }
   }, [currentUser]);
+  
+  // Reactive Loading: Load existing questions when selection criteria change
+  useEffect(() => {
+    if (appraisalId && departmentId && existingQuestionGroups) {
+      const targetJg = jobGroup === 'all' ? null : jobGroup;
+      const match = existingQuestionGroups.find(
+        (g: any) =>
+          g.appraisalId === appraisalId &&
+          g.departmentId === departmentId &&
+          (g.jobGroup === targetJg)
+      );
+      
+      if (match) {
+        setQuestions([...match.questions]);
+      } else {
+        // If no match found for current combination, clear the inputs unless it's a first load
+        setQuestions([""]);
+      }
+    }
+  }, [appraisalId, departmentId, jobGroup, existingQuestionGroups]);
 
   const { mutate: createQuestions, isPending } = useMutation({
     mutationFn: (payload: {
       appraisalId: string;
       departmentId: string;
+      jobGroup: string;
       questions: string[];
     }) => POST_createCompetencyQuestions(payload),
     onSuccess: () => {
@@ -81,10 +146,34 @@ export default function CompetencyQuestionSetting() {
       // Reset form on success
       setAppraisalId("");
       setQuestions([""]);
+      setJobGroup("all");
       setEditingGroupId(null);
     },
     onError: () => {
       toast.error("문항 저장 및 배포에 실패했습니다.");
+    },
+  });
+
+  const { mutate: saveTemplate, isPending: isSavingTemplate } = useMutation({
+    mutationFn: (payload: { title: string; description?: string; jobGroup?: string; questions: string[] }) =>
+      POST_createCompetencyTemplate(payload),
+    onSuccess: () => {
+      toast.success("템플릿이 저장되었습니다.");
+      queryClient.invalidateQueries({ queryKey: ["competencyTemplates"] });
+      setIsTemplateSaveOpen(false);
+      setTemplateTitle("");
+      setTemplateDesc("");
+    },
+    onError: () => {
+      toast.error("템플릿 저장에 실패했습니다.");
+    },
+  });
+
+  const { mutate: deleteTemplate } = useMutation({
+    mutationFn: (templateId: string) => DELETE_competencyTemplate(templateId),
+    onSuccess: () => {
+      toast.success("템플릿이 삭제되었습니다.");
+      queryClient.invalidateQueries({ queryKey: ["competencyTemplates"] });
     },
   });
 
@@ -108,20 +197,48 @@ export default function CompetencyQuestionSetting() {
       toast.error("진행 중인 평가(Appraisal ID)를 선택해주세요.");
       return;
     }
-    if (!departmentId) {
-      toast.error("선택된 부서가 없습니다.");
+    if (!jobGroup) {
+      toast.error("직군을 선택하여 해당 직군 인원들에게 배포할 문항을 작성해주세요.");
       return;
     }
     if (filledQuestions.length === 0) {
       toast.error("최소 1개 이상의 평가 문항을 작성해주세요.");
       return;
     }
-    createQuestions({ appraisalId, departmentId, questions: filledQuestions });
+    createQuestions({ appraisalId, departmentId, jobGroup, questions: filledQuestions });
   };
 
-  const handleEditGroup = (group: CompetencyQuestionGroupDto) => {
-    setEditingGroupId(`${group.appraisalId}-${group.departmentId}`);
+  const handleApplyTemplate = (template: CompetencyTemplateDto) => {
+    setQuestions(template.questions.map((q) => q.question));
+    setJobGroup(template.jobGroup || 'all');
+    setIsTemplateLoadOpen(false);
+    toast.info(`'${template.title}' 템플릿 문항을 불러왔습니다 (직군: ${template.jobGroup || '전체'}).`);
+  };
+
+  const handleSaveAsTemplate = () => {
+    const filledQuestions = questions.filter((q) => q.trim() !== "");
+    if (filledQuestions.length === 0) {
+      toast.error("저장할 문항이 없습니다.");
+      return;
+    }
+    if (!templateTitle.trim()) {
+      toast.error("템플릿 제목을 입력해주세요.");
+      return;
+    }
+    saveTemplate({
+      title: templateTitle,
+      description: templateDesc,
+      jobGroup: jobGroup,
+      questions: filledQuestions,
+    });
+  };
+
+  const handleEditGroup = (group: any) => {
+    const displayGroup = group.displayJobGroup || group.jobGroup || 'all';
+    setEditingGroupId(`${group.appraisalId}-${group.departmentId}-${displayGroup}`);
     setEditingQuestions([...group.questions]);
+    // Synchronize the jobGroup state so new additions/templates follow the same target
+    setJobGroup(group.jobGroup || 'all');
   };
 
   const handleInlineAddQuestion = () => {
@@ -138,13 +255,13 @@ export default function CompetencyQuestionSetting() {
     setEditingQuestions(newQuestions);
   };
 
-  const handleInlineSubmit = (appraisalId: string, departmentId: string) => {
+  const handleInlineSubmit = (appraisalId: string, departmentId: string, itemJobGroup: string) => {
     const filledQuestions = editingQuestions.filter((q) => q.trim() !== "");
     if (filledQuestions.length === 0) {
       toast.error("최소 1개 이상의 평가 문항을 작성해주세요.");
       return;
     }
-    createQuestions({ appraisalId, departmentId, questions: filledQuestions });
+    createQuestions({ appraisalId, departmentId, jobGroup: itemJobGroup || 'all', questions: filledQuestions });
   };
 
   return (
@@ -169,7 +286,7 @@ export default function CompetencyQuestionSetting() {
           </p>
         </CardHeader>
         <CardContent>
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
             <div className='space-y-2.5 bg-white p-4 rounded-xl border border-gray-100 shadow-sm'>
               <Label className='flex items-center gap-2 text-sm font-bold text-gray-700'>
                 <Target className='w-4 h-4 text-blue-500' />
@@ -218,6 +335,29 @@ export default function CompetencyQuestionSetting() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className='space-y-2.5 bg-white p-4 rounded-xl border border-gray-100 shadow-sm'>
+              <Label className='flex items-center gap-2 text-sm font-bold text-gray-700'>
+                <Users className='w-4 h-4 text-blue-500' />
+                대상 직군 (Job Group)
+              </Label>
+              <Select
+                value={jobGroup}
+                onValueChange={setJobGroup}
+                disabled={!departmentId || isLoadingDeptUsers}>
+                <SelectTrigger className='h-11 bg-gray-50'>
+                  <SelectValue placeholder={departmentId ? (isLoadingDeptUsers ? '불러오는 중...' : (availableJobGroups.length === 0 ? '직군 정보가 없습니다' : '직군을 선택하세요')) : '부서를 먼저 선택하세요'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 (All)</SelectItem>
+                  {availableJobGroups.map((group) => (
+                    <SelectItem key={group} value={group}>
+                      {group}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className='mt-8 pt-6 border-t border-gray-100'>
             <div className='flex flex-row justify-between items-center mb-6'>
@@ -239,6 +379,98 @@ export default function CompetencyQuestionSetting() {
                 문항 추가
               </Button>
             </div>
+            
+            <div className='flex gap-2 mb-4'>
+              <Dialog open={isTemplateLoadOpen} onOpenChange={setIsTemplateLoadOpen}>
+                <DialogTrigger asChild>
+                  <Button variant='outline' size='sm' className='text-gray-600'>
+                    <Download className='w-4 h-4 mr-2' />
+                    템플릿 불러오기
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>역량 평가 문항 템플릿</DialogTitle>
+                  </DialogHeader>
+                  <ScrollArea className="max-h-[60vh] mt-4">
+                    <div className="space-y-4 pr-4">
+                      {isLoadingTemplates ? (
+                        <div className="text-center py-8 text-gray-400">불러오는 중...</div>
+                      ) : templates?.length === 0 ? (
+                        <div className="text-center py-8 text-gray-400 border-2 border-dashed rounded-lg">
+                          저장된 템플릿이 없습니다.
+                        </div>
+                      ) : (
+                        templates?.map((t) => (
+                          <div key={t.templateId} className="p-4 border rounded-lg hover:border-blue-300 hover:bg-blue-50/30 transition-all cursor-pointer group" onClick={() => handleApplyTemplate(t)}>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                                  <FileText className="w-4 h-4 text-blue-500" />
+                                  {t.title}
+                                </h4>
+                                {t.description && <p className="text-sm text-gray-500 mt-1">{t.description}</p>}
+                                <p className="text-xs text-blue-600 mt-2 font-medium">문항 {t.questions.length}개</p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm("정말 이 템플릿을 삭제하시겠습니까?")) {
+                                    deleteTemplate(t.templateId);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isTemplateSaveOpen} onOpenChange={setIsTemplateSaveOpen}>
+                <DialogTrigger asChild>
+                  <Button variant='outline' size='sm' className='text-gray-600'>
+                    <Save className='w-4 h-4 mr-2' />
+                    현재 문항을 템플릿으로 저장
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>템플릿으로 저장</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>템플릿 제목</Label>
+                      <Input
+                        placeholder="예: 개발직군 공통 협업 역량"
+                        value={templateTitle}
+                        onChange={(e) => setTemplateTitle(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>설명 (선택)</Label>
+                      <Input
+                        placeholder="이 템플릿에 대한 간단한 설명을 적어주세요"
+                        value={templateDesc}
+                        onChange={(e) => setTemplateDesc(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant='outline' onClick={() => setIsTemplateSaveOpen(false)}>취소</Button>
+                    <Button onClick={handleSaveAsTemplate} disabled={isSavingTemplate}>저장하기</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
             <div className='space-y-4'>
               {questions.map((q, idx) => (
                 <div
@@ -300,8 +532,9 @@ export default function CompetencyQuestionSetting() {
           </Card>
         ) : (
           <div className='space-y-4'>
-            {existingQuestionGroups?.map((group) => {
-              const groupId = `${group.appraisalId}-${group.departmentId}`;
+            {existingQuestionGroups?.map((group: any) => {
+              const displayGroup = group.displayJobGroup || group.jobGroup || 'all';
+              const groupId = `${group.appraisalId}-${group.departmentId}-${displayGroup}`;
               const isEditing = editingGroupId === groupId;
 
               return (
@@ -314,6 +547,13 @@ export default function CompetencyQuestionSetting() {
                         </div>
                         <CardTitle className='text-base flex items-center gap-2'>
                           {group.departmentName}
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            displayGroup === 'all' 
+                              ? 'bg-gray-100 text-gray-600 border-gray-200' 
+                              : 'bg-blue-50 text-blue-600 border-blue-100'
+                          }`}>
+                            직군: {displayGroup === 'all' ? '전체' : displayGroup}
+                          </span>
                           <div className='flex items-center gap-1.5 ml-2'>
                             <span className='text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded'>
                               작성자:{" "}
@@ -353,6 +593,7 @@ export default function CompetencyQuestionSetting() {
                                 handleInlineSubmit(
                                   group.appraisalId,
                                   group.departmentId,
+                                  group.jobGroup || 'all',
                                 )
                               }
                               disabled={isPending}>
@@ -404,7 +645,7 @@ export default function CompetencyQuestionSetting() {
                       </div>
                     ) : (
                       <ul className='space-y-2'>
-                        {group.questions.map((q, qIdx) => (
+                        {group.questions.map((q: string, qIdx: number) => (
                           <li
                             key={qIdx}
                             className='flex items-start gap-2 text-sm text-gray-700'>

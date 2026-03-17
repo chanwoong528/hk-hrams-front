@@ -62,10 +62,17 @@ export const navigation = [
       },
       {
         id: "competency-setting" as Page,
-        name: "문항 설정",
+        name: "역량평가 문항 설정",
         path: "/competency-setting",
         icon: FileCog,
         // admin: true,
+        leader: true,
+      },
+      {
+        id: "competency-template-management" as Page,
+        name: "역량 템플릿 관리",
+        path: "/competency-template",
+        icon: LayoutTemplate,
         leader: true,
       },
       {

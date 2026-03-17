@@ -25,6 +25,7 @@ import MyLeaderResults from "@/pages/LeaderAppraisal/MyLeaderResults";
 import LeaderResultDetail from "@/pages/LeaderAppraisal/LeaderResultDetail";
 
 import CompetencyQuestionSetting from "@/pages/CompetencyAssessment/CompetencyQuestionSetting";
+import CompetencyTemplateManagement from "@/pages/CompetencyAssessment/CompetencyTemplateManagement";
 import CompetencyEvaluation from "@/pages/CompetencyAssessment/CompetencyEvaluation";
 import EvaluationReport from "@/pages/EvaluationReport/EvaluationReport";
 import RoleRoute from "@/components/auth/RoleRoute";
@@ -155,6 +156,14 @@ const router = createBrowserRouter([
             element: (
               <RoleRoute adminOnly leaderOnly>
                 <CompetencyQuestionSetting />
+              </RoleRoute>
+            ),
+          },
+          {
+            path: "competency-template",
+            element: (
+              <RoleRoute adminOnly leaderOnly>
+                <CompetencyTemplateManagement />
               </RoleRoute>
             ),
           },

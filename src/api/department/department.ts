@@ -19,10 +19,12 @@ export const GET_departments = async (viewType: "flat" | "tree" = "flat") => {
 export const POST_department = async (department: {
   departmentName: string;
   leaderId?: string;
+  rank?: number;
 }) => {
   const response = await http.post("/department", {
     departmentName: department.departmentName,
     ...(department.leaderId && { leaderId: department.leaderId }),
+    ...(department.rank !== undefined && { rank: department.rank }),
   });
   return response.data;
 };
@@ -47,10 +49,16 @@ export const PATCH_departmentById = async (department: DepartmentTreeData) => {
       ...(department.data.leaderId && {
         leaderId: department.data.leaderId,
       }),
+      ...(department.data.rank !== undefined && { rank: department.data.rank }),
     });
     return response.data;
   } catch (error) {
     console.error("@@@error>> ", error);
     throw error;
   }
+};
+
+export const DELETE_department = async (id: string) => {
+  const response = await http.delete(`/department/${id}`);
+  return response.data;
 };

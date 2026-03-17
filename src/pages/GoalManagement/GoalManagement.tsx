@@ -16,7 +16,18 @@ import { useFinalAssessment } from "./hooks/useFinalAssessment";
 import { useGoalAssessment } from "./hooks/useGoalAssessment";
 
 export default function GoalManagement() {
-  const { currentUser } = useCurrentUserStore();
+  const {
+    currentUser,
+    // accessToken
+  } = useCurrentUserStore();
+
+  const isAdmin =
+    currentUser?.email === "mooncw@hankookilbo.com" ||
+    !!currentUser?.departments?.some(
+      (d) =>
+        d.departmentName.toLowerCase() === "hr" ||
+        d.departmentName === "인사팀",
+    );
 
   // 1. Data Fetching
   const { data: myAppraisals, isLoading: isLoadingMyAppraisals } = useQuery({
@@ -26,7 +37,10 @@ export default function GoalManagement() {
   });
 
   const isLeader =
-    currentUser?.departments.some((dept) => dept.isLeader) ?? false;
+    isAdmin ||
+    currentUser?.lv === "reviewer" ||
+    currentUser?.lv === "both" ||
+    (currentUser?.departments.some((dept) => dept.isLeader) ?? false);
 
   const {
     data: teamMembersAppraisals,

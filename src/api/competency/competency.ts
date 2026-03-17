@@ -3,6 +3,7 @@ import { http } from "@/api";
 export interface CompetencyQuestionDto {
   appraisalId: string;
   departmentId: string;
+  jobGroup: string;
   questions: string[];
 }
 
@@ -66,6 +67,7 @@ export interface CompetencyQuestionGroupDto {
   appraisalTitle: string;
   departmentId: string;
   departmentName: string;
+  jobGroup: string;
   creatorId: string;
   creatorName: string;
   lastModifierId?: string;
@@ -79,4 +81,44 @@ export const GET_competencyQuestions = async (): Promise<
 > => {
   const response = await http.get("/competency-question");
   return response.data?.data || [];
+};
+
+// 5. 역량 평가 템플릿 관련
+export interface CompetencyTemplateDto {
+  templateId: string;
+  title: string;
+  description?: string;
+  jobGroup?: string;
+  creator: {
+    userId: string;
+    koreanName: string;
+  };
+  questions: {
+    questionId: string;
+    question: string;
+    order: number;
+  }[];
+  created: string;
+}
+
+export const GET_competencyTemplates = async (): Promise<
+  CompetencyTemplateDto[]
+> => {
+  const response = await http.get("/competency-template");
+  return response.data || [];
+};
+
+export const POST_createCompetencyTemplate = async (payload: {
+  title: string;
+  description?: string;
+  jobGroup?: string;
+  questions: string[];
+}) => {
+  const response = await http.post("/competency-template", payload);
+  return response.data;
+};
+
+export const DELETE_competencyTemplate = async (templateId: string) => {
+  const response = await http.delete(`/competency-template/${templateId}`);
+  return response.data;
 };

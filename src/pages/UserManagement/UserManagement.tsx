@@ -64,11 +64,13 @@ export default function UserManagement() {
     email: string;
     departments: Department[];
     userStatus: "active" | "inactive";
+    jobGroup: string;
   }>({
     koreanName: "",
     email: "",
     departments: [],
     userStatus: "active",
+    jobGroup: "",
   });
   const { data: usersData, isLoading: isLoadingUsers } = useQuery({
     queryKey: ["users", debouncedSearchQuery, pageInfo.page, pageInfo.limit],
@@ -90,6 +92,7 @@ export default function UserManagement() {
       koreanName: string;
       email: string;
       departments: Department[];
+      jobGroup?: string;
     }) => POST_user(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -100,6 +103,7 @@ export default function UserManagement() {
         email: "",
         departments: [],
         userStatus: "active",
+        jobGroup: "",
       });
     },
     onError: () => {
@@ -114,6 +118,7 @@ export default function UserManagement() {
       tobeDeletedDepartments: string[];
       tobeAddedDepartments: string[];
       userStatus: "active" | "inactive";
+      jobGroup?: string;
     }) => PATCH_user(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -124,6 +129,7 @@ export default function UserManagement() {
         email: "",
         departments: [],
         userStatus: "active",
+        jobGroup: "",
       });
     },
     onError: () => {
@@ -135,6 +141,7 @@ export default function UserManagement() {
       koreanName: formData.koreanName,
       email: formData.email,
       departments: formData.departments,
+      jobGroup: formData.jobGroup,
     });
   };
 
@@ -148,7 +155,8 @@ export default function UserManagement() {
       koreanName: user.koreanName,
       email: user.email,
       departments: user.departments,
-      userStatus: user.userStatus,
+      userStatus: user.userStatus as "active" | "inactive",
+      jobGroup: user.jobGroup || "",
     });
   };
 
@@ -168,6 +176,7 @@ export default function UserManagement() {
         tobeDeletedDepartments: tobeDeleted.map((d) => d.id),
         tobeAddedDepartments: tobeAdded.map((d) => d.id),
         userStatus: formData.userStatus,
+        jobGroup: formData.jobGroup,
       });
     }
   };
@@ -236,6 +245,16 @@ export default function UserManagement() {
                   }}
                 />
               </div>
+              <div className='space-y-2'>
+                <Label>직군</Label>
+                <Input
+                  value={formData.jobGroup}
+                  onChange={(e) =>
+                    setFormData({ ...formData, jobGroup: e.target.value })
+                  }
+                  placeholder='개발 / 디자인 / 경영지원 등'
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button variant='outline' onClick={() => setModalType(null)}>
@@ -284,6 +303,7 @@ export default function UserManagement() {
                 <TableRow>
                   <TableHead>한글 이름</TableHead>
                   <TableHead>이메일</TableHead>
+                  <TableHead>직군</TableHead>
                   <TableHead>부서</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>생성일</TableHead>
@@ -303,6 +323,9 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell className='text-gray-600'>
                       {user.email}
+                    </TableCell>
+                    <TableCell className='text-gray-600 font-medium'>
+                      {user.jobGroup || "-"}
                     </TableCell>
                     <TableCell>
                       <div className='flex gap-1 flex-wrap'>
@@ -436,6 +459,16 @@ export default function UserManagement() {
                   <SelectItem value='inactive'>비활성</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className='space-y-2'>
+              <Label>직군</Label>
+              <Input
+                value={formData.jobGroup}
+                onChange={(e) =>
+                  setFormData({ ...formData, jobGroup: e.target.value })
+                }
+                placeholder='개발 / 디자인 / 경영지원 등'
+              />
             </div>
           </div>
           <DialogFooter>

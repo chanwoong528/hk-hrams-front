@@ -31,6 +31,10 @@ export interface User {
     grade: string;
     comment: string;
     assessedById: string;
+    assessedByUser?: {
+      userId: string;
+      koreanName: string;
+    };
     updated?: string;
   }[];
   koreanName: string;
@@ -46,6 +50,8 @@ export interface Appraisal {
   endDate: string; // ISO string
   status: string;
   createdBy?: string;
+  minGradeRank?: number;
+  maxGradeRank?: number;
   creator?: {
     koreanName: string;
     email: string;
