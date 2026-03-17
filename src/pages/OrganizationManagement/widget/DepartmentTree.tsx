@@ -6,7 +6,7 @@ import {
   Trash2,
   Building2,
   ChevronDown,
-  ChevronRight,
+  // ChevronRight,
   GripVertical,
   Flag,
   Users,
