@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import BulkUserAddDialog from "./BulkUserAddDialog";
+import * as xlsx from "xlsx";
 import {
   Search,
   Plus,
@@ -9,6 +10,7 @@ import {
   MoreVertical,
   GripVertical,
   Users,
+  FileUp,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { GET_usersByPagination, PATCH_user, POST_user } from "@/api/user/user";
+import { GET_usersByPagination, PATCH_user, POST_user, POST_bulkUsers } from "@/api/user/user";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import DepartmentSelect from "./DepartmentSelect";
 import { symmetricDiffBy } from "@/utils";
@@ -84,8 +86,14 @@ function DraggableUserRow({
           <span className='font-medium'>{user.koreanName}</span>
         </div>
       </TableCell>
+      <TableCell className='text-gray-600 font-medium'>
+        {user.employeeId || "-"}
+      </TableCell>
       <TableCell className='text-gray-600 hidden sm:table-cell'>
         {user.email}
+      </TableCell>
+      <TableCell className='text-gray-600 hidden xl:table-cell'>
+        {user.phoneNumber || "-"}
       </TableCell>
       <TableCell className='text-gray-600 font-medium'>
         {user.jobGroup || "-"}
@@ -152,6 +160,7 @@ export default function UserListWidget({
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 1000);
 
@@ -260,6 +269,83 @@ export default function UserListWidget({
       departments: formData.departments,
       jobGroup: formData.jobGroup,
     });
+  };
+
+  const { mutate: bulkCreateFromExcel, isPending: isUploadingExcel } = useMutation({
+    mutationFn: (payload: { users: any[], departments: any[] }) => POST_bulkUsers(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("엑셀 데이터를 통해 사용자가 일괄 추가되었습니다");
+    },
+    onError: () => {
+      toast.error("사용자 일괄 추가에 실패했습니다");
+    },
+  });
+
+  const handleExcelDirectUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = xlsx.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const parsedData = xlsx.utils.sheet_to_json<string[]>(sheet, { header: 1 });
+
+        const users: any[] = [];
+        
+        for (let i = 1; i < parsedData.length; i++) {
+          const row = parsedData[i];
+          if (!row || row.length === 0) continue;
+          
+          const u = {
+            employeeId: (row[0] ? String(row[0]) : "")?.trim(),
+            company: (row[1] ? String(row[1]) : "")?.trim(),
+            koreanName: (row[2] ? String(row[2]) : "")?.trim(),
+            jobGroup: (row[3] ? String(row[3]) : "")?.trim(),
+            email: (row[4] ? String(row[4]) : "")?.trim(),
+            phoneNumber: (row[5] ? String(row[5]) : "")?.trim(),
+          };
+          
+          if (Object.values(u).some(val => val !== "")) {
+            users.push(u);
+          }
+        }
+
+        if (users.length === 0) {
+          toast.error("데이터가 없거나 엑셀 파싱에 실패했습니다.");
+          return;
+        }
+
+        const invalidRows = users.filter(
+          (u) =>
+            !u.employeeId ||
+            !u.company ||
+            !u.koreanName ||
+            !u.jobGroup ||
+            !u.email ||
+            !u.phoneNumber
+        );
+        
+        if (invalidRows.length > 0) {
+          toast.warning("엑셀에 사원번호, 회사, 이름, 직군, 이메일, 핸드폰 번호 중 누락된 항목이 있습니다.");
+          return;
+        }
+
+        bulkCreateFromExcel({
+          users,
+          departments: [],
+        });
+      } catch (error) {
+        console.error(error);
+        toast.error("엑셀 파일을 읽는 데 실패했습니다.");
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = "";
   };
 
   const handlePageChange = (page: number) => {
@@ -376,6 +462,23 @@ export default function UserListWidget({
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleExcelDirectUpload}
+            />
+            <Button
+              size='sm'
+              variant='outline'
+              className='border-green-600 text-green-600 hover:bg-green-50'
+              disabled={isUploadingExcel}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <FileUp className='w-4 h-4 mr-1' />
+              {isUploadingExcel ? "처리 중..." : "엑셀 즉시 추가"}
+            </Button>
             <Button
               size='sm'
               variant='outline'
@@ -426,7 +529,9 @@ export default function UserListWidget({
                 <TableRow>
                   <TableHead className='w-12'></TableHead>
                   <TableHead>이름</TableHead>
+                  <TableHead>사번</TableHead>
                   <TableHead className='hidden sm:table-cell'>이메일</TableHead>
+                  <TableHead className='hidden xl:table-cell'>전화번호</TableHead>
                   <TableHead>직군</TableHead>
                   <TableHead>부서</TableHead>
                   <TableHead className='hidden md:table-cell'>상태</TableHead>
@@ -445,7 +550,7 @@ export default function UserListWidget({
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={9}
                       className='text-center py-8 text-gray-500'>
                       검색 결과가 없습니다.
                     </TableCell>

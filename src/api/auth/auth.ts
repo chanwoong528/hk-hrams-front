@@ -22,3 +22,13 @@ export const GET_checkToken = async (accessToken: string) => {
   });
   return response.data;
 };
+
+export const POST_forgotPassword = async (email: string) => {
+  const response = await http.post("/auth/forgot-password", { email });
+  return response.data;
+};
+
+export const POST_resetPassword = async (payload: { token: string; newPw: string }) => {
+  const response = await http.post("/auth/reset-password", payload);
+  return response.data;
+};

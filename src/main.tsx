@@ -14,6 +14,9 @@ import GoalManagement from "@/pages/GoalManagement/GoalManagement";
 import PerformanceAppraisal from "@/pages/PerformanceAppraisal/PerformanceAppraisal";
 import AppraisalDetail from "@/pages/PerformanceAppraisal/AppraisalDetail/AppraisalDetail";
 import Login from "@/pages/Login/Login";
+import VerifyEmail from "@/pages/Auth/VerifyEmail";
+import ForgotPassword from "@/pages/Auth/ForgotPassword";
+import ResetPassword from "@/pages/Auth/ResetPassword";
 import GoalDetail from "@/pages/GoalManagement/GoalDetail/GoalDetail";
 import GoalGrade from "./pages/GoalManagement/GoalGrade/GoalGrade";
 import TemplateGenerator from "@/pages/LeaderAppraisal/admin/TemplateGenerator";
@@ -42,6 +45,18 @@ const router = createBrowserRouter([
       {
         path: "/login",
         element: <Login />,
+      },
+      {
+        path: "/verify-email",
+        element: <VerifyEmail />,
+      },
+      {
+        path: "/forgot-password",
+        element: <ForgotPassword />,
+      },
+      {
+        path: "/reset-password",
+        element: <ResetPassword />,
       },
       {
         path: "",

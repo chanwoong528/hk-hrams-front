@@ -305,7 +305,7 @@ export default function CompetencyQuestionSetting() {
                 <SelectContent>
                   {appraisals?.map((app: any) => (
                     <SelectItem key={app.appraisalId} value={app.appraisalId}>
-                      {app.title} ({app.appraisalType})
+                      {app.title}
                     </SelectItem>
                   ))}
                 </SelectContent>

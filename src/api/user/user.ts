@@ -84,7 +84,14 @@ export const GET_leaders = async () => {
 };
 
 export const POST_bulkUsers = async (payload: {
-  users: { koreanName: string; email: string; jobGroup?: string }[];
+  users: {
+    koreanName: string;
+    email: string;
+    jobGroup?: string;
+    employeeId?: string;
+    company?: string;
+    phoneNumber?: string;
+  }[];
   departments?: Department[];
 }) => {
   const departmentIds = payload.departments?.map((d) => d.departmentId) ?? [];

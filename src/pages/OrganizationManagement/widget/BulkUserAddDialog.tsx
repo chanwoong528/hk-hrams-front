@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import Spreadsheet, { type Matrix, type CellBase } from "react-spreadsheet";
 import {
   Dialog,
@@ -11,14 +11,22 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { POST_bulkUsers } from "@/api/user/user";
-import { Plus, Trash2, Users } from "lucide-react";
+import { Plus, Trash2, Users, FileUp } from "lucide-react";
+import * as xlsx from "xlsx";
 import DepartmentSelect from "./DepartmentSelect";
 
-const COLUMN_LABELS = ["이름", "이메일", "직군"];
+const COLUMN_LABELS = ["사원번호", "회사", "이름", "직군", "이메일", "핸드폰 번호"];
 const INITIAL_ROW_COUNT = 5;
 
 function createEmptyRow(): CellBase[] {
-  return [{ value: "" }, { value: "" }, { value: "" }];
+  return [
+    { value: "" },
+    { value: "" },
+    { value: "" },
+    { value: "" },
+    { value: "" },
+    { value: "" },
+  ];
 }
 
 function createInitialData(): Matrix<CellBase> {
@@ -35,6 +43,7 @@ export default function BulkUserAddDialog({
   onOpenChange,
 }: BulkUserAddDialogProps) {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<Matrix<CellBase>>(createInitialData);
   const [selectedDepartments, setSelectedDepartments] = useState<Department[]>(
     [],
@@ -75,14 +84,14 @@ export default function BulkUserAddDialog({
   const handleSubmit = useCallback(() => {
     const users = data
       .map((row: (CellBase | undefined)[]) => ({
-        koreanName: (row[0]?.value as string)?.trim() ?? "",
-        email: (row[1]?.value as string)?.trim() ?? "",
-        jobGroup: (row[2]?.value as string)?.trim() ?? "",
+        employeeId: (row[0]?.value as string)?.trim() ?? "",
+        company: (row[1]?.value as string)?.trim() ?? "",
+        koreanName: (row[2]?.value as string)?.trim() ?? "",
+        jobGroup: (row[3]?.value as string)?.trim() ?? "",
+        email: (row[4]?.value as string)?.trim() ?? "",
+        phoneNumber: (row[5]?.value as string)?.trim() ?? "",
       }))
-      .filter(
-        (u: { koreanName: string; email: string }) =>
-          u.koreanName !== "" || u.email !== "",
-      );
+      .filter((u) => Object.values(u).some((val) => val !== ""));
 
     if (users.length === 0) {
       toast.warning("추가할 사용자 정보를 입력해주세요");
@@ -90,10 +99,16 @@ export default function BulkUserAddDialog({
     }
 
     const invalidRows = users.filter(
-      (u: { koreanName: string; email: string }) => !u.koreanName || !u.email,
+      (u) =>
+        !u.employeeId ||
+        !u.company ||
+        !u.koreanName ||
+        !u.jobGroup ||
+        !u.email ||
+        !u.phoneNumber
     );
     if (invalidRows.length > 0) {
-      toast.warning("이름과 이메일을 모두 입력해주세요");
+      toast.warning("모든 항목(사원번호, 회사, 이름, 직군, 이메일, 핸드폰 번호)을 빠짐없이 입력해주세요");
       return;
     }
 
@@ -103,9 +118,51 @@ export default function BulkUserAddDialog({
     });
   }, [data, bulkCreate, selectedDepartments]);
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = xlsx.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const parsedData = xlsx.utils.sheet_to_json<string[]>(sheet, { header: 1 });
+
+        const newMatrix: Matrix<CellBase> = [];
+        // Assuming row 0 is header. Start at row 1.
+        for (let i = 1; i < parsedData.length; i++) {
+          const row = parsedData[i];
+          if (!row || row.length === 0) continue;
+          
+          const newRow: CellBase[] = [];
+          for (let j = 0; j < 6; j++) {
+            newRow.push({ value: row[j] ? String(row[j]) : "" });
+          }
+          newMatrix.push(newRow);
+        }
+
+        if (newMatrix.length === 0) {
+          toast.error("데이터가 없거나 엑셀 파싱에 실패했습니다.");
+          return;
+        }
+
+        setData(newMatrix);
+        toast.success("엑셀 파일이 성공적으로 로드되었습니다.");
+      } catch (error) {
+        console.error(error);
+        toast.error("엑셀 파일을 읽는 데 실패했습니다.");
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = ""; // reset input
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-w-2xl max-h-[80vh] flex flex-col'>
+      <DialogContent className='sm:max-w-fit max-h-[80vh] flex flex-col'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <Users className='w-5 h-5' />
@@ -154,16 +211,36 @@ export default function BulkUserAddDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant='outline' onClick={handleClose} disabled={isPending}>
-            취소
-          </Button>
-          <Button
-            className='bg-blue-600 hover:bg-blue-700'
-            onClick={handleSubmit}
-            disabled={isPending}>
-            {isPending ? "추가 중..." : "일괄 추가"}
-          </Button>
+        <DialogFooter className="sm:justify-between">
+          <div className="flex gap-2">
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+            />
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isPending}
+              type="button"
+            >
+              <FileUp className="w-4 h-4 mr-2" />
+              엑셀 업로드
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button variant='outline' onClick={handleClose} disabled={isPending}>
+              취소
+            </Button>
+            <Button
+              className='bg-blue-600 hover:bg-blue-700'
+              onClick={handleSubmit}
+              disabled={isPending}>
+              {isPending ? "추가 중..." : "일괄 추가"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

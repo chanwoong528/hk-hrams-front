@@ -200,36 +200,33 @@ const AppraisalSection = ({
     .filter((g) => g !== null) as Goal[];
 
   return (
-    <Card className='mb-6 border-none shadow-sm ring-1 ring-gray-100'>
-      <CardHeader className='bg-gradient-to-r from-gray-50 to-white border-b pb-4'>
-        <div className='flex items-center justify-between'>
-          <CardTitle className='text-lg font-bold flex flex-col sm:flex-row sm:items-center gap-2'>
+    <Card className="mb-6 border-none shadow-sm ring-1 ring-gray-100">
+      <CardHeader className="bg-gradient-to-r from-gray-50 to-white border-b pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-bold flex flex-col sm:flex-row sm:items-center gap-2">
             {appraisal.title}
-            <Badge
-              variant='secondary'
-              className='w-fit font-normal text-gray-500 bg-white border shadow-sm'>
-              {appraisal.appraisalType}
-            </Badge>
           </CardTitle>
-          <div className='flex gap-2'>
+          <div className="flex gap-2">
             {!isSpectator && (
               <Dialog
                 open={isAddCommonGoalModalOpen}
-                onOpenChange={setIsAddCommonGoalModalOpen}>
+                onOpenChange={setIsAddCommonGoalModalOpen}
+              >
                 <DialogTrigger asChild>
                   <Button
-                    size='sm'
-                    variant='secondary'
-                    className='bg-white border hover:bg-gray-50 text-purple-700 border-purple-100 hover:text-purple-800'>
-                    <Plus className='w-3.5 h-3.5 mr-1.5' />
-                    공통 목표 관리
+                    size="sm"
+                    variant="secondary"
+                    className="bg-white border hover:bg-gray-50 text-purple-700 border-purple-100 hover:text-purple-800"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    평가 항목 관리
                   </Button>
                 </DialogTrigger>
-                <DialogContent className='max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto px-4 sm:px-6'>
+                <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto px-4 sm:px-6">
                   <DialogHeader>
                     <DialogTitle>
-                      공통 목표 관리
-                      <span className='ml-2 text-sm text-gray-500 font-normal'>
+                      평가 항목 관리
+                      <span className="ml-2 text-sm text-gray-500 font-normal">
                         - {departmentName}
                       </span>
                     </DialogTitle>
@@ -282,7 +279,7 @@ const AppraisalSection = ({
                     showLeft={false}
                     existingGoals={commonGoals as any}
                     appraisalInfo={{
-                      title: `[${departmentName}] 공통 목표 관리`,
+                      title: `[${departmentName}] 평가 항목 관리`,
                       description:
                         "이곳에서 등록하는 목표는 해당 부서의 모든 팀원에게 일괄 적용됩니다.",
                     }}
@@ -294,15 +291,15 @@ const AppraisalSection = ({
         </div>
       </CardHeader>
 
-      <CardContent className='p-0'>
+      <CardContent className="p-0">
         <Table>
           <TableHeader>
-            <TableRow className='bg-gray-50/50 hover:bg-gray-50/50'>
-              <TableHead className='w-[150px]'>이름</TableHead>
-              <TableHead className='w-[120px]'>직책/직급</TableHead>
-              <TableHead className='w-[100px]'>목표 수</TableHead>
+            <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
+              <TableHead className="w-[150px]">이름</TableHead>
+              <TableHead className="w-[120px]">직책/직급</TableHead>
+              <TableHead className="w-[100px]">목표 수</TableHead>
               <TableHead>평가 현황</TableHead>
-              <TableHead className='text-right'>관리</TableHead>
+              <TableHead className="text-right">관리</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -326,32 +323,35 @@ const AppraisalSection = ({
               return (
                 <TableRow
                   key={user.userId}
-                  className='group hover:bg-blue-50/30 transition-colors'>
-                  <TableCell className='font-semibold text-gray-900'>
-                    <div className='flex items-center gap-2'>
-                      <div className='w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600'>
+                  className="group hover:bg-blue-50/30 transition-colors"
+                >
+                  <TableCell className="font-semibold text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
                         {user.koreanName[0]}
                       </div>
                       {user.koreanName}
                     </div>
                   </TableCell>
-                  <TableCell className='text-gray-500'>-</TableCell>
+                  <TableCell className="text-gray-500">-</TableCell>
                   <TableCell>
                     <Badge
-                      variant='outline'
-                      className='bg-white w-full justify-center'>
+                      variant="outline"
+                      className="bg-white w-full justify-center"
+                    >
                       {totalGoals}개
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className='flex items-center gap-2'>
+                    <div className="flex items-center gap-2">
                       <span
                         className={`text-sm font-medium ${
                           isFullyAssessed ? "text-green-600" : "text-gray-500"
-                        }`}>
+                        }`}
+                      >
                         {assessedGoals} / {totalGoals} 완료
                       </span>
-                      <div className='h-1.5 w-24 bg-gray-100 rounded-full overflow-hidden'>
+                      <div className="h-1.5 w-24 bg-gray-100 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${
                             isFullyAssessed ? "bg-green-500" : "bg-blue-500"
@@ -367,11 +367,11 @@ const AppraisalSection = ({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className='text-right'>
+                  <TableCell className="text-right">
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button
-                          size='sm'
+                          size="sm"
                           variant={isFullyAssessed ? "outline" : "default"}
                           className={
                             isFullyAssessed &&
@@ -379,11 +379,12 @@ const AppraisalSection = ({
                               user.status === "finished")
                               ? "text-gray-600 hover:bg-gray-50 bg-white border border-gray-200"
                               : "bg-blue-600 hover:bg-blue-700 shadow-sm text-white"
-                          }>
+                          }
+                        >
                           {isFullyAssessed ? (
-                            <CheckCircle className='w-3.5 h-3.5 mr-1.5 text-green-600' />
+                            <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-green-600" />
                           ) : (
-                            <Star className='w-3.5 h-3.5 mr-1.5' />
+                            <Star className="w-3.5 h-3.5 mr-1.5" />
                           )}
                           {user.status === "submitted" ||
                           user.status === "finished"
@@ -391,23 +392,24 @@ const AppraisalSection = ({
                             : "목표 확인"}
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className='max-w-4xl max-h-[85vh] overflow-y-auto bg-slate-50 p-0 gap-0'>
-                        <DialogHeader className='p-6 pb-4 bg-white border-b sticky top-0 z-10'>
-                          <DialogTitle className='text-xl font-bold flex items-center justify-between'>
-                            <div className='flex items-center gap-3'>
-                              <div className='w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-lg'>
+                      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-slate-50 p-0 gap-0">
+                        <DialogHeader className="p-6 pb-4 bg-white border-b sticky top-0 z-10">
+                          <DialogTitle className="text-xl font-bold flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-lg">
                                 {user.koreanName[0]}
                               </div>
                               <div>
-                                <div className='flex items-center gap-2'>
+                                <div className="flex items-center gap-2">
                                   {user.koreanName}
                                   <Badge
-                                    variant='outline'
-                                    className='font-normal text-gray-500'>
+                                    variant="outline"
+                                    className="font-normal text-gray-500"
+                                  >
                                     팀원
                                   </Badge>
                                 </div>
-                                <p className='text-sm text-gray-400 font-normal mt-0.5'>
+                                <p className="text-sm text-gray-400 font-normal mt-0.5">
                                   목표 평가 및 피드백 작성
                                 </p>
                               </div>
@@ -415,9 +417,9 @@ const AppraisalSection = ({
                           </DialogTitle>
                         </DialogHeader>
 
-                        <div className='p-6 space-y-6'>
+                        <div className="p-6 space-y-6">
                           {user.goals.length > 0 ? (
-                            <div className='grid gap-5'>
+                            <div className="grid gap-5">
                               {[...user.goals].map((goal) => (
                                 <GoalAssessmentItem
                                   key={goal.goalId}
@@ -430,18 +432,18 @@ const AppraisalSection = ({
                               ))}
                             </div>
                           ) : (
-                            <div className='text-center py-16 bg-white rounded-xl border border-dashed'>
-                              <GoalIcon className='w-8 h-8 text-gray-300 mx-auto mb-4' />
-                              <h3 className='text-lg font-semibold text-gray-900'>
+                            <div className="text-center py-16 bg-white rounded-xl border border-dashed">
+                              <GoalIcon className="w-8 h-8 text-gray-300 mx-auto mb-4" />
+                              <h3 className="text-lg font-semibold text-gray-900">
                                 등록된 목표가 없습니다
                               </h3>
                             </div>
                           )}
                         </div>
 
-                        <div className='p-4 bg-white border-t flex justify-end gap-2 sticky bottom-0 z-10'>
+                        <div className="p-4 bg-white border-t flex justify-end gap-2 sticky bottom-0 z-10">
                           <DialogClose asChild>
-                            <Button variant='ghost'>닫기</Button>
+                            <Button variant="ghost">닫기</Button>
                           </DialogClose>
                         </div>
                       </DialogContent>
@@ -449,7 +451,10 @@ const AppraisalSection = ({
 
                     {(() => {
                       // Find final assessments excluding self-assessment for summary view
-                      const otherAssessments = user.assessments?.filter(a => a.assessedById !== user.userId) || [];
+                      const otherAssessments =
+                        user.assessments?.filter(
+                          (a) => a.assessedById !== user.userId,
+                        ) || [];
                       const finalAssessment = otherAssessments
                         .slice()
                         .sort(
@@ -490,16 +495,17 @@ const AppraisalSection = ({
                       }
 
                       return (
-                        <div className='inline-flex items-center gap-2 ml-2'>
+                        <div className="inline-flex items-center gap-2 ml-2">
                           {existingAssessment && (
                             <Badge
-                              variant='secondary'
-                              className='text-white bg-purple-500 rounded-md'>
+                              variant="secondary"
+                              className="text-white bg-purple-500 rounded-md"
+                            >
                               {existingAssessment.grade}등급
                             </Badge>
                           )}
                           <Button
-                            size='sm'
+                            size="sm"
                             disabled={!canEdit && !isSpectator}
                             className={
                               !canEdit
@@ -525,8 +531,9 @@ const AppraisalSection = ({
                                 setFinalComment("");
                               }
                               setSelectedUserForFinal(user);
-                            }}>
-                            <CheckCircle className='w-3.5 h-3.5 mr-1.5' />
+                            }}
+                          >
+                            <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
                             {!isSubmittedOrFinished
                               ? "제출 대기"
                               : !isFinalAssessed
@@ -548,105 +555,126 @@ const AppraisalSection = ({
 
       <Dialog
         open={!!selectedUserForFinal}
-        onOpenChange={(open) => !open && setSelectedUserForFinal(null)}>
-        <DialogContent className='max-w-md'>
+        onOpenChange={(open) => !open && setSelectedUserForFinal(null)}
+      >
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
               최종 평가 ({selectedUserForFinal?.koreanName})
             </DialogTitle>
           </DialogHeader>
-          <div className='space-y-4 py-4'>
+          <div className="space-y-4 py-4">
             {selectedUserForFinal?.selfAssessment && (
-              <div className='bg-gray-50 p-3 rounded-lg border border-gray-100 mb-4'>
-                <h5 className='text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2'>
-                  <span className='w-1.5 h-1.5 rounded-full bg-blue-500'></span>
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 mb-4">
+                <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                   본인 평가 (참고용)
                 </h5>
-                <div className='text-sm'>
-                  <div className='flex items-center gap-2 mb-1'>
-                    <span className='text-gray-500'>등급:</span>
-                    <Badge variant='outline' className='bg-white'>
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-gray-500">등급:</span>
+                    <Badge variant="outline" className="bg-white">
                       {selectedUserForFinal.selfAssessment.grade}등급
                     </Badge>
                   </div>
-                  <div className='text-gray-600 bg-white p-2 rounded border border-gray-100 mt-1 whitespace-pre-wrap text-xs'>
+                  <div className="text-gray-600 bg-white p-2 rounded border border-gray-100 mt-1 whitespace-pre-wrap text-xs">
                     {selectedUserForFinal.selfAssessment.comment ||
                       "코멘트 없음"}
                   </div>
                 </div>
               </div>
             )}
-            <div className='space-y-4'>
+            <div className="space-y-4">
               <Label>기존 평가 내역</Label>
-              <div className='space-y-3'>
+              <div className="space-y-3">
                 {selectedUserForFinal?.assessments
-                  ?.filter((a) => a.assessedById !== selectedUserForFinal.userId)
+                  ?.filter(
+                    (a) => a.assessedById !== selectedUserForFinal.userId,
+                  )
                   .map((as, idx) => (
-                  <div key={idx} className='bg-white p-3 rounded-lg border border-gray-100 shadow-sm'>
-                    <div className='flex items-center justify-between mb-2'>
-                      <div className='flex items-center gap-2'>
-                        <span className='text-xs font-bold text-gray-500 uppercase tracking-wider'>
-                          {as.assessedByUser?.koreanName || "평가자"}
-                        </span>
-                        <Badge variant='outline' className='bg-purple-50 text-purple-700 border-purple-100'>
-                          {as.grade}등급
-                        </Badge>
+                    <div
+                      key={idx}
+                      className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                            {as.assessedByUser?.koreanName || "평가자"}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="bg-purple-50 text-purple-700 border-purple-100"
+                          >
+                            {as.grade}등급
+                          </Badge>
+                        </div>
+                        {as.updated && (
+                          <span className="text-[10px] text-gray-400 font-normal">
+                            {new Date(as.updated).toLocaleDateString()}
+                          </span>
+                        )}
                       </div>
-                      {as.updated && (
-                        <span className='text-[10px] text-gray-400 font-normal'>
-                          {new Date(as.updated).toLocaleDateString()}
-                        </span>
-                      )}
+                      <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">
+                        {as.comment || "코멘트 없음"}
+                      </p>
                     </div>
-                    <p className='text-xs text-gray-600 leading-relaxed whitespace-pre-wrap'>
-                      {as.comment || "코멘트 없음"}
-                    </p>
-                  </div>
-                ))}
-                {(!selectedUserForFinal?.assessments || selectedUserForFinal.assessments.length === 0) && (
-                  <div className='text-center py-4 text-xs text-gray-400 italic'>
+                  ))}
+                {(!selectedUserForFinal?.assessments ||
+                  selectedUserForFinal.assessments.length === 0) && (
+                  <div className="text-center py-4 text-xs text-gray-400 italic">
                     아직 등록된 종합 평가가 없습니다.
                   </div>
                 )}
               </div>
             </div>
 
-            <div className='h-px bg-gray-100 my-4' />
+            <div className="h-px bg-gray-100 my-4" />
 
-            <div className='space-y-2'>
+            <div className="space-y-2">
               <Label>{isSpectator ? "등급 (조회)" : "나의 평가 등급"}</Label>
-              <Select disabled={isSpectator} value={finalGrade} onValueChange={setFinalGrade}>
+              <Select
+                disabled={isSpectator}
+                value={finalGrade}
+                onValueChange={setFinalGrade}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder='등급 선택' />
+                  <SelectValue placeholder="등급 선택" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value='S'>S등급 (탁월)</SelectItem>
-                  <SelectItem value='A'>A등급 (우수)</SelectItem>
-                  <SelectItem value='B'>B등급 (보통)</SelectItem>
-                  <SelectItem value='C'>C등급 (미흡)</SelectItem>
-                  <SelectItem value='D'>D등급 (부족)</SelectItem>
+                  <SelectItem value="S">S등급 (탁월)</SelectItem>
+                  <SelectItem value="A">A등급 (우수)</SelectItem>
+                  <SelectItem value="B">B등급 (보통)</SelectItem>
+                  <SelectItem value="C">C등급 (미흡)</SelectItem>
+                  <SelectItem value="D">D등급 (부족)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className='space-y-2'>
-              <Label>{isSpectator ? "종합 코멘트 (조회)" : "나의 종합 코멘트"}</Label>
+            <div className="space-y-2">
+              <Label>
+                {isSpectator ? "종합 코멘트 (조회)" : "나의 종합 코멘트"}
+              </Label>
               <Textarea
                 disabled={isSpectator}
-                placeholder={isSpectator ? "평가 내역이 없습니다." : "종합 평가 의견을 작성해주세요."}
+                placeholder={
+                  isSpectator
+                    ? "평가 내역이 없습니다."
+                    : "종합 평가 의견을 작성해주세요."
+                }
                 value={finalComment}
                 onChange={(e) => setFinalComment(e.target.value)}
-                className='min-h-[100px]'
+                className="min-h-[100px]"
               />
             </div>
           </div>
-          <div className='flex justify-end gap-2'>
+          <div className="flex justify-end gap-2">
             <Button
-              variant='ghost'
-              onClick={() => setSelectedUserForFinal(null)}>
+              variant="ghost"
+              onClick={() => setSelectedUserForFinal(null)}
+            >
               취소
             </Button>
             {!isSpectator && (
-              <Button onClick={handleFinalAssessment} className='bg-blue-600'>
+              <Button onClick={handleFinalAssessment} className="bg-blue-600">
                 {selectedUserForFinal?.assessments?.some(
                   (a) => a.assessedById === currentUserId,
                 )
@@ -673,13 +701,15 @@ const LeaderGradeCard = ({
   return (
     <Tabs
       defaultValue={departmentAppraisals[0]?.departmentName}
-      className='w-full'>
-      <TabsList className='mb-4 flex flex-wrap h-auto gap-2 bg-transparent justify-start p-0'>
+      className="w-full"
+    >
+      <TabsList className="mb-4 flex flex-wrap h-auto gap-2 bg-transparent justify-start p-0">
         {departmentAppraisals.map((dept) => (
           <TabsTrigger
             key={dept.departmentName}
             value={dept.departmentName}
-            className='data-[state=active]:bg-blue-600 data-[state=active]:text-white bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 shadow-sm rounded-lg transition-all'>
+            className="data-[state=active]:bg-blue-600 data-[state=active]:text-white bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 shadow-sm rounded-lg transition-all"
+          >
             {dept.departmentName}
           </TabsTrigger>
         ))}
@@ -688,7 +718,8 @@ const LeaderGradeCard = ({
         <TabsContent
           key={dept.departmentName}
           value={dept.departmentName}
-          className='mt-0'>
+          className="mt-0"
+        >
           {dept.appraisal.map((appraisal) => (
             <AppraisalSection
               key={appraisal.appraisalId}

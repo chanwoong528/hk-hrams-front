@@ -44,7 +44,8 @@ export interface User {
 
 export interface Appraisal {
   appraisalId: string;
-  appraisalType: string;
+  appraisalYear: string;
+  appraisalTerm: string;
   title: string;
   description: string;
   endDate: string; // ISO string
@@ -74,7 +75,6 @@ export interface GoalFormData {
 export interface MyAppraisal {
   appraisalId: string;
   appraisalUserId?: string;
-  appraisalType: string;
   title: string;
   description: string;
   endDate: string;

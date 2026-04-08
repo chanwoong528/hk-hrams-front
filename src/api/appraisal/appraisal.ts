@@ -14,23 +14,21 @@ export const POST_startAppraisal = async (payload: {
 
 export const POST_appraisal = async (payload: {
   title: string;
-  // excludedUsers: User[];
+  appraisalYear: string;
+  appraisalTerm: string;
   description: string;
   endDate: string;
-  appraisalYear: string;
-  appraisalType: string;
-  appraisalTerm: string;
   minGradeRank?: number;
   maxGradeRank?: number;
 }) => {
   const response = await http.post("/appraisal", {
     title: payload.title,
-    appraisalType: `${payload.appraisalYear}-${payload.appraisalType}-${payload.appraisalTerm}`,
+    appraisalYear: payload.appraisalYear,
+    appraisalTerm: payload.appraisalTerm,
     description: payload.description,
     endDate: payload.endDate,
     minGradeRank: payload.minGradeRank,
     maxGradeRank: payload.maxGradeRank,
-    // exceptionUserList: payload.excludedUsers.map((user) => user.userId),
   });
   return response.data;
 };

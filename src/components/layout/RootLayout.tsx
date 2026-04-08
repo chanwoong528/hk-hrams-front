@@ -16,7 +16,13 @@ export default function RootLayout() {
   const userInfoQuery = useQuery({
     queryKey: ["userInfo", location.pathname],
     queryFn: () => GET_checkToken(accessToken as string),
-    enabled: location.pathname !== "/login",
+    enabled:
+      ![
+        "/login",
+        "/forgot-password",
+        "/reset-password",
+        "/verify-email",
+      ].includes(location.pathname) && !!accessToken,
     retry: false,
   });
 
@@ -25,7 +31,7 @@ export default function RootLayout() {
       setCurrentUser(data.data);
     },
     onError: (error) => {
-      console.error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@ ", error);
+      console.error("Login Failed:  ", error);
       toast.error("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
       clearCurrentUser();
       navigate("/login");
