@@ -54,9 +54,21 @@ export default function CompetencyEvaluation() {
   const { currentUser } = useCurrentUserStore();
   const [hrSelectedDeptId, setHrSelectedDeptId] = useState<string>("");
 
+  const handleHrDeptChange = (deptId: string) => {
+    setHrSelectedDeptId(deptId);
+    setSelectedAppraisalUserId("");
+    setLocalEdits({});
+  };
+
   const isHR = useMemo(() => {
+    if (!currentUser) return false;
+    if (currentUser.email === "mooncw@hankookilbo.com") return true;
     return (
-      currentUser?.departments?.some((d) => d.departmentName === "HR") || false
+      currentUser.departments?.some(
+        (d) =>
+          d.departmentName.toLowerCase() === "hr" ||
+          d.departmentName === "인사팀",
+      ) || false
     );
   }, [currentUser]);
 
@@ -75,16 +87,16 @@ export default function CompetencyEvaluation() {
   });
 
   // 2. Fetch Team Members Hierarchy (Rank and Leader base)
-  const allMyDeptIds = useMemo(() => {
+  const leaderDeptIds = useMemo(() => {
     return (
-      currentUser?.departments?.map((d) => d.departmentId) || []
+      currentUser?.departments?.filter((d) => d.isLeader).map((d) => d.departmentId) || []
     );
   }, [currentUser]);
 
   const { data: teamData, isLoading: isLoadingTeam } = useQuery({
-    queryKey: ["teamMembers", allMyDeptIds],
-    queryFn: () => GET_appraisalsOfTeamMembers(allMyDeptIds),
-    enabled: !isHR && allMyDeptIds.length > 0,
+    queryKey: ["teamMembers", leaderDeptIds],
+    queryFn: () => GET_appraisalsOfTeamMembers(leaderDeptIds),
+    enabled: !isHR && leaderDeptIds.length > 0,
     select: (data) => data.data as any[],
   });
 
@@ -340,7 +352,7 @@ export default function CompetencyEvaluation() {
               </Label>
               <Select
                 value={hrSelectedDeptId}
-                onValueChange={setHrSelectedDeptId}>
+                onValueChange={handleHrDeptChange}>
                 <SelectTrigger className='h-8 text-xs bg-white'>
                   <SelectValue placeholder='조회할 부서 선택' />
                 </SelectTrigger>

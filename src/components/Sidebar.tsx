@@ -264,9 +264,9 @@ export default function SidebarContent({
 
       <div className="p-4 border-t space-y-3">
         <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white">
+          <p className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white">
             {currentUser?.koreanName?.charAt(0)}
-          </div>
+          </p>
           <div className="flex-1 min-w-0">
             <div className="truncate">{currentUser?.koreanName}</div>
             <div className="text-sm text-gray-600 truncate">

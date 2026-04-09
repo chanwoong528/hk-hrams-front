@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Plus,
@@ -59,6 +59,7 @@ export default function CompetencyQuestionSetting() {
   // Inline editing state
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingQuestions, setEditingQuestions] = useState<string[]>([]);
+  const skipEffectRef = useRef(false);
 
   // Template state
   const [isTemplateLoadOpen, setIsTemplateLoadOpen] = useState(false);
@@ -112,6 +113,10 @@ export default function CompetencyQuestionSetting() {
   
   // Reactive Loading: Load existing questions when selection criteria change
   useEffect(() => {
+    if (skipEffectRef.current) {
+      skipEffectRef.current = false;
+      return;
+    }
     if (appraisalId && departmentId && existingQuestionGroups) {
       const targetJg = jobGroup === 'all' ? null : jobGroup;
       const match = existingQuestionGroups.find(
@@ -209,10 +214,14 @@ export default function CompetencyQuestionSetting() {
   };
 
   const handleApplyTemplate = (template: CompetencyTemplateDto) => {
+    const nextJobGroup = template.jobGroup || 'all';
+    if (jobGroup !== nextJobGroup) {
+      skipEffectRef.current = true;
+    }
     setQuestions(template.questions.map((q) => q.question));
-    setJobGroup(template.jobGroup || 'all');
+    setJobGroup(nextJobGroup);
     setIsTemplateLoadOpen(false);
-    toast.info(`'${template.title}' 템플릿 문항을 불러왔습니다 (직군: ${template.jobGroup || '전체'}).`);
+    toast.info(`'${template.title}' 템플릿 문항을 불러왔습니다 (직군: ${nextJobGroup === 'all' ? '전체' : nextJobGroup}).`);
   };
 
   const handleSaveAsTemplate = () => {

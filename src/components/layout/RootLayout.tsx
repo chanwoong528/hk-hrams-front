@@ -28,7 +28,8 @@ export default function RootLayout() {
 
   useQueryEffects(userInfoQuery, {
     onSuccess: (data) => {
-      setCurrentUser(data.data);
+      const { username, ...rest } = data.data;
+      setCurrentUser({ ...rest, koreanName: username });
     },
     onError: (error) => {
       console.error("Login Failed:  ", error);

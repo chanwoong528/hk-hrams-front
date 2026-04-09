@@ -178,12 +178,16 @@ export default function UserListWidget({
     departments: Department[];
     userStatus: "active" | "inactive";
     jobGroup: string;
+    employeeId: string;
+    phoneNumber: string;
   }>({
     koreanName: "",
     email: "",
     departments: [],
     userStatus: "active",
     jobGroup: "",
+    employeeId: "",
+    phoneNumber: "",
   });
 
   const { data: usersData, isLoading: isLoadingUsers } = useQuery({
@@ -215,6 +219,8 @@ export default function UserListWidget({
       email: string;
       departments: Department[];
       jobGroup?: string;
+      employeeId?: string;
+      phoneNumber?: string;
     }) => POST_user(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -227,6 +233,8 @@ export default function UserListWidget({
         departments: [],
         userStatus: "active",
         jobGroup: "",
+        employeeId: "",
+        phoneNumber: "",
       });
     },
     onError: () => {
@@ -243,6 +251,8 @@ export default function UserListWidget({
       tobeAddedDepartments: string[];
       userStatus: "active" | "inactive";
       jobGroup?: string;
+      employeeId?: string;
+      phoneNumber?: string;
     }) => PATCH_user(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -255,6 +265,8 @@ export default function UserListWidget({
         departments: [],
         userStatus: "active",
         jobGroup: "",
+        employeeId: "",
+        phoneNumber: "",
       });
     },
     onError: () => {
@@ -268,6 +280,8 @@ export default function UserListWidget({
       email: formData.email,
       departments: formData.departments,
       jobGroup: formData.jobGroup,
+      employeeId: formData.employeeId,
+      phoneNumber: formData.phoneNumber,
     });
   };
 
@@ -360,6 +374,8 @@ export default function UserListWidget({
       departments: user.departments || [],
       userStatus: user.userStatus as "active" | "inactive",
       jobGroup: user.jobGroup || "",
+      employeeId: user.employeeId || "",
+      phoneNumber: user.phoneNumber || "",
     });
   };
 
@@ -380,6 +396,8 @@ export default function UserListWidget({
         tobeAddedDepartments: tobeAdded.map((d) => d.id),
         userStatus: formData.userStatus,
         jobGroup: formData.jobGroup,
+        employeeId: formData.employeeId,
+        phoneNumber: formData.phoneNumber,
       });
     }
   };
@@ -447,6 +465,26 @@ export default function UserListWidget({
                         setFormData({ ...formData, jobGroup: e.target.value })
                       }
                       placeholder='개발 / 디자인 / 경영지원 등'
+                    />
+                  </div>
+                  <div className='space-y-2'>
+                    <Label>사번</Label>
+                    <Input
+                      value={formData.employeeId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, employeeId: e.target.value })
+                      }
+                      placeholder='2023001'
+                    />
+                  </div>
+                  <div className='space-y-2'>
+                    <Label>휴대폰 번호</Label>
+                    <Input
+                      value={formData.phoneNumber}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phoneNumber: e.target.value })
+                      }
+                      placeholder='010-1234-5678'
                     />
                   </div>
                 </div>
@@ -619,6 +657,26 @@ export default function UserListWidget({
                   setFormData({ ...formData, jobGroup: e.target.value })
                 }
                 placeholder='개발 / 디자인 / 경영지원 등'
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>사번</Label>
+              <Input
+                value={formData.employeeId}
+                onChange={(e) =>
+                  setFormData({ ...formData, employeeId: e.target.value })
+                }
+                placeholder='2023001'
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>휴대폰 번호</Label>
+              <Input
+                value={formData.phoneNumber}
+                onChange={(e) =>
+                  setFormData({ ...formData, phoneNumber: e.target.value })
+                }
+                placeholder='010-1234-5678'
               />
             </div>
             <div className='space-y-2'>

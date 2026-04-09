@@ -4,6 +4,7 @@ import {
   GET_appraisalsByDistinctType,
   GET_appraisalsOfTeamMembers,
 } from "@/api/appraisal/appraisal";
+import { GET_departments } from "@/api/department/department";
 import { useCurrentUserStore } from "@/store/currentUserStore";
 import LeaderGradeCard from "./widget/LeaderGradeCard";
 import type { MyAppraisal, DepartmentAppraisal } from "./type";
@@ -42,22 +43,33 @@ export default function GoalManagement() {
     currentUser?.lv === "both" ||
     (currentUser?.departments.some((dept) => dept.isLeader) ?? false);
 
+  // Fetch all departments for admin/HR users
+  const { data: allDepartments } = useQuery({
+    queryKey: ["allDepartmentsForGoals"],
+    queryFn: () => GET_departments("flat"),
+    enabled: isAdmin,
+    select: (data) => data.data as any[],
+  });
+
   const {
     data: teamMembersAppraisals,
     isLoading: isLoadingTeamMembersAppraisals,
   } = useQuery({
-    queryKey: ["teamMembersAppraisals"],
+    queryKey: ["teamMembersAppraisals", isAdmin, allDepartments?.length],
     queryFn: () => {
-      const deptIds =
-        currentUser?.departments.map((dept) => dept.departmentId) || [];
-      console.log("Fetching team members for depts:", deptIds);
+      let deptIds: string[];
+      if (isAdmin && allDepartments) {
+        deptIds = allDepartments.map((dept: any) => dept.id);
+      } else {
+        deptIds =
+          currentUser?.departments
+            ?.filter((dept) => dept.isLeader)
+            .map((dept) => dept.departmentId) || [];
+      }
       return GET_appraisalsOfTeamMembers(deptIds);
     },
-    select: (data: { data: DepartmentAppraisal[] }) => {
-      console.log("Team members data received:", data.data);
-      return data.data;
-    },
-    enabled: isLeader,
+    select: (data: { data: DepartmentAppraisal[] }) => data.data,
+    enabled: isLeader && (!isAdmin || !!allDepartments),
   });
 
   console.log("isLeader boolean:", isLeader);
