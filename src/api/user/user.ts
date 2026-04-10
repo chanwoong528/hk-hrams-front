@@ -30,6 +30,7 @@ export const GET_usersByPagination = async (
   limit: number = 10,
   keyword?: string,
   departmentId?: string,
+  sort?: { sortKey: string; sortDir: "asc" | "desc" } | null,
 ) => {
   const response = await http.get("/user", {
     params: {
@@ -37,6 +38,8 @@ export const GET_usersByPagination = async (
       limit,
       ...(keyword && { keyword }),
       ...(departmentId && { departmentId }),
+      ...(sort?.sortKey ? { sortKey: sort.sortKey } : {}),
+      ...(sort?.sortDir ? { sortDir: sort.sortDir } : {}),
     },
   });
 

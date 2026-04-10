@@ -11,8 +11,8 @@ import { useNavigate } from "react-router-dom";
 import Logo from "@/components/Logo";
 
 export default function Login() {
-  const [email, setEmail] = useState("mooncw@hankookilbo.com");
-  const [password, setPassword] = useState("1234");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const { setAccessToken, setRefreshToken } = useCurrentUserStore();
   const navigate = useNavigate();
@@ -56,7 +56,7 @@ export default function Login() {
               <Input
                 id="email"
                 type="email"
-                placeholder="your@email.com"
+                placeholder="your@hankookilbo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
@@ -67,7 +67,7 @@ export default function Login() {
               <Input
                 id="password"
                 type="password"
-                placeholder=""
+                placeholder="초기비번 사번"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
@@ -80,7 +80,7 @@ export default function Login() {
             >
               {isLoading ? "로그인 중..." : "로그인"}
             </Button>
-            
+
             <Button
               type="button"
               variant="link"
@@ -92,12 +92,11 @@ export default function Login() {
           </form>
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-gray-700 mb-2">데모 계정:</p>
-            <div className="space-y-1 text-sm text-gray-600">
-              <div>• 리더 계정 junsik@hankookilbo.com / 1234</div>
-              <div>• 팀원 계정 nullyj@hankookilbo.com / 1234</div>
-              <div>• admin hr 계정 gwwell@hankookilbo.com / 1234</div>
-            </div>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              초기 비밀번호는 <span className="font-medium">사번</span>입니다. 입력 시{" "}
+              <span className="font-medium">영문 소문자</span>로 입력해 주세요. 첫 로그인
+              이후 안내에 따라 비밀번호를 변경해 주세요.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -15,11 +15,20 @@ import { Plus, Trash2, Users, FileUp } from "lucide-react";
 import * as xlsx from "xlsx";
 import DepartmentSelect from "./DepartmentSelect";
 
-const COLUMN_LABELS = ["사원번호", "회사", "이름", "직군", "이메일", "핸드폰 번호"];
+const COLUMN_LABELS = [
+  "사원번호",
+  "회사",
+  "이름",
+  "직군",
+  "이메일",
+  "핸드폰 번호",
+  "부서이름(선택)",
+];
 const INITIAL_ROW_COUNT = 5;
 
 function createEmptyRow(): CellBase[] {
   return [
+    { value: "" },
     { value: "" },
     { value: "" },
     { value: "" },
@@ -90,6 +99,7 @@ export default function BulkUserAddDialog({
         jobGroup: (row[3]?.value as string)?.trim() ?? "",
         email: (row[4]?.value as string)?.trim() ?? "",
         phoneNumber: (row[5]?.value as string)?.trim() ?? "",
+        departmentName: (row[6]?.value as string)?.trim() ?? "",
       }))
       .filter((u) => Object.values(u).some((val) => val !== ""));
 
@@ -138,7 +148,7 @@ export default function BulkUserAddDialog({
           if (!row || row.length === 0) continue;
           
           const newRow: CellBase[] = [];
-          for (let j = 0; j < 6; j++) {
+          for (let j = 0; j < 7; j++) {
             newRow.push({ value: row[j] ? String(row[j]) : "" });
           }
           newMatrix.push(newRow);
