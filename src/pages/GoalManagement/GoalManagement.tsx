@@ -4,6 +4,7 @@ import {
   GET_appraisalsByDistinctType,
   GET_appraisalsOfTeamMembers,
 } from "@/api/appraisal/appraisal";
+import { GET_departments } from "@/api/department/department";
 import { useCurrentUserStore } from "@/store/currentUserStore";
 import LeaderGradeCard from "./widget/LeaderGradeCard";
 import type { MyAppraisal, DepartmentAppraisal } from "./type";
@@ -14,6 +15,7 @@ import { AppraisalCard } from "./components/AppraisalCard";
 import { FinalAssessmentDialog } from "./components/FinalAssessmentDialog";
 import { useFinalAssessment } from "./hooks/useFinalAssessment";
 import { useGoalAssessment } from "./hooks/useGoalAssessment";
+import { isHrOrAdminUser } from "@/lib/hrAccess";
 
 export default function GoalManagement() {
   const {
@@ -21,13 +23,7 @@ export default function GoalManagement() {
     // accessToken
   } = useCurrentUserStore();
 
-  const isAdmin =
-    currentUser?.email === "mooncw@hankookilbo.com" ||
-    !!currentUser?.departments?.some(
-      (d) =>
-        d.departmentName.toLowerCase() === "hr" ||
-        d.departmentName === "인사팀",
-    );
+  const isAdmin = isHrOrAdminUser(currentUser?.email, currentUser?.departments);
 
   // 1. Data Fetching
   const { data: myAppraisals, isLoading: isLoadingMyAppraisals } = useQuery({
@@ -40,28 +36,49 @@ export default function GoalManagement() {
     isAdmin ||
     currentUser?.lv === "reviewer" ||
     currentUser?.lv === "both" ||
-    (currentUser?.departments.some((dept) => dept.isLeader) ?? false);
+    (currentUser?.departments?.some((dept) => dept.isLeader) ?? false);
+
+  // Fetch all departments for admin/HR users
+  const { data: allDepartments } = useQuery({
+    queryKey: ["allDepartmentsForGoals"],
+    queryFn: () => GET_departments("flat"),
+    enabled: isAdmin,
+    select: (data) => data.data as any[],
+  });
+
+  /** 일반 리더: 조직 트리로 하위/형제 부서 통합 탭(전체 등급 분포) 계산 */
+  const { data: leaderDepartmentFlat } = useQuery({
+    queryKey: ["departmentsFlatForLeaderGoals"],
+    queryFn: () => GET_departments("flat"),
+    enabled: isLeader && !isAdmin,
+    select: (data) => data.data as DepartmentTreeData[],
+  });
+
+  const leaderDepartmentIds =
+    currentUser?.departments
+      ?.filter((dept) => dept.isLeader)
+      .map((dept) => dept.departmentId) ?? [];
 
   const {
     data: teamMembersAppraisals,
     isLoading: isLoadingTeamMembersAppraisals,
   } = useQuery({
-    queryKey: ["teamMembersAppraisals"],
+    queryKey: ["teamMembersAppraisals", isAdmin, allDepartments?.length],
     queryFn: () => {
-      const deptIds =
-        currentUser?.departments.map((dept) => dept.departmentId) || [];
-      console.log("Fetching team members for depts:", deptIds);
+      let deptIds: string[];
+      if (isAdmin && allDepartments) {
+        deptIds = allDepartments.map((dept: any) => dept.id);
+      } else {
+        deptIds =
+          currentUser?.departments
+            ?.filter((dept) => dept.isLeader)
+            .map((dept) => dept.departmentId) || [];
+      }
       return GET_appraisalsOfTeamMembers(deptIds);
     },
-    select: (data: { data: DepartmentAppraisal[] }) => {
-      console.log("Team members data received:", data.data);
-      return data.data;
-    },
-    enabled: isLeader,
+    select: (data: { data: DepartmentAppraisal[] }) => data.data,
+    enabled: isLeader && (!isAdmin || !!allDepartments),
   });
-
-  console.log("isLeader boolean:", isLeader);
-  console.log("currentUser departments:", currentUser?.departments);
 
   // 2. Custom Hooks for Logic
   const { handleSelfAssessment } = useGoalAssessment({
@@ -122,6 +139,13 @@ export default function GoalManagement() {
               departmentAppraisals={
                 teamMembersAppraisals as DepartmentAppraisal[]
               }
+              departmentFlat={
+                isAdmin
+                  ? (allDepartments as DepartmentTreeData[])
+                  : leaderDepartmentFlat
+              }
+              useHrGroupView={isAdmin}
+              leaderDepartmentIds={isAdmin ? undefined : leaderDepartmentIds}
               currentUserId={currentUser?.userId}
             />
           </CardContent>

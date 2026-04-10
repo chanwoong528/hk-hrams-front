@@ -28,9 +28,14 @@ export interface User {
     updated?: string;
   };
   assessments?: {
+    appraisalById?: string;
     grade: string;
     comment: string;
     assessedById: string;
+    assessType?: string;
+    assessTerm?: string;
+    /** Min department rank (non-HR); from API. 999 = HR-only / none */
+    assessorMinRankNonHr?: number;
     assessedByUser?: {
       userId: string;
       koreanName: string;
@@ -39,12 +44,15 @@ export interface User {
   }[];
   koreanName: string;
   email?: string;
+  /** 팀원 목록 API: 해당 부서 기준 리더(팀장) 여부 */
+  isDepartmentLeader?: boolean;
   goals: Goal[];
 }
 
 export interface Appraisal {
   appraisalId: string;
-  appraisalType: string;
+  appraisalYear: string;
+  appraisalTerm: string;
   title: string;
   description: string;
   endDate: string; // ISO string
@@ -74,7 +82,6 @@ export interface GoalFormData {
 export interface MyAppraisal {
   appraisalId: string;
   appraisalUserId?: string;
-  appraisalType: string;
   title: string;
   description: string;
   endDate: string;

@@ -110,34 +110,48 @@ function NavItemComponent({
 
   return (
     <div>
-      <div className='flex items-center gap-1'>
+      <div className="flex items-center gap-1">
         <button
           onClick={handleItemClick}
           className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
             isActive && !hasChildren
-              ? "bg-blue-600 text-white"
+              ? item.admin
+                ? "bg-red-600 text-white"
+                : item.leader
+                  ? "bg-green-600 text-white"
+                  : "bg-blue-600 text-white"
               : isChildActive || (isActive && hasChildren)
-                ? "bg-blue-50 text-blue-700"
-                : "text-gray-700 hover:bg-gray-100"
+                ? item.admin
+                  ? "bg-red-50 text-red-700"
+                  : item.leader
+                    ? "bg-green-50 text-green-700"
+                    : "bg-blue-50 text-blue-700"
+                : item.admin
+                  ? "text-red-600 hover:bg-red-50"
+                  : item.leader
+                    ? "text-green-600 hover:bg-green-50"
+                    : "text-gray-700 hover:bg-gray-100"
           }`}
-          style={{ paddingLeft: `${1 + level * 1}rem` }}>
-          {Icon ? <Icon className='w-5 h-5' /> : <div className='w-5 h-5' />}
-          <span className='font-medium'>{item.name}</span>
+          style={{ paddingLeft: `${1 + level * 1}rem` }}
+        >
+          {Icon ? <Icon className="w-5 h-5" /> : <div className="w-5 h-5" />}
+          <span className="font-medium">{item.name}</span>
         </button>
         {hasChildren && (
           <button
             onClick={handleChevronClick}
-            className='p-2 rounded-lg transition-colors cursor-pointer hover:bg-gray-100 flex items-center justify-center'>
+            className="p-2 rounded-lg transition-colors cursor-pointer hover:bg-gray-100 flex items-center justify-center"
+          >
             {isExpanded ? (
-              <ChevronDown className='w-4 h-4' />
+              <ChevronDown className="w-4 h-4" />
             ) : (
-              <ChevronRight className='w-4 h-4' />
+              <ChevronRight className="w-4 h-4" />
             )}
           </button>
         )}
       </div>
       {hasChildren && isExpanded && (
-        <div className='ml-4 space-y-1 mt-1'>
+        <div className="ml-4 space-y-1 mt-1">
           {item.children!.map((child) => (
             <NavItemComponent
               key={child.id}
@@ -214,6 +228,11 @@ export default function SidebarContent({
       filtered.push(clonedItem);
     }
 
+    filtered.sort((a, b) => {
+      const getRank = (nav: NavItem) => (nav.admin ? 2 : nav.leader ? 1 : 0);
+      return getRank(a) - getRank(b);
+    });
+
     return filtered;
   };
 
@@ -223,12 +242,12 @@ export default function SidebarContent({
     isLeader,
   );
   return (
-    <div className='flex h-full flex-col'>
-      <div className='p-6 border-b'>
-        <h1 className='text-blue-600'>HRAMS</h1>
-        <p className='text-sm text-gray-600 mt-1'>인사 성과 관리 시스템</p>
+    <div className="flex h-full flex-col">
+      <div className="p-6 border-b">
+        <h1 className="text-blue-600">HRAMS</h1>
+        <p className="text-sm text-gray-600 mt-1">인사 성과 관리 시스템</p>
       </div>
-      <nav className='flex-1 p-4 space-y-1 overflow-y-auto'>
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {visibleNavigation
           .filter((item) => !item.detailPage)
           .map((item) => (
@@ -243,23 +262,24 @@ export default function SidebarContent({
           ))}
       </nav>
 
-      <div className='p-4 border-t space-y-3'>
-        <div className='flex items-center gap-3 p-3 rounded-lg bg-gray-50'>
-          <div className='w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white'>
+      <div className="p-4 border-t space-y-3">
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+          <p className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white">
             {currentUser?.koreanName?.charAt(0)}
-          </div>
-          <div className='flex-1 min-w-0'>
-            <div className='truncate'>{currentUser?.koreanName}</div>
-            <div className='text-sm text-gray-600 truncate'>
+          </p>
+          <div className="flex-1 min-w-0">
+            <div className="truncate">{currentUser?.koreanName}</div>
+            <div className="text-sm text-gray-600 truncate">
               {currentUser?.email}
             </div>
           </div>
         </div>
         <Button
           onClick={handleLogout}
-          variant='outline'
-          className='w-full flex items-center gap-2 text-gray-700 hover:text-red-600 hover:border-red-600'>
-          <LogOut className='w-4 h-4' />
+          variant="outline"
+          className="w-full flex items-center gap-2 text-gray-700 hover:text-red-600 hover:border-red-600"
+        >
+          <LogOut className="w-4 h-4" />
           <span>로그아웃</span>
         </Button>
       </div>

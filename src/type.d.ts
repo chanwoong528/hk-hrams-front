@@ -26,13 +26,15 @@ interface User {
   updated: string;
   userStatus: "active" | "inactive";
   jobGroup?: string;
+  employeeId?: string;
+  phoneNumber?: string;
+  company?: string;
   departments: (Department & { isLeader: boolean })[];
 }
 
 interface Appraisal {
   appraisalId: string;
   title: string;
-  appraisalType: string;
   targetUser: string;
   description: string;
   endDate: string;
@@ -68,7 +70,6 @@ interface SignInPayload {
 
 interface MyAppraisal {
   appraisalId: string;
-  appraisalType: string;
   title: string;
   description: string;
   endDate: string;

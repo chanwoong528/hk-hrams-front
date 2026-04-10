@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Plus,
@@ -46,6 +46,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { isHrOrAdminUser } from "@/lib/hrAccess";
+import type { CompetencyQuestionGroupDto } from "@/api/competency/competency";
 
 export default function CompetencyQuestionSetting() {
   const queryClient = useQueryClient();
@@ -59,12 +62,25 @@ export default function CompetencyQuestionSetting() {
   // Inline editing state
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingQuestions, setEditingQuestions] = useState<string[]>([]);
+  const skipEffectRef = useRef(false);
 
   // Template state
   const [isTemplateLoadOpen, setIsTemplateLoadOpen] = useState(false);
   const [isTemplateSaveOpen, setIsTemplateSaveOpen] = useState(false);
   const [templateTitle, setTemplateTitle] = useState("");
   const [templateDesc, setTemplateDesc] = useState("");
+
+  /** HR/인사: 등록 문항 리스트를 전체 / 팀(부서) / 작성자 탭으로 구분 */
+  const [hrRegistryView, setHrRegistryView] = useState<
+    "all" | "team" | "leader"
+  >("team");
+  const [hrTeamTab, setHrTeamTab] = useState("");
+  const [hrLeaderTab, setHrLeaderTab] = useState("");
+
+  const isHrOrAdmin = useMemo(
+    () => isHrOrAdminUser(currentUser?.email, currentUser?.departments),
+    [currentUser],
+  );
 
   // Fetch appraisals for the dropdown
   const { data: appraisals, isLoading: isLoadingAppraisals } = useQuery({
@@ -80,6 +96,65 @@ export default function CompetencyQuestionSetting() {
       queryFn: GET_competencyQuestions,
     },
   );
+
+  const registeredGroups = useMemo(
+    () => (existingQuestionGroups ?? []) as CompetencyQuestionGroupDto[],
+    [existingQuestionGroups],
+  );
+
+  const groupsByTeam = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; name: string; groups: CompetencyQuestionGroupDto[] }
+    >();
+    for (const g of registeredGroups) {
+      const id = g.departmentId;
+      if (!map.has(id)) {
+        map.set(id, { id, name: g.departmentName || id, groups: [] });
+      }
+      map.get(id)!.groups.push(g);
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "ko"),
+    );
+  }, [registeredGroups]);
+
+  const groupsByLeader = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; name: string; groups: CompetencyQuestionGroupDto[] }
+    >();
+    for (const g of registeredGroups) {
+      const id = g.creatorId || "unknown";
+      if (!map.has(id)) {
+        map.set(id, {
+          id,
+          name: g.creatorName?.trim() || "작성자 미상",
+          groups: [],
+        });
+      }
+      map.get(id)!.groups.push(g);
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "ko"),
+    );
+  }, [registeredGroups]);
+
+  const effectiveHrTeamTab = useMemo(() => {
+    if (!groupsByTeam.length) return "";
+    if (hrTeamTab && groupsByTeam.some((t) => t.id === hrTeamTab)) {
+      return hrTeamTab;
+    }
+    return groupsByTeam[0].id;
+  }, [groupsByTeam, hrTeamTab]);
+
+  const effectiveHrLeaderTab = useMemo(() => {
+    if (!groupsByLeader.length) return "";
+    if (hrLeaderTab && groupsByLeader.some((t) => t.id === hrLeaderTab)) {
+      return hrLeaderTab;
+    }
+    return groupsByLeader[0].id;
+  }, [groupsByLeader, hrLeaderTab]);
 
   const { data: templates, isLoading: isLoadingTemplates } = useQuery({
     queryKey: ["competencyTemplates"],
@@ -112,6 +187,10 @@ export default function CompetencyQuestionSetting() {
   
   // Reactive Loading: Load existing questions when selection criteria change
   useEffect(() => {
+    if (skipEffectRef.current) {
+      skipEffectRef.current = false;
+      return;
+    }
     if (appraisalId && departmentId && existingQuestionGroups) {
       const targetJg = jobGroup === 'all' ? null : jobGroup;
       const match = existingQuestionGroups.find(
@@ -209,10 +288,14 @@ export default function CompetencyQuestionSetting() {
   };
 
   const handleApplyTemplate = (template: CompetencyTemplateDto) => {
+    const nextJobGroup = template.jobGroup || 'all';
+    if (jobGroup !== nextJobGroup) {
+      skipEffectRef.current = true;
+    }
     setQuestions(template.questions.map((q) => q.question));
-    setJobGroup(template.jobGroup || 'all');
+    setJobGroup(nextJobGroup);
     setIsTemplateLoadOpen(false);
-    toast.info(`'${template.title}' 템플릿 문항을 불러왔습니다 (직군: ${template.jobGroup || '전체'}).`);
+    toast.info(`'${template.title}' 템플릿 문항을 불러왔습니다 (직군: ${nextJobGroup === 'all' ? '전체' : nextJobGroup}).`);
   };
 
   const handleSaveAsTemplate = () => {
@@ -264,6 +347,134 @@ export default function CompetencyQuestionSetting() {
     createQuestions({ appraisalId, departmentId, jobGroup: itemJobGroup || 'all', questions: filledQuestions });
   };
 
+  type RegistryGroup = CompetencyQuestionGroupDto & { displayJobGroup?: string };
+
+  const renderRegisteredGroupCard = (group: RegistryGroup) => {
+    const displayGroup = group.displayJobGroup || group.jobGroup || "all";
+    const groupId = `${group.appraisalId}-${group.departmentId}-${displayGroup}`;
+    const isEditing = editingGroupId === groupId;
+
+    return (
+      <Card key={groupId}>
+        <CardHeader className='pb-3 border-b bg-gray-50'>
+          <div className='flex justify-between items-start'>
+            <div>
+              <div className='text-sm text-blue-600 font-semibold mb-1'>
+                {group.appraisalTitle}
+              </div>
+              <CardTitle className='text-base flex flex-wrap items-center gap-2'>
+                {group.departmentName}
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    displayGroup === "all"
+                      ? "bg-gray-100 text-gray-600 border-gray-200"
+                      : "bg-blue-50 text-blue-600 border-blue-100"
+                  }`}>
+                  직군: {displayGroup === "all" ? "전체" : displayGroup}
+                </span>
+                <div className='flex flex-wrap items-center gap-1.5'>
+                  <span className='text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded'>
+                    작성자:{" "}
+                    <span className='font-semibold text-gray-700'>
+                      {group.creatorName}
+                    </span>
+                  </span>
+                  {group.lastModifierName &&
+                    group.lastModifierId !== group.creatorId && (
+                      <span className='text-xs font-normal text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100'>
+                        최종 수정자:{" "}
+                        <span className='font-semibold'>
+                          {group.lastModifierName}
+                        </span>
+                      </span>
+                    )}
+                </div>
+              </CardTitle>
+            </div>
+            <div className='flex flex-col items-end gap-2 shrink-0'>
+              <span className='text-xs text-gray-400'>
+                {format(new Date(group.created), "yyyy.MM.dd HH:mm", {
+                  locale: ko,
+                })}
+              </span>
+              {isEditing ? (
+                <div className='flex gap-2'>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => setEditingGroupId(null)}>
+                    취소
+                  </Button>
+                  <Button
+                    size='sm'
+                    onClick={() =>
+                      handleInlineSubmit(
+                        group.appraisalId,
+                        group.departmentId,
+                        group.jobGroup || "all",
+                      )
+                    }
+                    disabled={isPending}>
+                    저장
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => handleEditGroup(group)}>
+                  수정하기
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className='pt-4'>
+          {isEditing ? (
+            <div className='space-y-4'>
+              {editingQuestions.map((q, qIdx) => (
+                <div key={qIdx} className='flex items-center gap-3'>
+                  <span className='font-semibold text-gray-500 w-6'>
+                    Q{qIdx + 1}.
+                  </span>
+                  <Input
+                    placeholder='평가 항목을 입력하세요'
+                    value={q}
+                    onChange={(e) =>
+                      handleInlineChangeQuestion(qIdx, e.target.value)
+                    }
+                  />
+                  <Button
+                    variant='ghost'
+                    className='text-red-500 hover:text-red-600 hover:bg-red-50'
+                    onClick={() => handleInlineRemoveQuestion(qIdx)}
+                    disabled={editingQuestions.length === 1}>
+                    <Trash2 className='w-4 h-4' />
+                  </Button>
+                </div>
+              ))}
+              <Button variant='outline' size='sm' onClick={handleInlineAddQuestion}>
+                <Plus className='w-4 h-4 mr-2' />
+                문항 추가
+              </Button>
+            </div>
+          ) : (
+            <ul className='space-y-2'>
+              {group.questions.map((q: string, qIdx: number) => (
+                <li
+                  key={qIdx}
+                  className='flex items-start gap-2 text-sm text-gray-700'>
+                  <span className='font-medium text-gray-400'>Q{qIdx + 1}.</span>
+                  {q}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className='p-4 lg:p-6 space-y-6'>
       <div className='flex flex-col sm:flex-row gap-4 justify-between'>
@@ -305,7 +516,7 @@ export default function CompetencyQuestionSetting() {
                 <SelectContent>
                   {appraisals?.map((app: any) => (
                     <SelectItem key={app.appraisalId} value={app.appraisalId}>
-                      {app.title} ({app.appraisalType})
+                      {app.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -511,12 +722,14 @@ export default function CompetencyQuestionSetting() {
       </Card>
 
       <div className='pt-8'>
-        <div className='flex items-center justify-between mb-4'>
+        <div className='flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4'>
           <h3 className='text-lg font-bold text-gray-800'>
             등록된 문항 리스트
           </h3>
           <p className='text-sm text-gray-500'>
-            이미 작성 및 배포가 완료된 항목들입니다.
+            {isHrOrAdmin
+              ? "인사/관리자: 팀(부서) 또는 작성자(부서장) 기준 탭으로 묶어서 볼 수 있습니다."
+              : "이미 작성 및 배포가 완료된 항목들입니다."}
           </p>
         </div>
 
@@ -524,143 +737,128 @@ export default function CompetencyQuestionSetting() {
           <div className='text-center py-10 text-gray-500'>
             불러오는 중입니다...
           </div>
-        ) : existingQuestionGroups?.length === 0 ? (
+        ) : registeredGroups.length === 0 ? (
           <Card className='bg-gray-50 border-dashed'>
             <CardContent className='flex items-center justify-center h-32 text-gray-400'>
               등록된 문항 리스트가 없습니다.
             </CardContent>
           </Card>
+        ) : isHrOrAdmin ? (
+          <Tabs
+            value={hrRegistryView}
+            onValueChange={(v) =>
+              setHrRegistryView(v as "all" | "team" | "leader")
+            }
+            className='w-full'>
+            <TabsList className='mb-4 h-auto w-full flex-wrap justify-start gap-1 sm:w-fit'>
+              <TabsTrigger value='all'>
+                전체 ({registeredGroups.length})
+              </TabsTrigger>
+              <TabsTrigger value='team'>
+                팀(부서)별 ({groupsByTeam.length})
+              </TabsTrigger>
+              <TabsTrigger value='leader'>
+                작성자별 ({groupsByLeader.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value='all' className='mt-0 space-y-4'>
+              {registeredGroups.map((g) =>
+                renderRegisteredGroupCard(g as RegistryGroup),
+              )}
+            </TabsContent>
+
+            <TabsContent value='team' className='mt-0'>
+              {groupsByTeam.length === 0 ? (
+                <p className='text-sm text-gray-500 py-6'>
+                  부서별 그룹이 없습니다.
+                </p>
+              ) : (
+                <Tabs
+                  value={effectiveHrTeamTab}
+                  onValueChange={setHrTeamTab}
+                  className='w-full'>
+                  <div className='overflow-x-auto pb-2 -mx-1 px-1'>
+                    <TabsList className='inline-flex h-auto min-h-9 w-max max-w-none flex-nowrap justify-start gap-1 bg-muted/60 p-1.5 sm:flex-wrap sm:max-w-full'>
+                      {groupsByTeam.map((tab) => (
+                        <TabsTrigger
+                          key={tab.id}
+                          value={tab.id}
+                          className='shrink-0 px-3 text-xs sm:text-sm'>
+                          <span
+                            className='max-w-[180px] truncate sm:max-w-[260px]'
+                            title={tab.name}>
+                            {tab.name}
+                          </span>
+                          <span className='ml-1 tabular-nums text-muted-foreground'>
+                            ({tab.groups.length})
+                          </span>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </div>
+                  {groupsByTeam.map((tab) => (
+                    <TabsContent
+                      key={tab.id}
+                      value={tab.id}
+                      className='mt-4 space-y-4'>
+                      {tab.groups.map((g) =>
+                        renderRegisteredGroupCard(g as RegistryGroup),
+                      )}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              )}
+            </TabsContent>
+
+            <TabsContent value='leader' className='mt-0'>
+              {groupsByLeader.length === 0 ? (
+                <p className='text-sm text-gray-500 py-6'>
+                  작성자별 그룹이 없습니다.
+                </p>
+              ) : (
+                <Tabs
+                  value={effectiveHrLeaderTab}
+                  onValueChange={setHrLeaderTab}
+                  className='w-full'>
+                  <div className='overflow-x-auto pb-2 -mx-1 px-1'>
+                    <TabsList className='inline-flex h-auto min-h-9 w-max max-w-none flex-nowrap justify-start gap-1 bg-muted/60 p-1.5 sm:flex-wrap sm:max-w-full'>
+                      {groupsByLeader.map((tab) => (
+                        <TabsTrigger
+                          key={tab.id}
+                          value={tab.id}
+                          className='shrink-0 px-3 text-xs sm:text-sm'>
+                          <span
+                            className='max-w-[180px] truncate sm:max-w-[240px]'
+                            title={tab.name}>
+                            {tab.name}
+                          </span>
+                          <span className='ml-1 tabular-nums text-muted-foreground'>
+                            ({tab.groups.length})
+                          </span>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </div>
+                  {groupsByLeader.map((tab) => (
+                    <TabsContent
+                      key={tab.id}
+                      value={tab.id}
+                      className='mt-4 space-y-4'>
+                      {tab.groups.map((g) =>
+                        renderRegisteredGroupCard(g as RegistryGroup),
+                      )}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              )}
+            </TabsContent>
+          </Tabs>
         ) : (
           <div className='space-y-4'>
-            {existingQuestionGroups?.map((group: any) => {
-              const displayGroup = group.displayJobGroup || group.jobGroup || 'all';
-              const groupId = `${group.appraisalId}-${group.departmentId}-${displayGroup}`;
-              const isEditing = editingGroupId === groupId;
-
-              return (
-                <Card key={groupId}>
-                  <CardHeader className='pb-3 border-b bg-gray-50'>
-                    <div className='flex justify-between items-start'>
-                      <div>
-                        <div className='text-sm text-blue-600 font-semibold mb-1'>
-                          {group.appraisalTitle}
-                        </div>
-                        <CardTitle className='text-base flex items-center gap-2'>
-                          {group.departmentName}
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            displayGroup === 'all' 
-                              ? 'bg-gray-100 text-gray-600 border-gray-200' 
-                              : 'bg-blue-50 text-blue-600 border-blue-100'
-                          }`}>
-                            직군: {displayGroup === 'all' ? '전체' : displayGroup}
-                          </span>
-                          <div className='flex items-center gap-1.5 ml-2'>
-                            <span className='text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded'>
-                              작성자:{" "}
-                              <span className='font-semibold text-gray-700'>
-                                {group.creatorName}
-                              </span>
-                            </span>
-                            {group.lastModifierName &&
-                              group.lastModifierId !== group.creatorId && (
-                                <span className='text-xs font-normal text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100'>
-                                  최종 수정자:{" "}
-                                  <span className='font-semibold'>
-                                    {group.lastModifierName}
-                                  </span>
-                                </span>
-                              )}
-                          </div>
-                        </CardTitle>
-                      </div>
-                      <div className='flex flex-col items-end gap-2'>
-                        <span className='text-xs text-gray-400'>
-                          {format(new Date(group.created), "yyyy.MM.dd HH:mm", {
-                            locale: ko,
-                          })}
-                        </span>
-                        {isEditing ? (
-                          <div className='flex gap-2'>
-                            <Button
-                              variant='outline'
-                              size='sm'
-                              onClick={() => setEditingGroupId(null)}>
-                              취소
-                            </Button>
-                            <Button
-                              size='sm'
-                              onClick={() =>
-                                handleInlineSubmit(
-                                  group.appraisalId,
-                                  group.departmentId,
-                                  group.jobGroup || 'all',
-                                )
-                              }
-                              disabled={isPending}>
-                              저장
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => handleEditGroup(group)}>
-                            수정하기
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className='pt-4'>
-                    {isEditing ? (
-                      <div className='space-y-4'>
-                        {editingQuestions.map((q, qIdx) => (
-                          <div key={qIdx} className='flex items-center gap-3'>
-                            <span className='font-semibold text-gray-500 w-6'>
-                              Q{qIdx + 1}.
-                            </span>
-                            <Input
-                              placeholder='평가 항목을 입력하세요'
-                              value={q}
-                              onChange={(e) =>
-                                handleInlineChangeQuestion(qIdx, e.target.value)
-                              }
-                            />
-                            <Button
-                              variant='ghost'
-                              className='text-red-500 hover:text-red-600 hover:bg-red-50'
-                              onClick={() => handleInlineRemoveQuestion(qIdx)}
-                              disabled={editingQuestions.length === 1}>
-                              <Trash2 className='w-4 h-4' />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          onClick={handleInlineAddQuestion}>
-                          <Plus className='w-4 h-4 mr-2' />
-                          문항 추가
-                        </Button>
-                      </div>
-                    ) : (
-                      <ul className='space-y-2'>
-                        {group.questions.map((q: string, qIdx: number) => (
-                          <li
-                            key={qIdx}
-                            className='flex items-start gap-2 text-sm text-gray-700'>
-                            <span className='font-medium text-gray-400'>
-                              Q{qIdx + 1}.
-                            </span>
-                            {q}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {registeredGroups.map((g) =>
+              renderRegisteredGroupCard(g as RegistryGroup),
+            )}
           </div>
         )}
       </div>

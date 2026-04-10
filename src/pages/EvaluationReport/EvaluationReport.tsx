@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   GET_evaluationReport,
+  isTeamMemberReportUnlocked,
   type CompetencyReportItem,
   type GoalReportItem,
   type FinalAssessmentItem,
@@ -13,6 +14,7 @@ import {
 } from "@/api/appraisal/appraisal";
 import { GET_departments } from "@/api/department/department";
 import { useCurrentUserStore } from "@/store/currentUserStore";
+import { isHrOrAdminUser } from "@/lib/hrAccess";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -42,6 +44,44 @@ const GRADE_COLORS: Record<string, string> = {
   C: "bg-amber-100 text-amber-700 border-amber-200",
   D: "bg-red-100 text-red-700 border-red-200",
 };
+
+/**
+ * 피평가자 목록·리포트 헤더용 상태 문구.
+ * `finished`는 DB상 리더 평가까지 반영된 상태이나, 팀원 본문(리포트)은
+ * `isTeamMemberReportUnlocked` 등으로 따로 막혀 있을 수 있어
+ * 전사적 "평가 종료"와 구분한다. "진행중"은 오해 소지가 커서 단계를 직접 쓴다.
+ */
+function formatAppraisalParticipationStatus(
+  status: string | null | undefined,
+): string {
+  const s = String(status ?? "")
+    .trim()
+    .toLowerCase();
+  switch (s) {
+    case "ongoing":
+      return "진행 중";
+    case "submitted":
+    case "self-submitted":
+      return "제출 완료";
+    case "completed":
+      return "완료";
+    case "finished":
+      return "리더 평가 완료";
+    case "draft":
+      return "작성 중";
+    case "":
+      return "상태 없음";
+    default:
+      return String(status ?? "").trim() || "상태 없음";
+  }
+}
+
+/** `finished`: 리더 평가 반영됨 — 리포트 본문은 별도 게이트(상세 페이지 참고) */
+function isAppraisalReportViewPending(
+  status: string | null | undefined,
+): boolean {
+  return String(status ?? "").trim().toLowerCase() === "finished";
+}
 
 function GradeBadge({ grade, label }: { grade?: string; label: string }) {
   if (!grade) {
@@ -289,13 +329,10 @@ function AppraisalSelectionView() {
   const navigate = useNavigate();
   const { currentUser } = useCurrentUserStore();
 
-  const isHR = useMemo(() => {
-    return (
-      currentUser?.departments?.some(
-        (d) => d.departmentName === "HR" || d.departmentName === "인사팀",
-      ) || currentUser?.email === "mooncw@hankookilbo.com"
-    );
-  }, [currentUser]);
+  const isHR = useMemo(
+    () => isHrOrAdminUser(currentUser?.email, currentUser?.departments),
+    [currentUser],
+  );
 
   const [hrSelectedDeptId, setHrSelectedDeptId] = useState<string>("");
 
@@ -337,6 +374,20 @@ function AppraisalSelectionView() {
     return list;
   }, [hrTeamData]);
 
+  useEffect(() => {
+    if (isLoading) return;
+    console.log("[EvaluationReport] 목록(/evaluation-report) 로드됨", {
+      rowCount: myAppraisals?.length ?? 0,
+      isHR,
+      rows: (myAppraisals ?? []).map((a: any) => ({
+        appraisalUserId: a.appraisalUserId,
+        title: a.title,
+        rawStatus: a.status,
+        label: formatAppraisalParticipationStatus(a.status),
+      })),
+    });
+  }, [isLoading, myAppraisals, isHR]);
+
   if (isLoading) {
     return (
       <div className='flex flex-col items-center justify-center min-h-[60vh] text-gray-400 gap-4'>
@@ -367,33 +418,42 @@ function AppraisalSelectionView() {
         </Card>
       ) : (
         <div className='grid gap-3'>
-          {myAppraisals.map((appraisal: any) => (
-            <button
-              key={appraisal.appraisalUserId}
-              onClick={() =>
-                navigate(`/evaluation-report/${appraisal.appraisalUserId}`)
-              }
-              className='w-full flex items-center justify-between p-5 rounded-xl bg-white ring-1 ring-gray-200 hover:ring-blue-300 hover:bg-blue-50/30 transition-all text-left group'>
-              <div className='flex items-center gap-4'>
-                <div className='w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-200 transition-colors'>
-                  <FileText className='w-5 h-5' />
+          {myAppraisals.map((appraisal: any) => {
+            const statusLooksInProgress = isAppraisalReportViewPending(
+              appraisal.status,
+            );
+            return (
+              <button
+                key={appraisal.appraisalUserId}
+                type='button'
+                onClick={() => {
+                  console.log("[EvaluationReport] 행 클릭 → 상세 이동", {
+                    appraisalUserId: appraisal.appraisalUserId,
+                    status: appraisal.status,
+                  });
+                  navigate(`/evaluation-report/${appraisal.appraisalUserId}`);
+                }}
+                className='w-full flex items-center justify-between p-5 rounded-xl bg-white ring-1 ring-gray-200 text-left transition-all group hover:ring-blue-300 hover:bg-blue-50/30'>
+                <div className='flex items-center gap-4'>
+                  <div className='w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 transition-colors group-hover:bg-blue-200'>
+                    <FileText className='w-5 h-5' />
+                  </div>
+                  <div>
+                    <h3 className='font-bold text-gray-800'>{appraisal.title}</h3>
+                    <p
+                      className={`text-xs mt-0.5 ${
+                        statusLooksInProgress
+                          ? "text-amber-700/90"
+                          : "text-gray-500"
+                      }`}>
+                      {formatAppraisalParticipationStatus(appraisal.status)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className='font-bold text-gray-800'>{appraisal.title}</h3>
-                  <p className='text-xs text-gray-500 mt-0.5'>
-                    {(() => {
-                      const status = appraisal.status;
-                      if (status === "ongoing") return "진행 중";
-                      if (status === "submitted") return "제출 완료";
-                      if (status === "completed") return "완료";
-                      return status || "상태 없음";
-                    })()}
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className='w-5 h-5 text-gray-300 group-hover:text-blue-500 transition-colors' />
-            </button>
-          ))}
+                <ChevronRight className='w-5 h-5 text-gray-300 group-hover:text-blue-500 transition-colors shrink-0' />
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -490,11 +550,72 @@ export default function EvaluationReport() {
 
 function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
   const navigate = useNavigate();
+  const { currentUser } = useCurrentUserStore();
+
+  const canViewIncompleteReport = useMemo(
+    () => isHrOrAdminUser(currentUser?.email, currentUser?.departments),
+    [currentUser],
+  );
 
   const { data: report, isLoading } = useQuery({
     queryKey: ["evaluationReport", appraisalUserId],
     queryFn: () => GET_evaluationReport(appraisalUserId),
   });
+
+  const isReportReady = useMemo(() => {
+    if (!report) return false;
+    return isTeamMemberReportUnlocked(report);
+  }, [report]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!report) {
+      console.log("[EvaluationReport] Blocked: no report payload", {
+        appraisalUserId,
+      });
+      return;
+    }
+    if (!isReportReady && !canViewIncompleteReport) {
+      const ownerId = report.owner?.userId;
+      const finalsGateDetail = report.finalAssessments.map((f) => ({
+        assessType: f.assessType,
+        assessTerm: f.assessTerm,
+        grade: f.grade,
+        assessedById: f.assessedById,
+        isLeaderPerfFinal:
+          f.assessType === "performance" &&
+          f.assessTerm === "final" &&
+          f.grade != null &&
+          String(f.grade).trim() !== "" &&
+          f.assessedById != null &&
+          f.assessedById !== ownerId,
+      }));
+      console.log(
+        "[EvaluationReport] Blocked: report body hidden for team member",
+        {
+          appraisalUserId,
+          ownerId,
+          canViewIncompleteReport,
+          isReportReady,
+          reason:
+            report.finalAssessments.length === 0
+              ? "no_appraisal_by_rows"
+              : "no_leader_performance_final_with_grade",
+          hint: "Need assessType=performance, assessTerm=final, non-empty grade, assessedById !== owner",
+          finalAssessmentsCount: report.finalAssessments.length,
+          finalsGateDetail,
+          userStatus: report.userStatus,
+          appraisalStatus: report.appraisalStatus,
+        },
+      );
+    }
+  }, [
+    isLoading,
+    report,
+    isReportReady,
+    canViewIncompleteReport,
+    appraisalUserId,
+  ]);
 
   if (isLoading) {
     return (
@@ -526,25 +647,22 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
     );
   }
 
-  // Check if ALL evaluations are complete (every item must have grades)
-  const allCompetencyComplete =
-    report.competency.length > 0 &&
-    report.competency.every((c) => c.selfGrade && c.leaderGrade);
-  const allGoalsComplete =
-    report.goals.length === 0 ||
-    report.goals.every((g) => g.selfGrade && g.leaderGrade);
-  const isReportReady = allCompetencyComplete && allGoalsComplete;
+  /*
+   * 팀원 본문 공개: 리더(assessedById !== owner)의 성과(performance) 최종(final)
+   * AppraisalBy가 1건 이상이고 등급이 있으면 통과. 다른 AppraisalBy 행은 무시.
+   * 인사·관리자는 게이트 없이 항상 본문 조회 가능.
+   */
 
-  if (!isReportReady) {
+  if (!isReportReady && !canViewIncompleteReport) {
     return (
       <div className='flex flex-col items-center justify-center min-h-[60vh] text-center'>
         <ClipboardList className='w-16 h-16 text-gray-300 mb-4' />
         <h3 className='text-xl font-bold text-gray-800'>
-          아직 작성된 평가가 없습니다
+          종합 평가가 아직 완료되지 않았습니다
         </h3>
         <p className='text-gray-500 mt-2 max-w-md'>
-          리포트를 조회하려면 역량 평가, 목표 평가, 또는 종합 평가 중 하나
-          이상이 작성되어야 합니다.
+          리포트를 조회하려면 리더가 제출한 성과 평가의 최종(기말) 등급이
+          등록되어야 합니다.
         </p>
         <Button
           variant='outline'
@@ -585,11 +703,13 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
                 className={
                   report.appraisalStatus === "ongoing"
                     ? "bg-green-50 text-green-700 border-green-200"
-                    : "bg-gray-50"
+                    : String(report.appraisalStatus ?? "")
+                          .toLowerCase()
+                          .trim() === "finished"
+                      ? "bg-amber-50 text-amber-800 border-amber-200"
+                      : "bg-gray-50"
                 }>
-                {report.appraisalStatus === "ongoing"
-                  ? "진행 중"
-                  : report.appraisalStatus}
+                {formatAppraisalParticipationStatus(report.appraisalStatus)}
               </Badge>
             </div>
           </div>
@@ -602,6 +722,15 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
           인쇄
         </Button>
       </div>
+
+      {canViewIncompleteReport && !isReportReady ? (
+        <div
+          className='rounded-lg border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 print:hidden'
+          role='status'>
+          인사·관리자 권한으로 작성 미완료 평가도 조회 중입니다. 일부 등급·의견은
+          비어 있을 수 있습니다.
+        </div>
+      ) : null}
 
       {report.competency.length > 0 && (
         <CompetencySection items={report.competency} />

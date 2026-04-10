@@ -56,7 +56,7 @@ export const navigation = [
       },
       {
         id: "goals" as Page,
-        name: "목표 관리",
+        name: "성과 평가",
         icon: Target,
         path: "/goal-management",
       },
@@ -77,13 +77,13 @@ export const navigation = [
       },
       {
         id: "competency-evaluation-self" as Page,
-        name: "나의 역량 평가",
+        name: "역량 평가",
         path: "/competency-evaluation?mode=self",
         icon: UserCheck,
       },
       {
         id: "evaluation-report" as Page,
-        name: "나의 평가 리포트",
+        name: "평가 리포트",
         path: "/evaluation-report",
         icon: FileText,
       },

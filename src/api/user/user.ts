@@ -48,12 +48,16 @@ export const POST_user = async (payload: {
   email: string;
   departments: Department[];
   jobGroup?: string;
+  employeeId?: string;
+  phoneNumber?: string;
 }) => {
   const response = await http.post("/user", {
     koreanName: payload.koreanName,
     email: payload.email,
     departments: payload.departments.map((d) => d.departmentId),
     jobGroup: payload.jobGroup,
+    employeeId: payload.employeeId,
+    phoneNumber: payload.phoneNumber,
   });
   return response.data;
 };
@@ -65,6 +69,8 @@ export const PATCH_user = async (payload: {
   tobeAddedDepartments: string[];
   userStatus: "active" | "inactive";
   jobGroup?: string;
+  employeeId?: string;
+  phoneNumber?: string;
 }) => {
   console.log("@@@payload>> ", payload);
   const response = await http.patch(`/user/${payload.userId}`, {
@@ -74,6 +80,8 @@ export const PATCH_user = async (payload: {
     tobeAddedDepartments: payload.tobeAddedDepartments,
     ...(payload.userStatus && { userStatus: payload.userStatus }),
     jobGroup: payload.jobGroup,
+    employeeId: payload.employeeId,
+    phoneNumber: payload.phoneNumber,
   });
   return response.data;
 };
@@ -84,7 +92,14 @@ export const GET_leaders = async () => {
 };
 
 export const POST_bulkUsers = async (payload: {
-  users: { koreanName: string; email: string; jobGroup?: string }[];
+  users: {
+    koreanName: string;
+    email: string;
+    jobGroup?: string;
+    employeeId?: string;
+    company?: string;
+    phoneNumber?: string;
+  }[];
   departments?: Department[];
 }) => {
   const departmentIds = payload.departments?.map((d) => d.departmentId) ?? [];

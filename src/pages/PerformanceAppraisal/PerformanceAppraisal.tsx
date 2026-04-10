@@ -60,26 +60,10 @@ interface AppraisalFormData {
   description: string;
   endDate: string;
   appraisalYear: string;
-  appraisalType: string;
   appraisalTerm: string;
   minGradeRank?: number;
   maxGradeRank?: number;
 }
-
-const APPRRAISAL_TYPES = [
-  {
-    value: "demo",
-    label: "데모",
-  },
-  {
-    value: "performance",
-    label: "성과평가",
-  },
-  {
-    value: "competency",
-    label: "역량평가",
-  },
-];
 
 const APPRRAISAL_TERMS = [
   {
@@ -109,7 +93,6 @@ export default function PerformanceAppraisal() {
     description: "",
     endDate: "",
     appraisalYear: new Date().getFullYear().toString(),
-    appraisalType: APPRRAISAL_TYPES[0].value,
     appraisalTerm: APPRRAISAL_TERMS[0].value,
     minGradeRank: undefined,
     maxGradeRank: undefined,
@@ -151,7 +134,6 @@ export default function PerformanceAppraisal() {
         description: "",
         endDate: "",
         appraisalYear: new Date().getFullYear().toString(),
-        appraisalType: APPRRAISAL_TYPES[0].value,
         appraisalTerm: APPRRAISAL_TERMS[0].value,
         minGradeRank: undefined,
         maxGradeRank: undefined,
@@ -299,8 +281,16 @@ export default function PerformanceAppraisal() {
                 />
               </div>
 
+
+              {/* <div className='space-y-2'>
+                <UserMultiSelect
+                  value={formData.excludedUsers}
+                  onChange={handleExcludedUsersChange}
+                />
+              </div> */}
+
               <div className='space-y-2'>
-                <Label>평가 유형</Label>
+                <Label>평가 기간</Label>
                 <div className='flex items-center gap-2'>
                   <Input
                     type='text'
@@ -312,50 +302,21 @@ export default function PerformanceAppraisal() {
                       })
                     }
                     disabled
+                    className='w-[150px]'
                   />
-                  <Select
-                    value={formData.appraisalType}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, appraisalType: value })
-                    }>
-                    <SelectTrigger>
-                      <SelectValue placeholder='Select a type' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {APPRRAISAL_TYPES.map((type) => (
-                        <SelectItem
-                          key={type.value}
-                          value={type.value}
-                          onClick={() =>
-                            setFormData({
-                              ...formData,
-                              appraisalType: type.value,
-                            })
-                          }>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <Select
                     value={formData.appraisalTerm}
                     onValueChange={(value) =>
                       setFormData({ ...formData, appraisalTerm: value })
                     }>
-                    <SelectTrigger>
-                      <SelectValue placeholder='Select a type' />
+                    <SelectTrigger className='w-[150px]'>
+                      <SelectValue placeholder='기간 선택' />
                     </SelectTrigger>
                     <SelectContent>
                       {APPRRAISAL_TERMS.map((type) => (
                         <SelectItem
                           key={type.value}
-                          value={type.value}
-                          onClick={() =>
-                            setFormData({
-                              ...formData,
-                              appraisalTerm: type.value,
-                            })
-                          }>
+                          value={type.value}>
                           {type.label}
                         </SelectItem>
                       ))}
@@ -363,13 +324,6 @@ export default function PerformanceAppraisal() {
                   </Select>
                 </div>
               </div>
-
-              {/* <div className='space-y-2'>
-                <UserMultiSelect
-                  value={formData.excludedUsers}
-                  onChange={handleExcludedUsersChange}
-                />
-              </div> */}
 
               <div className='grid grid-cols-2 gap-4'>
                 <div className='space-y-2'>
@@ -491,10 +445,6 @@ export default function PerformanceAppraisal() {
               </CardHeader>
               <CardContent className='space-y-4'>
                 <div className='space-y-2'>
-                  <div className='flex items-center gap-2 text-sm text-gray-600'>
-                    <Code className='w-4 h-4' />
-                    <span>{appraisal.appraisalType}</span>
-                  </div>
                   <div className='flex items-center gap-2 text-sm text-gray-600'>
                     <Book className='w-4 h-4' />
                     <span>{appraisal.description}</span>

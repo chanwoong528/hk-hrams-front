@@ -21,12 +21,14 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   onClickRow: (appraisalUserId: string) => void;
+  getRowId?: (row: TData) => string;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   onClickRow,
+  getRowId,
 }: DataTableProps<TData, TValue>) {
   const memoizedData = useMemo(() => data, [data]);
   const memoizedColumns = useMemo(() => columns, [columns]);
@@ -34,6 +36,7 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data: memoizedData,
     columns: memoizedColumns,
+    ...(getRowId ? { getRowId: (originalRow: TData) => getRowId(originalRow) } : {}),
     getCoreRowModel: getCoreRowModel(),
     initialState: {
       columnVisibility: {

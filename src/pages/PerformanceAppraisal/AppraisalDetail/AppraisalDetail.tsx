@@ -1,23 +1,71 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 
 import { useDebounce } from "@uidotdev/usehooks";
 
-import { Search } from "lucide-react";
+import { Search, UserPlus } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
-// import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
 
-import { GET_appraisalDetailByAppraisalId } from "@/api/appraisal/appraisal";
+import {
+  GET_appraisalDetailByAppraisalId,
+  POST_addAppraisalUsersToOngoing,
+} from "@/api/appraisal/appraisal";
+import { GET_users } from "@/api/user/user";
+import type { HramsUserType } from "@/api/user/user";
+import { useCurrentUserStore } from "@/store/currentUserStore";
+import { isHrOrAdminUser } from "@/lib/hrAccess";
+import { toast } from "sonner";
 
 import { DataTable } from "./widget/DataTable";
 import { getColumns } from "./widget/Column";
 import { TablePagination } from "./widget/TablePagination";
 
+function getAddAppraisalUsersCounts(res: unknown): {
+  createdLen: number;
+  skipped: number;
+} {
+  if (!res || typeof res !== "object") {
+    return { createdLen: 0, skipped: 0 };
+  }
+  const envelope = res as {
+    data?: { created?: unknown[]; skippedUserIds?: string[] };
+    created?: unknown[];
+    skippedUserIds?: string[];
+  };
+  const inner = envelope.data ?? envelope;
+  return {
+    createdLen: inner.created?.length ?? 0,
+    skipped: inner.skippedUserIds?.length ?? 0,
+  };
+}
+
 export default function AppraisalDetail() {
   const { appraisalId } = useParams();
+  const queryClient = useQueryClient();
+  const { currentUser } = useCurrentUserStore();
+  const canAddParticipants = isHrOrAdminUser(
+    currentUser?.email,
+    currentUser?.departments,
+  );
+
+  const [addParticipantsOpen, setAddParticipantsOpen] = useState(false);
+  const [addParticipantsDialogKey, setAddParticipantsDialogKey] = useState(0);
+  const [usersToAdd, setUsersToAdd] = useState<HramsUserType[]>([]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 1500);
 
@@ -77,6 +125,55 @@ export default function AppraisalDetail() {
       enabled: !!appraisalId,
     });
 
+  const { data: allUsersList } = useQuery({
+    queryKey: ["users", "appraisal-add-participants"],
+    queryFn: () => GET_users(),
+    select: (data) => (data.data?.list ?? []) as HramsUserType[],
+    enabled: addParticipantsOpen && canAddParticipants,
+  });
+
+  const userMultiOptions = useMemo(
+    () =>
+      (allUsersList ?? []).map((u) => ({
+        value: u.userId,
+        label: `${u.koreanName} · ${u.email}`,
+      })),
+    [allUsersList],
+  );
+
+  const { mutate: addParticipants, isPending: isAddingParticipants } =
+    useMutation({
+      mutationFn: POST_addAppraisalUsersToOngoing,
+      onSuccess: async (res) => {
+        const { createdLen, skipped } = getAddAppraisalUsersCounts(res);
+        toast.success(
+          skipped
+            ? `신규 ${createdLen}명 반영 · 이미 포함 ${skipped}명은 건너뜀`
+            : `신규 ${createdLen}명을 평가 대상에 추가했습니다.`,
+        );
+        setAddParticipantsOpen(false);
+        setUsersToAdd([]);
+        setPageInfo((prev) => ({ ...prev, page: 1 }));
+
+        await queryClient.invalidateQueries({ queryKey: ["appraisalDetail"] });
+        if (appraisalId) {
+          await queryClient.refetchQueries({
+            queryKey: ["appraisalDetail", appraisalId],
+          });
+        }
+        await queryClient.invalidateQueries({ queryKey: ["appraisalTypes"] });
+        await queryClient.invalidateQueries({
+          queryKey: ["teamMembersAppraisals"],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["users", "appraisal-add-participants"],
+        });
+      },
+      onError: () => {
+        toast.error("대상자 추가에 실패했습니다.");
+      },
+    });
+
   if (isLoadingAppraisalDetail && !appraisalDetail)
     return <div>Loading...</div>;
 
@@ -117,7 +214,90 @@ export default function AppraisalDetail() {
 
       <Card>
         <CardHeader>
-          <CardTitle>평가 대상자 목록 ({appraisalDetail?.total}명)</CardTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle>
+              평가 대상자 목록 ({appraisalDetail?.total}명)
+            </CardTitle>
+            {canAddParticipants && appraisalId && (
+              <Dialog
+                open={addParticipantsOpen}
+                onOpenChange={(open) => {
+                  setAddParticipantsOpen(open);
+                  if (open) {
+                    setAddParticipantsDialogKey((k) => k + 1);
+                  } else {
+                    setUsersToAdd([]);
+                  }
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1.5"
+                  >
+                    <UserPlus className="h-4 w-4" aria-hidden />
+                    진행 중 대상자 추가
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>진행 중 평가에 대상 추가</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    이미 이 평가에 포함된 사람은 자동으로 건너뜁니다. 공통 목표·역량
+                    항목은 소속 부서 설정에 따라 리더/인사에서 별도 반영이 필요할 수
+                    있습니다.
+                  </p>
+                  <div className="space-y-2 py-2">
+                    <Label>추가할 직원</Label>
+                    <MultiSelect
+                      key={addParticipantsDialogKey}
+                      defaultValue={[]}
+                      modalPopover
+                      searchable
+                      options={userMultiOptions}
+                      onValueChange={(ids) => {
+                        setUsersToAdd(
+                          ids
+                            .map((id) =>
+                              allUsersList?.find((u) => u.userId === id),
+                            )
+                            .filter(Boolean) as HramsUserType[],
+                        );
+                      }}
+                      placeholder="이름으로 검색·선택"
+                    />
+                  </div>
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setAddParticipantsOpen(false)}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={
+                        usersToAdd.length === 0 || isAddingParticipants
+                      }
+                      onClick={() => {
+                        if (!appraisalId || usersToAdd.length === 0) return;
+                        addParticipants({
+                          appraisalId,
+                          userIds: usersToAdd.map((u) => u.userId),
+                        });
+                      }}
+                    >
+                      {isAddingParticipants ? "추가 중…" : "추가"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className='overflow-x-auto'>
@@ -127,6 +307,7 @@ export default function AppraisalDetail() {
               key={`${pageInfo.page}-${pageInfo.limit}-${debouncedSearchQuery}-${sortInfo.sortBy}-${sortInfo.sortOrder}`}
               columns={columns}
               data={appraisalDetail?.list ?? []}
+              getRowId={(row) => row.appraisalUserId}
               onClickRow={handleRowClick}
             />
 
