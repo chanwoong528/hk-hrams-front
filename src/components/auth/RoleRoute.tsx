@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useCurrentUserStore } from "@/store/currentUserStore";
+import { isHrOrAdminUser } from "@/lib/hrAccess";
 
 interface RoleRouteProps {
   children: React.ReactNode;
@@ -21,13 +22,7 @@ export default function RoleRoute({
     return <Navigate to='/login' replace />;
   }
 
-  const isAdmin =
-    currentUser.email === "mooncw@hankookilbo.com" ||
-    !!currentUser.departments?.some(
-      (d) =>
-        d.departmentName.toLowerCase() === "hr" ||
-        d.departmentName === "인사팀",
-    );
+  const isAdmin = isHrOrAdminUser(currentUser.email, currentUser.departments);
 
   const isLeader = !!currentUser.departments?.some((d) => d.isLeader);
 

@@ -12,6 +12,15 @@ export const POST_startAppraisal = async (payload: {
   return response.data;
 };
 
+/** 진행 중인 평가에 피평가자만 추가 (이미 있으면 API에서 건너뜀). HR/관리자 전용. */
+export const POST_addAppraisalUsersToOngoing = async (payload: {
+  appraisalId: string;
+  userIds: string[];
+}) => {
+  const response = await http.post(`/appraisal-user/add-users`, payload);
+  return response.data;
+};
+
 export const POST_appraisal = async (payload: {
   title: string;
   appraisalYear: string;

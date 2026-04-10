@@ -18,7 +18,7 @@ export function DashboardStats({ appraisals }: DashboardStatsProps) {
 
   return (
     <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-      <Card>
+      {/* <Card>
         <CardContent className='p-6'>
           <div className='flex items-center justify-between'>
             <div>
@@ -63,7 +63,7 @@ export function DashboardStats({ appraisals }: DashboardStatsProps) {
             <MessageSquare className='w-8 h-8 text-orange-600' />
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 }
