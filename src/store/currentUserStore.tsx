@@ -5,6 +5,7 @@ interface currentUserPayload {
   email: string;
   userId: string;
   koreanName?: string;
+  jobGroup?: string;
   departments: {
     departmentId: string;
     departmentName: string;

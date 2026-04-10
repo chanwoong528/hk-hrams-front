@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Label } from "@/components/ui/label";
 
 import { MultiSelect } from "@/components/ui/multi-select";
-import { GET_users } from "@/api/user/user";
+import { GET_usersByPagination } from "@/api/user/user";
 import type { HramsUserType } from "@/api/user/user";
 // import { useState } from "react";
 // import { useDebounce } from "@uidotdev/usehooks";
@@ -21,8 +21,10 @@ export default memo(
     users?: HramsUserType[];
   }) {
     const { data: fetchedUsers, isLoading: isLoadingUsers } = useQuery({
-      queryKey: ["users"],
-      queryFn: () => GET_users(),
+      queryKey: ["users", "all-for-multiselect"],
+      // 제외 대상자 선택은 페이지네이션이 아닌 "전체 목록"이 필요함.
+      // 현재 /user 기본 limit=10 이라서 넉넉히 큰 limit으로 1페이지에 가져온다.
+      queryFn: () => GET_usersByPagination(1, 1000),
       select: (data) => data.data.list,
       enabled: !propsUsers, // Only fetch if no users provided
     });
@@ -57,12 +59,11 @@ export default memo(
               searchable={true}
               modalPopover={true}
               onValueChange={(values) => {
-                onChange(
-                  values.map(
-                    (v) =>
-                      users?.find((u: HramsUserType) => u.userId === v) ?? null,
-                  ),
-                );
+                const nextUsers =
+                  values
+                    .map((v) => users?.find((u: HramsUserType) => u.userId === v))
+                    .filter(Boolean) as HramsUserType[];
+                onChange(nextUsers);
               }}
 
               // searchDisplay={

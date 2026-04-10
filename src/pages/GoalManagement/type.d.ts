@@ -44,6 +44,7 @@ export interface User {
   }[];
   koreanName: string;
   email?: string;
+  jobGroup?: string;
   /** 팀원 목록 API: 해당 부서 기준 리더(팀장) 여부 */
   isDepartmentLeader?: boolean;
   goals: Goal[];

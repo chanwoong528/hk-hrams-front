@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import BulkUserAddDialog from "./BulkUserAddDialog";
 import * as xlsx from "xlsx";
 import {
@@ -54,6 +54,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import DepartmentSelect from "./DepartmentSelect";
 import { symmetricDiffBy } from "@/utils";
 import { useDebounce } from "@uidotdev/usehooks";
+import { useSearchParams } from "react-router-dom";
 
 import { TablePagination } from "../../PerformanceAppraisal/AppraisalDetail/widget/TablePagination";
 import { useDrag } from "react-dnd";
@@ -63,6 +64,33 @@ type SortKey = "koreanName" | "employeeId" | "jobGroup" | "department";
 type SortState = { key: SortKey; direction: SortDirection } | null;
 
 // 정렬은 서버에서 처리. (페이지네이션/검색과 일관성 유지)
+
+const QS_PAGE = "page";
+const QS_LIMIT = "limit";
+const QS_KEYWORD = "keyword";
+const QS_SORT_KEY = "sortKey";
+const QS_SORT_DIR = "sortDir";
+
+function parsePositiveInt(value: string | null, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  if (!Number.isInteger(n)) return fallback;
+  if (n <= 0) return fallback;
+  return n;
+}
+
+function isSortKey(v: string | null): v is SortKey {
+  return (
+    v === "koreanName" ||
+    v === "employeeId" ||
+    v === "jobGroup" ||
+    v === "department"
+  );
+}
+
+function isSortDir(v: string | null): v is SortDirection {
+  return v === "asc" || v === "desc";
+}
 
 function SortableHead({
   label,
@@ -206,22 +234,43 @@ export default function UserListWidget({
   onClearFilter: () => void;
 }) {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const urlPage = parsePositiveInt(searchParams.get(QS_PAGE), 1);
+  const urlLimit = parsePositiveInt(searchParams.get(QS_LIMIT), 10);
+  const urlKeyword = (searchParams.get(QS_KEYWORD) ?? "").trim();
+  const urlSortKey = searchParams.get(QS_SORT_KEY);
+  const urlSortDir = searchParams.get(QS_SORT_DIR);
+
+  const sortState: SortState =
+    isSortKey(urlSortKey) && isSortDir(urlSortDir)
+      ? { key: urlSortKey, direction: urlSortDir }
+      : null;
+
   const [modalType, setModalType] = useState<"add" | "edit" | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(urlKeyword);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [sortState, setSortState] = useState<SortState>(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 1000);
 
-  const [pageInfo, setPageInfo] = useState<{
-    page: number;
-    limit: number;
-  }>({
-    page: 1,
-    limit: 10,
-  });
+  // URL이 바뀌면 검색어 입력도 동기화(뒤로/앞으로 포함)
+  useEffect(() => {
+    if (urlKeyword === searchQuery) return;
+    setSearchQuery(urlKeyword);
+  }, [searchQuery, urlKeyword]);
+
+  // debouncedSearchQuery를 URL에 기록 (페이지는 유지)
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const keyword = debouncedSearchQuery.trim();
+      if (keyword) next.set(QS_KEYWORD, keyword);
+      else next.delete(QS_KEYWORD);
+      return next;
+    }, { replace: true });
+  }, [debouncedSearchQuery, setSearchParams]);
 
   const [formData, setFormData] = useState<{
     koreanName: string;
@@ -245,16 +294,16 @@ export default function UserListWidget({
     queryKey: [
       "users",
       debouncedSearchQuery,
-      pageInfo.page,
-      pageInfo.limit,
+      urlPage,
+      urlLimit,
       filterDepartmentId,
       sortState?.key,
       sortState?.direction,
     ],
     queryFn: () =>
       GET_usersByPagination(
-        pageInfo.page,
-        pageInfo.limit,
+        urlPage,
+        urlLimit,
         debouncedSearchQuery,
         filterDepartmentId || undefined,
         sortState
@@ -269,13 +318,37 @@ export default function UserListWidget({
     },
   });
 
+  // 필터/검색/정렬로 total page 수가 줄어들어도,
+  // 가능한 한 "현재 페이지"를 유지하되 범위를 벗어나면 마지막 페이지로 보정한다.
+  useEffect(() => {
+    if (isLoadingUsers) return;
+    if (usersData?.total == null) return;
+    const total = usersData.total;
+    const totalPages = Math.max(1, Math.ceil(total / urlLimit));
+    if (urlPage <= totalPages) return;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set(QS_PAGE, String(totalPages));
+      return next;
+    }, { replace: true });
+  }, [isLoadingUsers, setSearchParams, urlLimit, urlPage, usersData?.total]);
+
   const onToggleSort = useCallback((key: SortKey) => {
-    setSortState((prev) => {
-      if (!prev || prev.key !== key) return { key, direction: "asc" };
-      return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
-    });
-    setPageInfo((prev) => ({ ...prev, page: 1 }));
-  }, []);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const prevKey = next.get(QS_SORT_KEY);
+      const prevDir = next.get(QS_SORT_DIR);
+      const isSameKey = prevKey === key;
+      const nextDir: SortDirection = !isSameKey
+        ? "asc"
+        : prevDir === "asc"
+          ? "desc"
+          : "asc";
+      next.set(QS_SORT_KEY, key);
+      next.set(QS_SORT_DIR, nextDir);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   // 정렬은 서버에서 처리. (페이지네이션/검색과 일관성 유지)
   const sortedUsers = useMemo(() => usersData?.users ?? [], [usersData?.users]);
@@ -432,7 +505,11 @@ export default function UserListWidget({
   };
 
   const handlePageChange = (page: number) => {
-    setPageInfo({ ...pageInfo, page });
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set(QS_PAGE, String(page));
+      return next;
+    }, { replace: true });
   };
 
   const handleEditUser = (user: User) => {
@@ -692,8 +769,8 @@ export default function UserListWidget({
         <div className='border-t p-3 flex-shrink-0 bg-white'>
           <TablePagination
             total={usersData?.total ?? 0}
-            page={pageInfo.page}
-            limit={pageInfo.limit}
+            page={urlPage}
+            limit={urlLimit}
             onPageChange={handlePageChange}
           />
         </div>

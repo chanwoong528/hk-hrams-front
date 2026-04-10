@@ -24,7 +24,7 @@ import {
   GET_appraisalDetailByAppraisalId,
   POST_addAppraisalUsersToOngoing,
 } from "@/api/appraisal/appraisal";
-import { GET_users } from "@/api/user/user";
+import { GET_usersByPagination } from "@/api/user/user";
 import type { HramsUserType } from "@/api/user/user";
 import { useCurrentUserStore } from "@/store/currentUserStore";
 import { isHrOrAdminUser } from "@/lib/hrAccess";
@@ -127,18 +127,30 @@ export default function AppraisalDetail() {
 
   const { data: allUsersList } = useQuery({
     queryKey: ["users", "appraisal-add-participants"],
-    queryFn: () => GET_users(),
+    // 대상 추가 드롭다운은 전체 사용자 목록이 필요함 (기본 /user limit=10 회피)
+    queryFn: () => GET_usersByPagination(1, 1000),
     select: (data) => (data.data?.list ?? []) as HramsUserType[],
     enabled: addParticipantsOpen && canAddParticipants,
   });
 
+  const existingParticipantUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    (appraisalDetail?.list ?? []).forEach((row: any) => {
+      const id = row?.owner?.userId;
+      if (typeof id === "string" && id) ids.add(id);
+    });
+    return ids;
+  }, [appraisalDetail?.list]);
+
   const userMultiOptions = useMemo(
     () =>
-      (allUsersList ?? []).map((u) => ({
-        value: u.userId,
-        label: `${u.koreanName} · ${u.email}`,
-      })),
-    [allUsersList],
+      (allUsersList ?? [])
+        .filter((u) => !existingParticipantUserIds.has(u.userId))
+        .map((u) => ({
+          value: u.userId,
+          label: `${u.koreanName} · ${u.email}`,
+        })),
+    [allUsersList, existingParticipantUserIds],
   );
 
   const { mutate: addParticipants, isPending: isAddingParticipants } =
