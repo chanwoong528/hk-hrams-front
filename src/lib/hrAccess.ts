@@ -35,9 +35,7 @@ export function departmentLooksLikeHr(departmentName: string | undefined): boole
   const trimmed = departmentName.trim();
   const lower = trimmed.toLowerCase();
   if (lower === "hr") return true;
-  if (trimmed === "인사팀") return true;
-  if (trimmed.includes("인사")) return true;
-  if (lower.includes("human resource")) return true;
+  
   return false;
 }
 

@@ -189,8 +189,7 @@ export default function SidebarContent({
     currentUser?.email === "mooncw@hankookilbo.com" ||
     !!currentUser?.departments?.some(
       (d) =>
-        d.departmentName.toLowerCase() === "hr" ||
-        d.departmentName === "인사팀",
+        d.departmentName.trim().toLowerCase() === "hr",
     );
 
   const isLeader =

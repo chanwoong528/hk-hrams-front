@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useMemo, useState, useRef, useCallback } from "react";
 import BulkUserAddDialog from "./BulkUserAddDialog";
 import * as xlsx from "xlsx";
 import {
@@ -11,6 +11,8 @@ import {
   GripVertical,
   Users,
   FileUp,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +57,54 @@ import { useDebounce } from "@uidotdev/usehooks";
 
 import { TablePagination } from "../../PerformanceAppraisal/AppraisalDetail/widget/TablePagination";
 import { useDrag } from "react-dnd";
+
+type SortDirection = "asc" | "desc";
+type SortKey = "koreanName" | "employeeId" | "jobGroup" | "department";
+type SortState = { key: SortKey; direction: SortDirection } | null;
+
+// 정렬은 서버에서 처리. (페이지네이션/검색과 일관성 유지)
+
+function SortableHead({
+  label,
+  sortKey,
+  sortState,
+  onToggle,
+  className,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sortState: SortState;
+  onToggle: (key: SortKey) => void;
+  className?: string;
+}) {
+  const isActive = sortState?.key === sortKey;
+  const direction = isActive ? sortState?.direction : null;
+  const ariaSort = (() => {
+    if (!isActive) return "none" as const;
+    return direction === "asc" ? ("ascending" as const) : ("descending" as const);
+  })();
+
+  const Icon = !isActive ? null : direction === "asc" ? ArrowUp : ArrowDown;
+
+  return (
+    <TableHead className={className} aria-sort={ariaSort}>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 font-medium text-left hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-sm"
+        onClick={() => onToggle(sortKey)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
+          onToggle(sortKey);
+        }}
+        aria-label={`${label} 정렬 ${!isActive ? "설정" : direction === "asc" ? "내림차순으로 변경" : "오름차순으로 변경"}`}
+      >
+        <span>{label}</span>
+        {Icon ? <Icon className="w-3.5 h-3.5 text-gray-500" aria-hidden /> : null}
+      </button>
+    </TableHead>
+  );
+}
 
 function DraggableUserRow({
   user,
@@ -161,6 +211,7 @@ export default function UserListWidget({
   const [searchQuery, setSearchQuery] = useState("");
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sortState, setSortState] = useState<SortState>(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 1000);
 
@@ -197,6 +248,8 @@ export default function UserListWidget({
       pageInfo.page,
       pageInfo.limit,
       filterDepartmentId,
+      sortState?.key,
+      sortState?.direction,
     ],
     queryFn: () =>
       GET_usersByPagination(
@@ -204,6 +257,9 @@ export default function UserListWidget({
         pageInfo.limit,
         debouncedSearchQuery,
         filterDepartmentId || undefined,
+        sortState
+          ? { sortKey: sortState.key, sortDir: sortState.direction }
+          : null,
       ),
     select: (data) => {
       return {
@@ -212,6 +268,17 @@ export default function UserListWidget({
       };
     },
   });
+
+  const onToggleSort = useCallback((key: SortKey) => {
+    setSortState((prev) => {
+      if (!prev || prev.key !== key) return { key, direction: "asc" };
+      return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+    });
+    setPageInfo((prev) => ({ ...prev, page: 1 }));
+  }, []);
+
+  // 정렬은 서버에서 처리. (페이지네이션/검색과 일관성 유지)
+  const sortedUsers = useMemo(() => usersData?.users ?? [], [usersData?.users]);
 
   const { mutate: postUser } = useMutation({
     mutationFn: (payload: {
@@ -322,6 +389,8 @@ export default function UserListWidget({
             jobGroup: (row[3] ? String(row[3]) : "")?.trim(),
             email: (row[4] ? String(row[4]) : "")?.trim(),
             phoneNumber: (row[5] ? String(row[5]) : "")?.trim(),
+            // optional column (엑셀): 부서이름
+            departmentName: (row[6] ? String(row[6]) : "")?.trim(),
           };
           
           if (Object.values(u).some(val => val !== "")) {
@@ -566,19 +635,39 @@ export default function UserListWidget({
               <TableHeader className='sticky top-0 bg-white z-10 shadow-sm'>
                 <TableRow>
                   <TableHead className='w-12'></TableHead>
-                  <TableHead>이름</TableHead>
-                  <TableHead>사번</TableHead>
+                  <SortableHead
+                    label="이름"
+                    sortKey="koreanName"
+                    sortState={sortState}
+                    onToggle={onToggleSort}
+                  />
+                  <SortableHead
+                    label="사번"
+                    sortKey="employeeId"
+                    sortState={sortState}
+                    onToggle={onToggleSort}
+                  />
                   <TableHead className='hidden sm:table-cell'>이메일</TableHead>
                   <TableHead className='hidden xl:table-cell'>전화번호</TableHead>
-                  <TableHead>직군</TableHead>
-                  <TableHead>부서</TableHead>
+                  <SortableHead
+                    label="직군"
+                    sortKey="jobGroup"
+                    sortState={sortState}
+                    onToggle={onToggleSort}
+                  />
+                  <SortableHead
+                    label="부서"
+                    sortKey="department"
+                    sortState={sortState}
+                    onToggle={onToggleSort}
+                  />
                   <TableHead className='hidden md:table-cell'>상태</TableHead>
                   <TableHead className='text-right'>작업</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {usersData?.users?.length ? (
-                  usersData.users.map((user: User) => (
+                {sortedUsers.length ? (
+                  sortedUsers.map((user: User) => (
                     <DraggableUserRow
                       key={user.userId}
                       user={user}
