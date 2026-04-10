@@ -26,6 +26,7 @@ interface GoalAssessmentItemProps {
   ) => void;
   disabled?: boolean;
   targetUserId?: string;
+  targetUserJobGroup?: string;
   currentUserId?: string;
   isSpectator?: boolean;
   /** HR/관리자: 다른 평가자가 남긴 목표 등급 수정 */
@@ -40,6 +41,7 @@ const GoalAssessmentItem = ({
   onSave,
   disabled = false,
   targetUserId,
+  targetUserJobGroup,
   isSpectator = false,
   hrCanEditOthersGrades = false,
   hrCannotSubmitOwnGoalGrade = false,
@@ -128,38 +130,66 @@ const GoalAssessmentItem = ({
     setExpandedAssessments(newSet);
   };
 
-  const grades = [
-    {
-      value: "S",
-      label: "S등급",
-      desc: "탁월",
-      color: "text-purple-700 bg-purple-50 border-purple-200",
-    },
-    {
-      value: "A",
-      label: "A등급",
-      desc: "우수",
-      color: "text-blue-700 bg-blue-50 border-blue-200",
-    },
-    {
-      value: "B",
-      label: "B등급",
-      desc: "보통",
-      color: "text-green-700 bg-green-50 border-green-200",
-    },
-    {
-      value: "C",
-      label: "C등급",
-      desc: "미흡",
-      color: "text-orange-700 bg-orange-50 border-orange-200",
-    },
-    {
-      value: "D",
-      label: "D등급",
-      desc: "부족",
-      color: "text-red-700 bg-red-50 border-red-200",
-    },
-  ];
+  const OFFICE_ADMIN_JOB_GROUP = "사무관리직";
+
+  const grades = (() => {
+    const isOfficeAdmin =
+      (targetUserJobGroup ?? "").trim() === OFFICE_ADMIN_JOB_GROUP;
+    if (isOfficeAdmin) {
+      return [
+        {
+          value: "O",
+          label: "O등급",
+          desc: "",
+          color: "text-purple-700 bg-purple-50 border-purple-200",
+        },
+        {
+          value: "E",
+          label: "E등급",
+          desc: "",
+          color: "text-blue-700 bg-blue-50 border-blue-200",
+        },
+        {
+          value: "M",
+          label: "M등급",
+          desc: "",
+          color: "text-green-700 bg-green-50 border-green-200",
+        },
+        {
+          value: "P",
+          label: "P등급",
+          desc: "",
+          color: "text-orange-700 bg-orange-50 border-orange-200",
+        },
+        {
+          value: "N",
+          label: "N등급",
+          desc: "",
+          color: "text-red-700 bg-red-50 border-red-200",
+        },
+      ];
+    }
+    return [
+      {
+        value: "A",
+        label: "A등급",
+        desc: "우수",
+        color: "text-blue-700 bg-blue-50 border-blue-200",
+      },
+      {
+        value: "B",
+        label: "B등급",
+        desc: "보통",
+        color: "text-green-700 bg-green-50 border-green-200",
+      },
+      {
+        value: "C",
+        label: "C등급",
+        desc: "미흡",
+        color: "text-orange-700 bg-orange-50 border-orange-200",
+      },
+    ];
+  })();
 
   const renderEditRow = (key?: string) => (
     <TableRow

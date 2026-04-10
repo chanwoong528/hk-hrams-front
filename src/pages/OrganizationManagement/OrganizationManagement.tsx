@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MultiBackend, getBackendOptions } from "@minoru/react-dnd-treeview";
 import { DndProvider } from "react-dnd";
 import DepartmentTreeWidget from "./widget/DepartmentTreeWidget";
 import UserListWidget from "./widget/UserListWidget";
+import { useSearchParams } from "react-router-dom";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -10,9 +11,8 @@ import {
 } from "@/components/ui/resizable";
 
 export default function OrganizationManagement() {
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<
-    string | null
-  >(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedDepartmentId = searchParams.get("departmentId");
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -35,7 +35,16 @@ export default function OrganizationManagement() {
             className={`flex flex-col h-full overflow-hidden ${isMobile ? "pb-3" : "pr-3"}`}>
             <DepartmentTreeWidget
               selectedDepartmentId={selectedDepartmentId}
-              onSelectDepartment={setSelectedDepartmentId}
+              onSelectDepartment={(id) => {
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  if (id) next.set("departmentId", id);
+                  else next.delete("departmentId");
+                  // 조직도 클릭으로 필터링할 때는 항상 1페이지부터
+                  next.set("page", "1");
+                  return next;
+                }, { replace: true });
+              }}
             />
           </ResizablePanel>
 
@@ -48,7 +57,15 @@ export default function OrganizationManagement() {
             className={`flex flex-col h-full overflow-hidden ${isMobile ? "pt-3" : "pl-3"}`}>
             <UserListWidget
               filterDepartmentId={selectedDepartmentId}
-              onClearFilter={() => setSelectedDepartmentId(null)}
+              onClearFilter={() => {
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.delete("departmentId");
+                  // 필터 해제도 1페이지부터
+                  next.set("page", "1");
+                  return next;
+                }, { replace: true });
+              }}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

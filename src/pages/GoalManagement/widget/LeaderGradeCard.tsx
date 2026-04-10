@@ -146,14 +146,26 @@ function collectGraderGradeLinesForMember(user: User): GraderGradeLine[] {
   return lines;
 }
 
-const PERFORMANCE_GRADE_LETTERS = ["S", "A", "B", "C", "D"] as const;
+const PERFORMANCE_GRADE_LETTERS = [
+  "O",
+  "E",
+  "M",
+  "P",
+  "N",
+  "A",
+  "B",
+  "C",
+] as const;
 
 const GRADE_STACK_COLORS: Record<string, string> = {
-  S: "bg-purple-500",
-  A: "bg-blue-500",
-  B: "bg-emerald-500",
-  C: "bg-amber-500",
-  D: "bg-red-500",
+  O: "bg-purple-500",
+  E: "bg-blue-500",
+  M: "bg-emerald-500",
+  P: "bg-amber-500",
+  N: "bg-red-500",
+  A: "bg-indigo-500",
+  B: "bg-sky-500",
+  C: "bg-teal-500",
   기타: "bg-slate-400",
   미정: "bg-gray-200",
 };
@@ -890,6 +902,7 @@ const AppraisalSection = ({
                                     goal={goal}
                                     currentUserId={currentUserId}
                                     targetUserId={user.userId}
+                                    targetUserJobGroup={user.jobGroup}
                                     onSave={handleSaveAssessment}
                                     isSpectator={isSpectator}
                                     hrCanEditOthersGrades={isAdmin}
@@ -1137,11 +1150,22 @@ const AppraisalSection = ({
                   <SelectValue placeholder="등급 선택" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="S">S등급 (탁월)</SelectItem>
-                  <SelectItem value="A">A등급 (우수)</SelectItem>
-                  <SelectItem value="B">B등급 (보통)</SelectItem>
-                  <SelectItem value="C">C등급 (미흡)</SelectItem>
-                  <SelectItem value="D">D등급 (부족)</SelectItem>
+                  {(selectedUserForFinal?.jobGroup ?? "").trim() ===
+                  "사무관리직" ? (
+                    <>
+                      <SelectItem value="O">O등급</SelectItem>
+                      <SelectItem value="E">E등급</SelectItem>
+                      <SelectItem value="M">M등급</SelectItem>
+                      <SelectItem value="P">P등급</SelectItem>
+                      <SelectItem value="N">N등급</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="A">A등급</SelectItem>
+                      <SelectItem value="B">B등급</SelectItem>
+                      <SelectItem value="C">C등급</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>

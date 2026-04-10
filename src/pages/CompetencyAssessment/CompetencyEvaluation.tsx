@@ -41,7 +41,7 @@ import {
 import { GET_departments } from "@/api/department/department";
 import { isHrOrAdminUser } from "@/lib/hrAccess";
 
-const GRADES = ["S", "A", "B", "C", "D"];
+const GRADES = ["O", "E", "M", "P", "N"];
 
 interface LocalEdit {
   grade?: string;
@@ -749,8 +749,7 @@ export default function CompetencyEvaluation() {
                                           ))}
                                         </div>
                                         <p className="text-[10px] text-gray-400 text-center">
-                                          S: 탁월함 | A: 우수함 | B: 보통 | C:
-                                          지원 필요 | D: 개선 필요
+                                          O / E / M / P / N
                                         </p>
                                       </div>
                                       <div className="lg:col-span-7 space-y-4">

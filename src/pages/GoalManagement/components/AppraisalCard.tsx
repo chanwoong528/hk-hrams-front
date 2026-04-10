@@ -7,6 +7,7 @@ import type { MyAppraisal } from "../type";
 import { getStatusColor, getStatusText, sortGoalsByProgress } from "../utils";
 import { APPRAISAL_STATUS } from "../constants";
 import GoalAssessmentItem from "../widget/GoalAssessmentItem";
+import { useCurrentUserStore } from "@/store/currentUserStore";
 
 interface AppraisalCardProps {
   appraisal: MyAppraisal;
@@ -30,6 +31,7 @@ export function AppraisalCard({
   onSaveGoalAssessment,
 }: AppraisalCardProps) {
   const navigate = useNavigate();
+  const { currentUser } = useCurrentUserStore();
 
   // Helper to check if a goal is assessed by current user
   const isGoalAssessedByMe = (goal: MyAppraisal["goals"][0]) =>
@@ -128,6 +130,7 @@ export function AppraisalCard({
                 currentUserId={currentUserId || ""}
                 onSave={onSaveGoalAssessment}
                 disabled={isSubmitted || isFinished}
+                targetUserJobGroup={currentUser?.jobGroup}
               />
             ))}
           </div>
