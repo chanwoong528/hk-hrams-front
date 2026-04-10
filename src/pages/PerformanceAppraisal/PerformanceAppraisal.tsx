@@ -7,7 +7,6 @@ import {
   Calendar,
   User as UserIcon,
   // Target,
-  Code,
   Book,
   Rocket,
   Check,
