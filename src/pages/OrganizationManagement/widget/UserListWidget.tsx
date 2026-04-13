@@ -283,11 +283,11 @@ export default function UserListWidget({
 
   const debouncedSearchQuery = useDebounce(searchQuery, 1000);
 
-  // URL이 바뀌면 검색어 입력도 동기화(뒤로/앞으로 포함)
+  // URL의 keyword만 반영(뒤로가기 등). searchQuery를 deps에 넣으면
+  // 디바운스 전에 url이 빈 값일 때 매 입력마다 입력창이 초기화된다.
   useEffect(() => {
-    if (urlKeyword === searchQuery) return;
     setSearchQuery(urlKeyword);
-  }, [searchQuery, urlKeyword]);
+  }, [urlKeyword]);
 
   // debouncedSearchQuery를 URL에 기록 (페이지는 유지)
   useEffect(() => {
