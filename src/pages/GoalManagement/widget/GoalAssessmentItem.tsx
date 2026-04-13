@@ -382,10 +382,11 @@ const GoalAssessmentItem = ({
             const name =
               assessment.gradedByUser?.koreanName ||
               (isTargetUser ? "본인" : "평가자");
-            const kpiRateDisplay =
-              isTargetUser || (!targetUserId && isMe)
-                ? assessment.kpiAchievementRate?.trim() || "—"
-                : "—";
+            const shouldShowKpiRate =
+              isTargetUser || (!targetUserId && isMe);
+            const kpiRateDisplay = shouldShowKpiRate
+              ? assessment.kpiAchievementRate?.trim() || "—"
+              : "—";
 
             return (
               <Fragment key={assessment.goalAssessId}>
@@ -415,7 +416,7 @@ const GoalAssessmentItem = ({
                             <Badge
                               variant="outline"
                               className="shrink-0 rounded-md border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
-                              나(본인)
+                              피평가자
                             </Badge>
                           ) : isMe ? (
                             <Badge
@@ -466,7 +467,11 @@ const GoalAssessmentItem = ({
                     </div>
 
                     {isOfficeAdmin ? (
-                      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <dl
+                        className={cn(
+                          "grid grid-cols-1 gap-4",
+                          shouldShowKpiRate ? "sm:grid-cols-2" : "sm:grid-cols-1",
+                        )}>
                         <div className="min-w-0">
                           <dt className="text-xs font-semibold text-slate-500">
                             등급
@@ -475,14 +480,16 @@ const GoalAssessmentItem = ({
                             {renderGradeReadChip(assessment.grade)}
                           </dd>
                         </div>
-                        <div className="min-w-0">
-                          <dt className="text-xs font-semibold text-slate-500">
-                            KPI 달성률
-                          </dt>
-                          <dd className="mt-2 break-words text-base font-semibold tabular-nums text-slate-900 [overflow-wrap:anywhere]">
-                            {kpiRateDisplay}
-                          </dd>
-                        </div>
+                        {shouldShowKpiRate ? (
+                          <div className="min-w-0">
+                            <dt className="text-xs font-semibold text-slate-500">
+                              KPI 달성률
+                            </dt>
+                            <dd className="mt-2 break-words text-base font-semibold tabular-nums text-slate-900 [overflow-wrap:anywhere]">
+                              {kpiRateDisplay}
+                            </dd>
+                          </div>
+                        ) : null}
                       </dl>
                     ) : (
                       <div className="flex flex-wrap items-center gap-2">
@@ -526,18 +533,12 @@ const GoalAssessmentItem = ({
                   <p className="break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
                     {!hasUserAssessed
                       ? "팀원 평가 대기 중 — 팀원이 먼저 평가하면 본인 평가를 작성할 수 있습니다."
-                      : "아직 본인 평가를 작성하지 않았습니다."}
+                      : targetUserId
+                        ? "팀원 평가가 작성되지 않았습니다."
+                        : "아직 본인 평가를 작성하지 않았습니다."}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-                  {isOfficeAdmin ? (
-                    <div className="text-sm text-slate-400 sm:text-right">
-                      <span className="font-semibold text-slate-500">
-                        KPI 달성률
-                      </span>
-                      <span className="mt-0.5 block tabular-nums">—</span>
-                    </div>
-                  ) : null}
                   <Button
                     size="sm"
                     disabled={!hasUserAssessed}

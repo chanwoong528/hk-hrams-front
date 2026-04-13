@@ -39,6 +39,9 @@ import {
 } from "@/components/ui/select";
 import { GET_departments } from "@/api/department/department";
 import { isHrOrAdminUser } from "@/lib/hrAccess";
+import { CompetencyFinalAssessmentDialog } from "./components/CompetencyFinalAssessmentDialog";
+import { useCompetencyFinalAssessment } from "./hooks/useCompetencyFinalAssessment";
+import { isAppraisalEditableByEndDate } from "../GoalManagement/utils";
 
 const GRADES = ["O", "E", "M", "P", "N"];
 
@@ -67,6 +70,9 @@ export default function CompetencyEvaluation() {
 
   const [selectedAppraisalUserId, setSelectedAppraisalUserId] =
     useState<string>(searchParams.get("appraisalUserId") || "");
+
+  const [isFinalDialogOpen, setIsFinalDialogOpen] = useState(false);
+  const [finalGrade, setFinalGrade] = useState("");
 
   // Local state for pending edits: Record<assessmentId, LocalEdit>
   const [localEdits, setLocalEdits] = useState<Record<string, LocalEdit>>({});
@@ -123,6 +129,7 @@ export default function CompetencyEvaluation() {
             ...user,
             appraisalTitle: appr.title,
             appraisalId: appr.appraisalId,
+            endDate: appr.endDate,
             deptName: dept.departmentName,
           });
         });
@@ -130,6 +137,23 @@ export default function CompetencyEvaluation() {
     });
     return list;
   }, [teamData, hrTeamData, isHR]);
+
+  const selectedAppraisalMeta = useMemo(() => {
+    const self = myAppraisals?.find(
+      (a: any) => a.appraisalUserId === selectedAppraisalUserId,
+    );
+    if (self) return { endDate: self.endDate as string | undefined };
+    const team = teamParticipations.find(
+      (tp: any) => tp.appraisalUserId === selectedAppraisalUserId,
+    );
+    if (team) return { endDate: team.endDate as string | undefined };
+    return { endDate: undefined as string | undefined };
+  }, [myAppraisals, teamParticipations, selectedAppraisalUserId]);
+
+  const editableByDeadline = useMemo(
+    () => isAppraisalEditableByEndDate(selectedAppraisalMeta.endDate),
+    [selectedAppraisalMeta.endDate],
+  );
 
   // Sync state with URL
   useEffect(() => {
@@ -249,6 +273,82 @@ export default function CompetencyEvaluation() {
       return { name: team.koreanName, isSelf: false, userId: team.userId };
     return null;
   }, [myAppraisals, teamParticipations, selectedAppraisalUserId, currentUser]);
+
+  const competencyFinal = useCompetencyFinalAssessment({
+    appraisalUserId: selectedAppraisalUserId,
+  });
+
+  const ownerUserId = useMemo(() => {
+    const id = assessments?.[0]?.appraisalUser?.owner?.userId as
+      | string
+      | undefined;
+    return id;
+  }, [assessments]);
+
+  const myFinalRecord = useMemo(() => {
+    const list = competencyFinal.finalQuery.data?.data ?? [];
+    const me = currentUser?.userId;
+    if (!me) return undefined;
+    return list.find((r: any) => r.assessedById === me);
+  }, [competencyFinal.finalQuery.data?.data, currentUser?.userId]);
+
+  const selfFinalRecord = useMemo(() => {
+    const list = competencyFinal.finalQuery.data?.data ?? [];
+    if (!ownerUserId) return undefined;
+    return list.find((r: any) => r.assessedById === ownerUserId);
+  }, [competencyFinal.finalQuery.data?.data, ownerUserId]);
+
+  const finalButton = useMemo(() => {
+    const me = currentUser?.userId;
+    if (!selectedAppraisalUserId || !me) return { canOpen: false, title: "" };
+    if (!assessments || assessments.length === 0)
+      return { canOpen: false, title: "" };
+
+    const isSelf = Boolean(currentTargetUser?.isSelf);
+
+    const ownerId = assessments[0]?.appraisalUser?.owner?.userId as
+      | string
+      | undefined;
+    if (!ownerId) return { canOpen: false, title: "" };
+
+    const selfRecords = assessments.filter(
+      (a: any) => a.evaluator?.userId === ownerId,
+    );
+    const myRecords = assessments.filter((a: any) => a.evaluator?.userId === me);
+
+    const isSelfComplete =
+      selfRecords.length > 0 &&
+      selfRecords.every((r: any) => Boolean((r.grade ?? "").trim()));
+    const isMyComplete =
+      myRecords.length > 0 &&
+      myRecords.every((r: any) => Boolean((r.grade ?? "").trim()));
+
+    if (isSelf) {
+      return {
+        canOpen: isSelfComplete && editableByDeadline,
+        title: "역량 최종 자가 평가",
+        requiredDone: isSelfComplete,
+      };
+    }
+
+    // leader evaluating a team member
+    return {
+      canOpen: isSelfComplete && isMyComplete && editableByDeadline,
+      title: "역량 최종 평가",
+      requiredDone: isSelfComplete && isMyComplete,
+    };
+  }, [
+    assessments,
+    currentTargetUser?.isSelf,
+    currentUser?.userId,
+    selectedAppraisalUserId,
+    editableByDeadline,
+  ]);
+
+  useEffect(() => {
+    if (!isFinalDialogOpen) return;
+    setFinalGrade(myFinalRecord?.grade ?? "");
+  }, [isFinalDialogOpen, myFinalRecord?.grade]);
 
   // Determine if self-assessment should be read-only
   // Read-only when ALL questions have both: (1) self grade completed (2) leader grade completed
@@ -548,6 +648,29 @@ export default function CompetencyEvaluation() {
           </div>
         </header>
 
+        <CompetencyFinalAssessmentDialog
+          open={isFinalDialogOpen}
+          onOpenChange={setIsFinalDialogOpen}
+          title={finalButton.title}
+          grade={finalGrade}
+          onGradeChange={setFinalGrade}
+          submitDisabled={
+            !finalGrade ||
+            !finalButton.requiredDone ||
+            !editableByDeadline ||
+            competencyFinal.isSaving
+          }
+          onSubmit={() => {
+            if (!selectedAppraisalUserId) return;
+            if (!finalGrade) return;
+            competencyFinal.upsertFinal({
+              appraisalUserId: selectedAppraisalUserId,
+              grade: finalGrade,
+            });
+            setIsFinalDialogOpen(false);
+          }}
+        />
+
         {/* Content Scroll Area */}
         <main className="flex-1 overflow-y-auto p-6">
           {(isLoadingMyAppraisals ||
@@ -560,23 +683,92 @@ export default function CompetencyEvaluation() {
             </div>
           )}
 
-          {!isLoadingAssessments && deptNames.length > 0 ? (
+          {!isLoadingAssessments && selectedAppraisalUserId ? (
             <div className="max-w-5xl mx-auto space-y-8 pb-20">
-              <Tabs defaultValue={deptNames[0]} className="w-full">
-                <TabsList className="mb-6 bg-white border p-1 rounded-xl shadow-sm">
-                  {deptNames.map((dept) => (
-                    <TabsTrigger
-                      key={dept}
-                      value={dept}
-                      className="px-8 py-2 rounded-lg data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-none"
-                    >
-                      {dept}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+              <div className="rounded-xl border bg-white p-4 shadow-sm">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-sm font-bold text-gray-900">
+                          역량 최종 평가
+                        </p>
+                        <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
+                          {(() => {
+                            if (deptNames.length === 0) {
+                              return "배정된 역량 평가 문항이 없어 최종 평가를 진행할 수 없습니다.";
+                            }
+                            if (!editableByDeadline && selectedAppraisalMeta.endDate) {
+                              return "평가 마감일이 지나 최종 평가를 저장/수정할 수 없습니다.";
+                            }
+                            if (!finalButton.requiredDone) {
+                              return currentTargetUser?.isSelf
+                                ? "모든 역량 평가 문항의 등급을 먼저 등록하면 ‘최종 자가 평가’를 저장할 수 있습니다."
+                                : "팀원 자가평가가 완료되고, 리더가 모든 문항의 등급을 등록한 뒤 ‘최종 평가’를 저장할 수 있습니다.";
+                            }
+                            return "모든 문항 등급 등록 후, 종합 등급(O/E/M/P/N)을 저장하세요.";
+                          })()}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {!currentTargetUser?.isSelf ? (
+                          <div className="mr-1 flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                            <span className="font-semibold text-slate-600">
+                              팀원 최종 자가 평가
+                            </span>
+                            <span className="font-bold tabular-nums text-slate-900">
+                              {selfFinalRecord?.grade?.trim() || "—"}
+                            </span>
+                          </div>
+                        ) : null}
+                        <Button
+                          variant="outline"
+                          disabled={
+                            deptNames.length === 0 ||
+                            !finalButton.canOpen ||
+                            competencyFinal.isSaving
+                          }
+                          className="gap-2"
+                          onClick={() => setIsFinalDialogOpen(true)}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          {finalButton.title}
+                          {myFinalRecord?.grade ? (
+                            <span className="ml-1 font-bold">
+                              {myFinalRecord.grade}
+                            </span>
+                          ) : null}
+                        </Button>
+                        {!editableByDeadline && selectedAppraisalMeta.endDate ? (
+                          <span className="text-xs font-medium text-red-500">
+                            마감 후 수정 불가
+                          </span>
+                        ) : null}
+                        {editableByDeadline &&
+                        selectedAppraisalMeta.endDate &&
+                        myFinalRecord?.grade ? (
+                          <span className="text-xs text-slate-600">
+                            마감 전까지 수정 가능
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
 
-                {deptNames.map((dept) => (
-                  <TabsContent key={dept} value={dept} className="space-y-6">
+              {deptNames.length > 0 ? (
+                <Tabs defaultValue={deptNames[0]} className="w-full">
+                  <TabsList className="mb-6 bg-white border p-1 rounded-xl shadow-sm">
+                    {deptNames.map((dept) => (
+                      <TabsTrigger
+                        key={dept}
+                        value={dept}
+                        className="px-8 py-2 rounded-lg data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-none"
+                      >
+                        {dept}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+
+                  {deptNames.map((dept) => (
+                    <TabsContent key={dept} value={dept} className="space-y-6">
                     {getGroupedAssessments(assessmentsByDept[dept]).map(
                       (group) => {
                         const myRecord = group.myRecord;
@@ -758,27 +950,25 @@ export default function CompetencyEvaluation() {
                         );
                       },
                     )}
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </div>
-          ) : (
-            !isLoadingAssessments &&
-            selectedAppraisalUserId && (
-              <div className="flex flex-col items-center justify-center h-full text-center p-20">
-                <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-gray-300 mb-6">
-                  <ClipboardList className="w-10 h-10" />
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center p-10">
+                  <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-gray-300 mb-6">
+                    <ClipboardList className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-800">
+                    배정된 역량 평가 항목이 없습니다.
+                  </h3>
+                  <p className="text-gray-500 mt-2 max-w-sm">
+                    평가 주기가 시작되지 않았거나, 현재 부서에 배정된 문항이 없을
+                    수 있습니다.
+                  </p>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800">
-                  배정된 역량 평가 항목이 없습니다.
-                </h3>
-                <p className="text-gray-500 mt-2 max-w-sm">
-                  평가 주기가 시작되지 않았거나, 현재 부서에 배정된 문항이 없을
-                  수 있습니다.
-                </p>
-              </div>
-            )
-          )}
+              )}
+            </div>
+          ) : null}
         </main>
       </div>
     </div>

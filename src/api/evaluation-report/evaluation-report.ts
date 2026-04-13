@@ -9,6 +9,14 @@ export interface CompetencyReportItem {
     leaderGrade?: string;
     leaderComment?: string;
     leaderName?: string;
+    /** 신규: 평가자별 전체 기록 */
+    evaluations?: {
+        evaluatorId: string;
+        evaluatorName: string;
+        grade: string | null;
+        comment: string | null;
+        isSelf: boolean;
+    }[];
 }
 
 export interface GoalReportItem {
@@ -21,6 +29,14 @@ export interface GoalReportItem {
     leaderGrade?: string;
     leaderComment?: string;
     leaderName?: string;
+    /** 신규: 평가자별 전체 기록 */
+    evaluations?: {
+        evaluatorId: string;
+        evaluatorName: string;
+        grade: string | null;
+        comment: string | null;
+        isSelf: boolean;
+    }[];
 }
 
 export interface FinalAssessmentItem {
