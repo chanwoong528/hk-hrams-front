@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -310,12 +309,13 @@ export default function CompetencyEvaluation() {
     setIsSaving(true);
     try {
       await Promise.all(
-        editIds.map((id) =>
-          PATCH_competencyAssessment(id, {
-            grade: localEdits[id].grade,
-            comment: localEdits[id].comment,
-          }),
-        ),
+        editIds.map((id) => {
+          const e = localEdits[id];
+          const payload: { grade?: string; comment?: string } = {};
+          if (e.grade !== undefined) payload.grade = e.grade;
+          if (e.comment !== undefined) payload.comment = e.comment;
+          return PATCH_competencyAssessment(id, payload);
+        }),
       );
       toast.success("모든 평가가 성공적으로 저장되었습니다.");
       setLocalEdits({});
@@ -591,10 +591,6 @@ export default function CompetencyEvaluation() {
                           currentEdit?.grade !== undefined
                             ? currentEdit.grade
                             : myRecord?.grade;
-                        const displayComment =
-                          currentEdit?.comment !== undefined
-                            ? currentEdit.comment
-                            : myRecord?.comment;
                         const isDirty = !!currentEdit;
 
                         return (
@@ -711,72 +707,43 @@ export default function CompetencyEvaluation() {
                                   }
 
                                   return (
-                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pt-4 border-t border-dashed">
-                                      <div className="lg:col-span-5 space-y-4">
-                                        <Label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                                          평가 등급 선택
-                                          <span className="text-xs font-normal text-gray-400">
-                                            (필수 항목)
-                                          </span>
-                                        </Label>
-                                        <div className="flex flex-wrap gap-2">
-                                          {GRADES.map((g) => (
-                                            <button
-                                              key={g}
-                                              disabled={
-                                                isSaving || isSelfReadOnly
-                                              }
-                                              onClick={() =>
-                                                handleLocalUpdate(
-                                                  myRecord.assessmentId,
-                                                  { grade: g },
-                                                )
-                                              }
-                                              className={`flex-1 min-w-[60px] py-4 rounded-xl text-center font-black text-lg transition-all border-2 ${
-                                                isSelfReadOnly
-                                                  ? displayGrade === g
-                                                    ? "bg-green-600 text-white border-green-700 cursor-not-allowed"
-                                                    : "bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed"
-                                                  : displayGrade === g
-                                                    ? isDirty
-                                                      ? "bg-amber-500 text-white border-amber-600 shadow-lg -translate-y-1"
-                                                      : "bg-blue-600 text-white border-blue-700 shadow-lg -translate-y-1"
-                                                    : "bg-white text-gray-400 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30"
-                                              }`}
-                                            >
-                                              {g}
-                                            </button>
-                                          ))}
-                                        </div>
-                                        <p className="text-[10px] text-gray-400 text-center">
-                                          O / E / M / P / N
-                                        </p>
+                                    <div className="max-w-3xl space-y-4 border-t border-dashed pt-4">
+                                      <Label className="flex items-center gap-2 text-sm font-bold text-gray-700">
+                                        평가 등급 선택
+                                        <span className="text-xs font-normal text-gray-400">
+                                          (필수 항목)
+                                        </span>
+                                      </Label>
+                                      <div className="flex flex-wrap gap-2">
+                                        {GRADES.map((g) => (
+                                          <button
+                                            key={g}
+                                            disabled={isSaving || isSelfReadOnly}
+                                            onClick={() =>
+                                              handleLocalUpdate(
+                                                myRecord.assessmentId,
+                                                { grade: g },
+                                              )
+                                            }
+                                            className={`min-w-[60px] flex-1 rounded-xl border-2 py-4 text-center text-lg font-black transition-all ${
+                                              isSelfReadOnly
+                                                ? displayGrade === g
+                                                  ? "cursor-not-allowed border-green-700 bg-green-600 text-white"
+                                                  : "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-300"
+                                                : displayGrade === g
+                                                  ? isDirty
+                                                    ? "-translate-y-1 border-amber-600 bg-amber-500 text-white shadow-lg"
+                                                    : "-translate-y-1 border-blue-700 bg-blue-600 text-white shadow-lg"
+                                                  : "border-gray-100 bg-white text-gray-400 hover:border-blue-200 hover:bg-blue-50/30"
+                                            }`}
+                                          >
+                                            {g}
+                                          </button>
+                                        ))}
                                       </div>
-                                      <div className="lg:col-span-7 space-y-4">
-                                        <Label className="text-sm font-bold text-gray-700">
-                                          상세 의견 작성
-                                        </Label>
-                                        <Textarea
-                                          disabled={isSaving || isSelfReadOnly}
-                                          value={displayComment || ""}
-                                          onChange={(e) =>
-                                            handleLocalUpdate(
-                                              myRecord.assessmentId,
-                                              { comment: e.target.value },
-                                            )
-                                          }
-                                          placeholder={
-                                            currentTargetUser?.isSelf
-                                              ? "본인의 역량에 대해 구체적인 사례와 함께 의견을 남겨주세요."
-                                              : `${currentTargetUser?.name}님의 역량 발휘 수준에 대한 리더의 의견을 남겨주세요.`
-                                          }
-                                          className={`min-h-[160px] rounded-2xl focus:ring-2 focus:ring-blue-500 border-gray-200 transition-colors bg-gray-50/50 hover:bg-white focus:bg-white text-sm leading-relaxed ${
-                                            isDirty
-                                              ? "bg-amber-50/30 border-amber-200"
-                                              : ""
-                                          }`}
-                                        />
-                                      </div>
+                                      <p className="text-center text-[10px] text-gray-400">
+                                        O / E / M / P / N
+                                      </p>
                                     </div>
                                   );
                                 })()
