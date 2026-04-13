@@ -109,11 +109,12 @@ function NavItemComponent({
   };
 
   return (
-    <div>
-      <div className="flex items-center gap-1">
+    <div className="min-w-0">
+      <div className="flex min-w-0 flex-nowrap items-center gap-1">
         <button
+          type="button"
           onClick={handleItemClick}
-          className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
+          className={`min-w-0 flex-1 flex items-center gap-3 overflow-hidden px-4 py-3 rounded-lg transition-colors cursor-pointer text-left ${
             isActive && !hasChildren
               ? item.admin
                 ? "bg-red-600 text-white"
@@ -134,13 +135,24 @@ function NavItemComponent({
           }`}
           style={{ paddingLeft: `${1 + level * 1}rem` }}
         >
-          {Icon ? <Icon className="w-5 h-5" /> : <div className="w-5 h-5" />}
-          <span className="font-medium">{item.name}</span>
+          {Icon ? (
+            <Icon className="w-5 h-5 shrink-0" aria-hidden />
+          ) : (
+            <div className="w-5 h-5 shrink-0" aria-hidden />
+          )}
+          <span
+            className='min-w-0 flex-1 truncate font-medium'
+            title={item.name}>
+            {item.name}
+          </span>
         </button>
         {hasChildren && (
           <button
+            type="button"
             onClick={handleChevronClick}
-            className="p-2 rounded-lg transition-colors cursor-pointer hover:bg-gray-100 flex items-center justify-center"
+            className="shrink-0 p-2 rounded-lg transition-colors cursor-pointer hover:bg-gray-100 flex items-center justify-center"
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? "하위 메뉴 접기" : "하위 메뉴 펼치기"}
           >
             {isExpanded ? (
               <ChevronDown className="w-4 h-4" />
@@ -151,7 +163,7 @@ function NavItemComponent({
         )}
       </div>
       {hasChildren && isExpanded && (
-        <div className="ml-4 space-y-1 mt-1">
+        <div className="ml-4 mt-1 min-w-0 space-y-1">
           {item.children!.map((child) => (
             <NavItemComponent
               key={child.id}
@@ -241,12 +253,12 @@ export default function SidebarContent({
     isLeader,
   );
   return (
-    <div className="flex h-full flex-col">
-      <div className="p-6 border-b">
+    <div className="flex h-full min-w-0 flex-col">
+      <div className="border-b p-6">
         <h1 className="text-blue-600">HRAMS</h1>
         <p className="text-sm text-gray-600 mt-1">인사 성과 관리 시스템</p>
       </div>
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="min-w-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden p-4">
         {visibleNavigation
           .filter((item) => !item.detailPage)
           .map((item) => (

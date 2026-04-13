@@ -5,7 +5,9 @@ import { useCurrentUserStore } from "@/store/currentUserStore";
 import { GET_checkToken } from "@/api/auth/auth";
 import { useQueryEffects } from "@/hooks/useQueryEffect";
 import { toast } from "sonner";
-// import { toast } from "sonner";
+import { createLogger } from "@/lib/logger";
+
+const rootLogger = createLogger("RootLayout");
 
 export default function RootLayout() {
   const navigate = useNavigate();
@@ -32,7 +34,7 @@ export default function RootLayout() {
       setCurrentUser({ ...rest, koreanName: username });
     },
     onError: (error) => {
-      console.error("Login Failed:  ", error);
+      rootLogger.error("세션 확인 실패", error);
       toast.error("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
       clearCurrentUser();
       navigate("/login");

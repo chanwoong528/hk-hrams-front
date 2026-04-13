@@ -7,23 +7,25 @@ import { useState } from "react";
 export default function AuthenticatedLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
-    <div className='flex h-screen bg-gray-50'>
-      <aside className='hidden lg:flex w-64 bg-white border-r flex-col'>
+    <div className='flex h-screen bg-gray-50 print:h-auto print:min-h-0 print:bg-white'>
+      <aside className='hidden min-w-0 w-64 shrink-0 flex-col border-r bg-white lg:flex print:hidden'>
         <Sidebar setSidebarOpen={setSidebarOpen} />
       </aside>
 
       {/* Mobile Sidebar */}
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side='left' className='w-64 p-0'>
+        <SheetContent side='left' className='w-64 min-w-0 p-0 print:hidden'>
           <Sidebar setSidebarOpen={setSidebarOpen} />
         </SheetContent>
       </Sheet>
       {/* Mobile Sidebar */}
 
-      <div className='flex-1 flex flex-col overflow-hidden'>
-        <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-        <main className='flex-1 overflow-auto'>
+      <div className='flex-1 flex flex-col overflow-hidden print:overflow-visible'>
+        <div className='print:hidden'>
+          <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        </div>
+        <main className='flex-1 overflow-auto print:overflow-visible print:flex-none'>
           <Outlet />
         </main>
       </div>
