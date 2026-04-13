@@ -288,14 +288,13 @@ export default function CompetencyQuestionSetting() {
   };
 
   const handleApplyTemplate = (template: CompetencyTemplateDto) => {
-    const nextJobGroup = template.jobGroup || 'all';
-    if (jobGroup !== nextJobGroup) {
-      skipEffectRef.current = true;
-    }
     setQuestions(template.questions.map((q) => q.question));
-    setJobGroup(nextJobGroup);
     setIsTemplateLoadOpen(false);
-    toast.info(`'${template.title}' 템플릿 문항을 불러왔습니다 (직군: ${nextJobGroup === 'all' ? '전체' : nextJobGroup}).`);
+    const templateGroup = (template.jobGroup ?? "").trim();
+    const label = templateGroup ? templateGroup : "전체";
+    toast.info(
+      `'${template.title}' 템플릿 문항을 불러왔습니다. (템플릿 직군: ${label})`,
+    );
   };
 
   const handleSaveAsTemplate = () => {
