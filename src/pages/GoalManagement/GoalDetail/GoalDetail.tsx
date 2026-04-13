@@ -40,10 +40,18 @@ export default function GoalDetail() {
   });
 
   // 3. Mutations
+  const isOfficeManagement =
+    (currentUser?.jobGroup ?? "").trim() === "사무관리직";
+
   const { mutate: postGoals } = useMutation({
     mutationFn: (payload: {
       appraisalId: string;
-      goals: { title: string; description: string }[];
+      goals: {
+        title: string;
+        description: string;
+        kpi?: string;
+        achieveIndicator?: string;
+      }[];
     }) => POST_goals(payload),
     onSuccess: () => {
       // toast.success("목표가 저장되었습니다");
@@ -60,10 +68,18 @@ export default function GoalDetail() {
       goalId: string;
       title: string;
       description: string;
+      kpi?: string;
+      achieveIndicator?: string;
     }) =>
       PATCH_goal(payload.goalId, {
         title: payload.title,
         description: payload.description,
+        ...(isOfficeManagement
+          ? {
+              kpi: payload.kpi,
+              achieveIndicator: payload.achieveIndicator,
+            }
+          : {}),
       }),
     onSuccess: () => {
       // toast.success("목표가 수정되었습니다");
@@ -89,8 +105,19 @@ export default function GoalDetail() {
 
   // 4. Batch Handler
   const handleSaveAll = async (
-    newGoals: { title: string; description: string }[],
-    updatedGoals: { goalId?: string; title: string; description: string }[],
+    newGoals: {
+      title: string;
+      description: string;
+      kpi?: string;
+      achieveIndicator?: string;
+    }[],
+    updatedGoals: {
+      goalId?: string;
+      title: string;
+      description: string;
+      kpi?: string;
+      achieveIndicator?: string;
+    }[],
     deletedGoalIds: string[],
   ) => {
     if (!appraisalId) return;
@@ -110,13 +137,19 @@ export default function GoalDetail() {
           if (
             originalGoal &&
             (originalGoal.title !== goal.title ||
-              originalGoal.description !== goal.description)
+              originalGoal.description !== goal.description ||
+              (isOfficeManagement &&
+                ((originalGoal.kpi ?? "") !== (goal.kpi ?? "") ||
+                  (originalGoal.achieveIndicator ?? "") !==
+                    (goal.achieveIndicator ?? ""))))
           ) {
             promises.push(
               updateGoal({
                 goalId: goal.goalId,
                 title: goal.title,
                 description: goal.description,
+                kpi: goal.kpi,
+                achieveIndicator: goal.achieveIndicator,
               }),
             );
           }
@@ -175,6 +208,7 @@ export default function GoalDetail() {
       <GoalForm
         onSaveAll={handleSaveAll}
         existingGoals={goals?.filter((g) => g.goalType !== "common") || []}
+        targetJobGroup={currentUser?.jobGroup}
         appraisalInfo={{
           title: appraisal?.title,
           description: appraisal?.description,

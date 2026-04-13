@@ -3,6 +3,9 @@ export interface Goal {
   title: string;
   description: string;
   goalType?: string;
+  /** 사무관리직 목표 필수 */
+  kpi?: string | null;
+  achieveIndicator?: string | null;
   created?: string; // ISO string (Date 형태로 쓰고 싶다면 Date 로 바꿔도 됨)
   updated?: string;
   goalAssessmentBy?: {
@@ -10,6 +13,8 @@ export interface Goal {
     grade: string;
     comment: string;
     gradedBy: string;
+    /** 사무관리직·본인 자가 평가 시에만 */
+    kpiAchievementRate?: string | null;
     gradedByUser?: {
       userId: string;
       koreanName: string;
@@ -78,6 +83,8 @@ export interface GoalFormData {
   goalId?: string;
   title: string;
   description: string;
+  kpi?: string;
+  achieveIndicator?: string;
 }
 
 export interface MyAppraisal {

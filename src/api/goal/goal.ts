@@ -7,7 +7,13 @@ export const GET_goalMyGoals = async (appraisalUserId: string) => {
 
 export const POST_goals = async (payload: {
   appraisalId: string;
-  goals: { title: string; description: string }[];
+  goals: {
+    title: string;
+    description: string;
+    goalType?: string;
+    kpi?: string;
+    achieveIndicator?: string;
+  }[];
 }) => {
   const response = await http.post(`/goal`, payload);
   return response.data;
@@ -16,7 +22,13 @@ export const POST_goals = async (payload: {
 export const POST_commonGoal = async (payload: {
   appraisalId: string;
   departmentId: string;
-  goals: { title: string; description: string }[];
+  goals: {
+    title: string;
+    description: string;
+    goalType?: string;
+    kpi?: string;
+    achieveIndicator?: string;
+  }[];
 }) => {
   const response = await http.post(`/common-goal`, payload);
   return response.data;
@@ -42,7 +54,12 @@ export const DELETE_commonGoal = (payload: {
 
 export const PATCH_goal = (
   goalId: string,
-  payload: { title: string; description: string },
+  payload: {
+    title: string;
+    description: string;
+    kpi?: string;
+    achieveIndicator?: string;
+  },
 ) => {
   return http.patch(`/goal/${goalId}`, payload);
 };

@@ -31,6 +31,8 @@ interface GoalFormProps {
   showLeft?: boolean;
   existingGoals?: Goal[];
   appraisalInfo?: AppraisalInfo;
+  /** 사무관리직이면 KPI·목표달성 입력 필수 */
+  targetJobGroup?: string | null;
 }
 
 export default function GoalForm({
@@ -38,7 +40,10 @@ export default function GoalForm({
   showLeft = true,
   existingGoals = [],
   appraisalInfo,
+  targetJobGroup,
 }: GoalFormProps) {
+  const isOfficeManagement =
+    (targetJobGroup ?? "").trim() === "사무관리직";
   const { control, register, handleSubmit, reset } = useForm<{
     goals: GoalFormData[];
   }>({
@@ -60,6 +65,8 @@ export default function GoalForm({
         goalId: g.goalId,
         title: g.title,
         description: g.description,
+        kpi: g.kpi ?? "",
+        achieveIndicator: g.achieveIndicator ?? "",
       }));
       reset({ goals: formattedGoals });
     } else {
@@ -220,6 +227,41 @@ export default function GoalForm({
                 />
               </div>
 
+              {isOfficeManagement ? (
+                <>
+                  <div className='grid gap-2'>
+                    <Label className='text-xs font-semibold text-gray-500 uppercase tracking-wider'>
+                      KPI <span className='text-red-500'>*</span>
+                    </Label>
+                    <Textarea
+                      {...register(`goals.${index}.kpi`, {
+                        required: isOfficeManagement
+                          ? "사무관리직은 KPI를 입력해야 합니다"
+                          : false,
+                      })}
+                      placeholder='예: 매출 10% 성장, 처리 건수 등'
+                      rows={2}
+                      className='resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500/20'
+                    />
+                  </div>
+                  <div className='grid gap-2'>
+                    <Label className='text-xs font-semibold text-gray-500 uppercase tracking-wider'>
+                      목표달성 <span className='text-red-500'>*</span>
+                    </Label>
+                    <Textarea
+                      {...register(`goals.${index}.achieveIndicator`, {
+                        required: isOfficeManagement
+                          ? "목표달성을 입력해야 합니다"
+                          : false,
+                      })}
+                      placeholder='달성 기준·측정 방식 등'
+                      rows={2}
+                      className='resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500/20'
+                    />
+                  </div>
+                </>
+              ) : null}
+
               <div className='flex justify-end pt-2'>
                 <Button
                   size='sm'
@@ -238,7 +280,12 @@ export default function GoalForm({
               variant='outline'
               className='w-full border-dashed border-2 border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 h-12'
               onClick={() => {
-                append({ title: "", description: "" });
+                append({
+                  title: "",
+                  description: "",
+                  kpi: "",
+                  achieveIndicator: "",
+                });
               }}>
               <Plus className='w-5 h-5 mr-2' />
               목표 항목 추가하기

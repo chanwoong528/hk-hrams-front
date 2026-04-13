@@ -22,6 +22,8 @@ interface AppraisalCardProps {
     goalId: string,
     grade: string,
     comment: string,
+    gradedByUserId?: string,
+    kpiAchievementRate?: string,
   ) => void;
 }
 
@@ -120,7 +122,7 @@ export function AppraisalCard({
 
         {/* Goals List (Self Assessment) */}
         {totalGoals > 0 && (
-          <div className='pl-0 lg:pl-6 space-y-4 border-l-2 border-gray-100 ml-4 py-2'>
+          <div className='min-w-0 space-y-4 border-l-2 border-gray-100 py-2 pl-0 ml-2 sm:ml-4 lg:pl-6'>
             <h4 className='text-sm font-semibold text-gray-500 uppercase tracking-wider pl-2 flex items-center gap-2 mb-2'>
               <Star className='w-4 h-4' />
               목표 리스트 (Goal List)
