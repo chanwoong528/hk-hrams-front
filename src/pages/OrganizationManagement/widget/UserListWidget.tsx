@@ -5,7 +5,8 @@ import {
   Search,
   Plus,
   Edit,
-  Trash2,
+  UserX,
+  UserCheck,
   Filter,
   MoreVertical,
   GripVertical,
@@ -48,6 +49,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { GET_usersByPagination, PATCH_user, POST_user, POST_bulkUsers } from "@/api/user/user";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -137,9 +148,11 @@ function SortableHead({
 function DraggableUserRow({
   user,
   onEdit,
+  onRequestUserStatusChange,
 }: {
   user: User;
   onEdit: (u: User) => void;
+  onRequestUserStatusChange: (u: User, nextStatus: "active" | "inactive") => void;
 }) {
   const [{ isDragging }, dragRef] = useDrag({
     type: "USER",
@@ -215,10 +228,21 @@ function DraggableUserRow({
               <Edit className='w-4 h-4 mr-2' />
               수정
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {}} className='text-red-600'>
-              <Trash2 className='w-4 h-4 mr-2' />
-              삭제
-            </DropdownMenuItem>
+            {user.userStatus === "active" ? (
+              <DropdownMenuItem
+                onClick={() => onRequestUserStatusChange(user, "inactive")}
+                className='text-amber-700 focus:text-amber-700'>
+                <UserX className='w-4 h-4 mr-2' />
+                비활성화
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={() => onRequestUserStatusChange(user, "active")}
+                className='text-blue-700 focus:text-blue-700'>
+                <UserCheck className='w-4 h-4 mr-2' />
+                활성화
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
@@ -249,6 +273,10 @@ export default function UserListWidget({
 
   const [modalType, setModalType] = useState<"add" | "edit" | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userStatusConfirm, setUserStatusConfirm] = useState<{
+    user: User;
+    nextStatus: "active" | "inactive";
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState(urlKeyword);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -411,6 +439,44 @@ export default function UserListWidget({
     },
     onError: () => {
       toast.error("사용자 정보 업데이트에 실패했습니다");
+    },
+  });
+
+  const { mutate: applyUserStatus, isPending: isApplyingUserStatus } = useMutation({
+    mutationFn: ({
+      user,
+      nextStatus,
+    }: {
+      user: User;
+      nextStatus: "active" | "inactive";
+    }) =>
+      PATCH_user({
+        userId: user.userId,
+        koreanName: user.koreanName,
+        email: user.email,
+        tobeDeletedDepartments: [],
+        tobeAddedDepartments: [],
+        userStatus: nextStatus,
+        jobGroup: user.jobGroup,
+        employeeId: user.employeeId,
+        phoneNumber: user.phoneNumber,
+      }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      toast.success(
+        variables.nextStatus === "active"
+          ? "사용자가 활성화되었습니다."
+          : "사용자가 비활성화되었습니다.",
+      );
+      setUserStatusConfirm(null);
+    },
+    onError: (_err, variables) => {
+      toast.error(
+        variables.nextStatus === "active"
+          ? "활성화에 실패했습니다."
+          : "비활성화에 실패했습니다.",
+      );
     },
   });
 
@@ -749,6 +815,9 @@ export default function UserListWidget({
                       key={user.userId}
                       user={user}
                       onEdit={handleEditUser}
+                      onRequestUserStatusChange={(u, nextStatus) =>
+                        setUserStatusConfirm({ user: u, nextStatus })
+                      }
                     />
                   ))
                 ) : (
@@ -880,6 +949,50 @@ export default function UserListWidget({
         open={isBulkDialogOpen}
         onOpenChange={setIsBulkDialogOpen}
       />
+
+      <AlertDialog
+        open={userStatusConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) setUserStatusConfirm(null);
+        }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {userStatusConfirm?.nextStatus === "active"
+                ? "사용자 활성화"
+                : "사용자 비활성화"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {userStatusConfirm
+                ? userStatusConfirm.nextStatus === "active"
+                  ? `"${userStatusConfirm.user.koreanName}" 님을 활성화할까요? 로그인 및 역량·목표 등 평가 진행이 다시 가능합니다.`
+                  : `"${userStatusConfirm.user.koreanName}" 님을 비활성화할까요? 계정은 유지되며, 역량·목표 등 평가 진행에서 제외됩니다.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isApplyingUserStatus}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isApplyingUserStatus || !userStatusConfirm}
+              className={
+                userStatusConfirm?.nextStatus === "active"
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-amber-600 hover:bg-amber-700"
+              }
+              onClick={(e) => {
+                e.preventDefault();
+                if (userStatusConfirm) {
+                  applyUserStatus({
+                    user: userStatusConfirm.user,
+                    nextStatus: userStatusConfirm.nextStatus,
+                  });
+                }
+              }}>
+              {userStatusConfirm?.nextStatus === "active" ? "활성화" : "비활성화"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

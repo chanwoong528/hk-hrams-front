@@ -47,6 +47,7 @@ import {
   isHrOrAdminUser,
   shouldBlockHrSelfGrading,
 } from "@/lib/hrAccess";
+import { getFinalOverallGradeButtonOptions } from "../constants";
 
 function formatFinalAppraisalContext(row: {
   assessType?: string;
@@ -1141,33 +1142,38 @@ const AppraisalSection = ({
                     ? "선택한 평가자 등급"
                     : "나의 평가 등급"}
               </Label>
-              <Select
-                disabled={isSpectator}
-                value={finalGrade}
-                onValueChange={setFinalGrade}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="등급 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(selectedUserForFinal?.jobGroup ?? "").trim() ===
-                  "사무관리직" ? (
-                    <>
-                      <SelectItem value="O">O등급</SelectItem>
-                      <SelectItem value="E">E등급</SelectItem>
-                      <SelectItem value="M">M등급</SelectItem>
-                      <SelectItem value="P">P등급</SelectItem>
-                      <SelectItem value="N">N등급</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="A">A등급</SelectItem>
-                      <SelectItem value="B">B등급</SelectItem>
-                      <SelectItem value="C">C등급</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
+              <div
+                className={`flex flex-wrap gap-2 ${
+                  isSpectator ? "pointer-events-none opacity-70" : ""
+                }`}
+                role="group"
+                aria-label="종합 등급 선택"
+                aria-disabled={isSpectator}>
+                {getFinalOverallGradeButtonOptions(
+                  selectedUserForFinal?.jobGroup,
+                ).map((g) => {
+                  const isSelected = finalGrade === g.value;
+                  return (
+                    <button
+                      key={g.value}
+                      type="button"
+                      disabled={isSpectator}
+                      aria-label={`${g.label} 선택`}
+                      aria-pressed={isSelected}
+                      onClick={() => setFinalGrade(g.value)}
+                      className={`cursor-pointer px-3 py-1.5 rounded-md border text-sm transition-all flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed ${
+                        isSelected
+                          ? `${g.color} ring-2 ring-blue-400 font-bold`
+                          : "border-gray-200 bg-white hover:border-gray-300 text-gray-600"
+                      }`}>
+                      <span className="font-semibold">{g.value}</span>
+                      {g.desc ? (
+                        <span className="text-xs opacity-80">{g.desc}</span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>

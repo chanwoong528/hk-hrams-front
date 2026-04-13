@@ -92,7 +92,7 @@ export const navigation = [
 
   {
     id: "leader-appraisal" as Page,
-    name: "리더 평가",
+    name: "다면 평가",
     icon: Award,
     children: [
       {
@@ -111,13 +111,13 @@ export const navigation = [
       },
       {
         id: "my-leader-reviews" as Page,
-        name: "나의 리더 평가",
+        name: "다면 평가",
         icon: ClipboardEdit,
         path: "/leader-appraisal/my",
       },
       {
         id: "my-leader-results" as Page,
-        name: "나의 리더 평가 결과",
+        name: "다면 평가 결과",
         icon: TrendingUp,
         path: "/leader-appraisal/results/my",
         admin: true,
