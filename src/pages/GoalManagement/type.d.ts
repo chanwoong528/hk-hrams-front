@@ -94,7 +94,6 @@ export interface MyAppraisal {
   description: string;
   endDate: string;
   status: string;
-  status: string;
   selfAssessment?: {
     grade: string;
     comment: string;

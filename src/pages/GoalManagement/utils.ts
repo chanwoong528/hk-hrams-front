@@ -1,6 +1,20 @@
 import { APPRAISAL_STATUS } from "./constants";
 import type { Goal } from "./type";
 
+/** 평가 마감일(endDate) 당일 23:59:59(로컬)까지 true — 최종 자가 평가 등 수정 허용에 사용 */
+export function isAppraisalEditableByEndDate(
+  endDate: string | null | undefined,
+): boolean {
+  if (!endDate?.trim()) return false;
+  const parsed = new Date(endDate);
+  if (Number.isNaN(parsed.getTime())) return false;
+  const y = parsed.getFullYear();
+  const m = parsed.getMonth();
+  const d = parsed.getDate();
+  const endOfDeadlineDay = new Date(y, m, d, 23, 59, 59, 999);
+  return Date.now() <= endOfDeadlineDay.getTime();
+}
+
 export const getStatusColor = (status: string) => {
     switch (status) {
         case APPRAISAL_STATUS.FINISHED:
