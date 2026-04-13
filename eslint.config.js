@@ -19,5 +19,15 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // 로그는 `@/lib/logger` 사용 (토큰·PII 노출 방지 및 레벨 통일)
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
+  },
+  {
+    files: ['src/lib/logger/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+    },
   },
 ])

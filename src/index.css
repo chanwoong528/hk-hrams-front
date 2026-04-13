@@ -118,3 +118,88 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* 평가 종합 리포트 — 인쇄/PDF */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  [data-sonner-toaster],
+  [data-slot="sheet-portal"] {
+    display: none !important;
+  }
+
+  .evaluation-report-print-root {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    animation: none !important;
+    box-shadow: none !important;
+  }
+
+  .evaluation-report-print-root .shadow-sm,
+  .evaluation-report-print-root .ring-1 {
+    box-shadow: none !important;
+    --tw-ring-shadow: none !important;
+  }
+
+  /*
+   * shadcn Card 기본: flex flex-col gap-6 py-6 → 인쇄 시 빈 칸·분할 이상 유발.
+   * 리포트 안 카드만 블록으로 바꾸고 여백·단 나눔 정리.
+   */
+  .evaluation-report-print-root [data-slot="card"] {
+    display: block !important;
+    flex-direction: unset !important;
+    gap: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    overflow: visible !important;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  /* 목표 목록 카드: 항목이 많을 수 있어 카드 전체는 페이지 나눔 허용 */
+  .evaluation-report-print-root
+    [data-slot="card"].evaluation-report-print-allow-page-break {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .evaluation-report-print-root [data-slot="card-header"] {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .evaluation-report-print-root
+    [data-slot="card"].evaluation-report-print-allow-page-break
+    [data-slot="card-header"] {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .evaluation-report-print-root [data-slot="card-header"],
+  .evaluation-report-print-root [data-slot="card-content"] {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* TSX에서 쓰는 클래스명과 일치 (이전 오타: evaluation-report-print-avoid-split) */
+  .evaluation-report-avoid-split {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+}

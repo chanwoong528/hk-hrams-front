@@ -2,9 +2,12 @@ import xior, { type XiorResponse } from "xior";
 import { toast } from "sonner";
 import { POST_newTokenFromOldRefreshToken } from "./auth/auth";
 import { useCurrentUserStore } from "@/store/currentUserStore";
+import { createLogger } from "@/lib/logger";
 import errorRetry from "xior/plugins/error-retry";
 
 import setupTokenRefresh from "xior/plugins/token-refresh";
+
+const httpLogger = createLogger("http");
 
 export const http = xior.create({
   baseURL: import.meta.env.PROD
@@ -22,6 +25,18 @@ http.interceptors.request.use((config) => {
   }
   return config;
 });
+
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    httpLogger.debug("HTTP 요청 실패", {
+      url: error?.config?.url,
+      method: error?.config?.method,
+      status: error?.response?.status,
+    });
+    return Promise.reject(error);
+  },
+);
 
 function shouldRefresh(response: XiorResponse) {
   const token = useCurrentUserStore.getState().accessToken;

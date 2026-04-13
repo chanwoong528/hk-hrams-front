@@ -24,7 +24,7 @@ export default function TodoDashboard() {
     return (
       <div className='flex flex-col items-center justify-center p-12 text-gray-500'>
         <Loader2 className='w-8 h-8 animate-spin mb-4 text-blue-600' />
-        <p>나의 할 일 목록을 불러오는 중입니다...</p>
+        <p>내 업무함 목록을 불러오는 중입니다…</p>
       </div>
     );
   }
@@ -139,7 +139,7 @@ export default function TodoDashboard() {
       <div className='flex items-start justify-between'>
         <div>
           <h1 className='text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2'>
-            나의 할 일 (To-Do)
+            내 업무함
             {allTodosCount > 0 && (
               <span className='bg-red-500 text-white text-sm px-3 py-1 rounded-full'>
                 {allTodosCount}
@@ -159,7 +159,7 @@ export default function TodoDashboard() {
               <CheckCircle2 className='w-10 h-10' />
             </div>
             <h3 className='text-xl font-bold text-gray-900 mb-2'>
-              모든 할 일을 완료했습니다!
+              처리할 업무가 없습니다
             </h3>
             <p className='text-gray-500 max-w-sm'>
               현재 제출해야 할 리뷰나 역량 평가가 없습니다. <br />

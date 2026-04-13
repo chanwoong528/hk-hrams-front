@@ -85,11 +85,11 @@ function isAppraisalReportViewPending(
 function GradeBadge({ grade, label }: { grade?: string; label: string }) {
   if (!grade) {
     return (
-      <div className='flex flex-col items-center gap-1'>
+      <div className='flex flex-col items-center gap-0.5'>
         <span className='text-[10px] font-bold text-gray-400 uppercase'>
           {label}
         </span>
-        <div className='w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 font-bold text-lg'>
+        <div className='flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 text-lg font-bold text-gray-400'>
           -
         </div>
       </div>
@@ -100,12 +100,12 @@ function GradeBadge({ grade, label }: { grade?: string; label: string }) {
     GRADE_COLORS[grade] || "bg-gray-100 text-gray-700 border-gray-200";
 
   return (
-    <div className='flex flex-col items-center gap-1'>
+    <div className='flex flex-col items-center gap-0.5'>
       <span className='text-[10px] font-bold text-gray-400 uppercase'>
         {label}
       </span>
       <div
-        className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center font-black text-lg ${colorClass}`}>
+        className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 text-lg font-black ${colorClass}`}>
         {grade}
       </div>
     </div>
@@ -145,7 +145,7 @@ function FinalGradeInlineList({
             최종 ({item.assessedBy})
           </span>
           <span
-            className={`inline-flex h-6 w-6 items-center justify-center rounded-full border font-black ${
+            className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-black ${
               GRADE_COLORS[item.grade] ||
               "bg-gray-100 text-gray-700 border-gray-200"
             }`}
@@ -178,8 +178,8 @@ function CompetencySection({
     <div className='space-y-6'>
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
         <div className='flex items-center gap-3'>
-          <div className='w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600'>
-            <ClipboardList className='w-5 h-5' />
+          <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600'>
+            <ClipboardList className='h-5 w-5' />
           </div>
           <h2 className='text-xl font-bold text-gray-900'>역량 평가</h2>
           <Badge variant='outline' className='text-xs'>
@@ -192,8 +192,8 @@ function CompetencySection({
       {Object.entries(byDept).map(([dept, deptItems]) => (
         <Card
           key={dept}
-          className='border-none shadow-sm ring-1 ring-gray-200 overflow-hidden'>
-          <CardHeader className='pb-3 bg-gray-50/50 border-b'>
+          className='evaluation-report-avoid-split border-none shadow-sm ring-1 ring-gray-200 overflow-hidden'>
+          <CardHeader className='border-b bg-gray-50/50 pb-3'>
             <CardTitle className='text-sm font-bold text-gray-600'>
               {dept}
             </CardTitle>
@@ -201,12 +201,14 @@ function CompetencySection({
           <CardContent className='p-0'>
             <div className='divide-y divide-gray-100'>
               {deptItems.map((item) => (
-                <div key={item.competencyId} className='p-5'>
-                  <p className='font-semibold text-gray-800 mb-4'>
+                <div
+                  key={item.competencyId}
+                  className='evaluation-report-avoid-split p-5'>
+                  <p className='mb-4 font-semibold text-gray-800'>
                     {item.question}
                   </p>
                   {item.evaluations && item.evaluations.length > 0 ? (
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
                       {item.evaluations.map((ev) => {
                         const isSelf = ev.isSelf;
                         const title = isSelf
@@ -216,9 +218,9 @@ function CompetencySection({
                           ? "bg-blue-50/30 border-blue-100/50"
                           : "bg-green-50/30 border-green-100/50";
                         const icon = isSelf ? (
-                          <User className='w-4 h-4 text-blue-600' />
+                          <User className='h-4 w-4 text-blue-600' />
                         ) : (
-                          <Users className='w-4 h-4 text-green-600' />
+                          <Users className='h-4 w-4 text-green-600' />
                         );
                         const titleColor = isSelf
                           ? "text-blue-700"
@@ -226,16 +228,17 @@ function CompetencySection({
                         return (
                           <div
                             key={ev.evaluatorId}
-                            className={`${bg} rounded-xl p-4 border`}
+                            className={`${bg} rounded-xl border p-4`}
                           >
-                            <div className='flex items-center gap-2 mb-3'>
+                            <div className='mb-3 flex flex-wrap items-center gap-2'>
                               {icon}
-                              <span className={`text-xs font-bold ${titleColor}`}>
+                              <span
+                                className={`text-xs font-bold ${titleColor}`}>
                                 {title}
                               </span>
                               <GradeBadge grade={ev.grade ?? undefined} label='' />
                             </div>
-                            <p className='text-sm text-gray-600 leading-relaxed'>
+                            <p className='text-sm leading-relaxed text-gray-600'>
                               {ev.comment || "의견 없음"}
                             </p>
                           </div>
@@ -243,29 +246,29 @@ function CompetencySection({
                       })}
                     </div>
                   ) : (
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                      <div className='bg-blue-50/30 rounded-xl p-4 border border-blue-100/50'>
-                        <div className='flex items-center gap-2 mb-3'>
-                          <User className='w-4 h-4 text-blue-600' />
+                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                      <div className='rounded-xl border border-blue-100/50 bg-blue-50/30 p-4'>
+                        <div className='mb-3 flex flex-wrap items-center gap-2'>
+                          <User className='h-4 w-4 text-blue-600' />
                           <span className='text-xs font-bold text-blue-700'>
                             자가 평가
                           </span>
                           <GradeBadge grade={item.selfGrade} label='' />
                         </div>
-                        <p className='text-sm text-gray-600 leading-relaxed'>
+                        <p className='text-sm leading-relaxed text-gray-600'>
                           {item.selfComment || "의견 없음"}
                         </p>
                       </div>
-                      <div className='bg-green-50/30 rounded-xl p-4 border border-green-100/50'>
-                        <div className='flex items-center gap-2 mb-3'>
-                          <Users className='w-4 h-4 text-green-600' />
+                      <div className='rounded-xl border border-green-100/50 bg-green-50/30 p-4'>
+                        <div className='mb-3 flex flex-wrap items-center gap-2'>
+                          <Users className='h-4 w-4 text-green-600' />
                           <span className='text-xs font-bold text-green-700'>
                             리더 평가
                             {item.leaderName && ` (${item.leaderName})`}
                           </span>
                           <GradeBadge grade={item.leaderGrade} label='' />
                         </div>
-                        <p className='text-sm text-gray-600 leading-relaxed'>
+                        <p className='text-sm leading-relaxed text-gray-600'>
                           {item.leaderComment || "의견 없음"}
                         </p>
                       </div>
@@ -294,8 +297,8 @@ function GoalSection({
     <div className='space-y-6'>
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
         <div className='flex items-center gap-3'>
-          <div className='w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600'>
-            <Target className='w-5 h-5' />
+          <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600'>
+            <Target className='h-5 w-5' />
           </div>
           <h2 className='text-xl font-bold text-gray-900'>목표/성과 평가</h2>
           <Badge variant='outline' className='text-xs'>
@@ -305,7 +308,7 @@ function GoalSection({
         <FinalGradeInlineList items={finalItems} ownerUserId={ownerUserId} />
       </div>
 
-      <Card className='border-none shadow-sm ring-1 ring-gray-200 overflow-hidden'>
+      <Card className='evaluation-report-print-allow-page-break border-none shadow-sm ring-1 ring-gray-200 overflow-hidden'>
         <CardContent className='p-0'>
           <div className='divide-y divide-gray-100'>
             {items.length === 0 ? (
@@ -314,8 +317,10 @@ function GoalSection({
               </div>
             ) : (
               items.map((item) => (
-                <div key={item.goalId} className='p-5'>
-                  <div className='flex items-start gap-3 mb-4'>
+                <div
+                  key={item.goalId}
+                  className='evaluation-report-avoid-split p-5'>
+                  <div className='mb-4 flex items-start gap-3'>
                     <Badge
                       variant='outline'
                       className={`shrink-0 text-[10px] ${item.goalType === "common" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-200"}`}>
@@ -323,13 +328,13 @@ function GoalSection({
                     </Badge>
                     <div>
                       <h4 className='font-bold text-gray-800'>{item.title}</h4>
-                      <p className='text-sm text-gray-500 mt-1'>
+                      <p className='mt-1 text-sm text-gray-500'>
                         {item.description}
                       </p>
                     </div>
                   </div>
                   {item.evaluations && item.evaluations.length > 0 ? (
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
                       {item.evaluations.map((ev) => {
                         const isSelf = ev.isSelf;
                         const title = isSelf
@@ -339,9 +344,9 @@ function GoalSection({
                           ? "bg-blue-50/30 border-blue-100/50"
                           : "bg-green-50/30 border-green-100/50";
                         const icon = isSelf ? (
-                          <User className='w-4 h-4 text-blue-600' />
+                          <User className='h-4 w-4 text-blue-600' />
                         ) : (
-                          <Users className='w-4 h-4 text-green-600' />
+                          <Users className='h-4 w-4 text-green-600' />
                         );
                         const titleColor = isSelf
                           ? "text-blue-700"
@@ -349,11 +354,12 @@ function GoalSection({
                         return (
                           <div
                             key={ev.evaluatorId}
-                            className={`${bg} rounded-xl p-4 border`}
+                            className={`${bg} rounded-xl border p-4`}
                           >
-                            <div className='flex items-center gap-2 mb-2'>
+                            <div className='mb-2 flex flex-wrap items-center gap-2'>
                               {icon}
-                              <span className={`text-xs font-bold ${titleColor}`}>
+                              <span
+                                className={`text-xs font-bold ${titleColor}`}>
                                 {title}
                               </span>
                               <GradeBadge grade={ev.grade ?? undefined} label='' />
@@ -366,10 +372,10 @@ function GoalSection({
                       })}
                     </div>
                   ) : (
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                      <div className='bg-blue-50/30 rounded-xl p-4 border border-blue-100/50'>
-                        <div className='flex items-center gap-2 mb-2'>
-                          <User className='w-4 h-4 text-blue-600' />
+                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                      <div className='rounded-xl border border-blue-100/50 bg-blue-50/30 p-4'>
+                        <div className='mb-2 flex flex-wrap items-center gap-2'>
+                          <User className='h-4 w-4 text-blue-600' />
                           <span className='text-xs font-bold text-blue-700'>
                             자가 평가
                           </span>
@@ -379,9 +385,9 @@ function GoalSection({
                           {item.selfComment || "의견 없음"}
                         </p>
                       </div>
-                      <div className='bg-green-50/30 rounded-xl p-4 border border-green-100/50'>
-                        <div className='flex items-center gap-2 mb-2'>
-                          <Users className='w-4 h-4 text-green-600' />
+                      <div className='rounded-xl border border-green-100/50 bg-green-50/30 p-4'>
+                        <div className='mb-2 flex flex-wrap items-center gap-2'>
+                          <Users className='h-4 w-4 text-green-600' />
                           <span className='text-xs font-bold text-green-700'>
                             리더 평가
                             {item.leaderName && ` (${item.leaderName})`}
@@ -758,7 +764,7 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
   }
 
   return (
-    <div className='p-4 lg:p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 print:p-0'>
+    <div className='evaluation-report-print-root mx-auto max-w-6xl space-y-8 p-4 animate-in fade-in slide-in-from-bottom-4 duration-500 lg:p-8'>
       <div className='flex items-start justify-between'>
         <div className='flex items-center gap-4'>
           <Button
@@ -769,12 +775,12 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
             <ArrowLeft className='w-5 h-5' />
           </Button>
           <div>
-            <h1 className='text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-3'>
-              <FileText className='w-6 h-6 text-blue-600' />
+            <h1 className='flex items-center gap-3 text-2xl font-bold tracking-tight text-gray-900'>
+              <FileText className='h-6 w-6 text-blue-600' />
               평가 종합 리포트
             </h1>
-            <div className='flex items-center gap-3 mt-2'>
-              <Badge className='bg-blue-100 text-blue-700 hover:bg-blue-100 border-none font-bold'>
+            <div className='mt-2 flex flex-wrap items-center gap-3'>
+              <Badge className='border-none bg-blue-100 font-bold text-blue-700 hover:bg-blue-100'>
                 {report.owner.koreanName}
               </Badge>
               <span className='text-sm text-gray-500'>
@@ -784,11 +790,11 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
                 variant='outline'
                 className={
                   report.appraisalStatus === "ongoing"
-                    ? "bg-green-50 text-green-700 border-green-200"
+                    ? "border-green-200 bg-green-50 text-green-700"
                     : String(report.appraisalStatus ?? "")
                           .toLowerCase()
                           .trim() === "finished"
-                      ? "bg-amber-50 text-amber-800 border-amber-200"
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
                       : "bg-gray-50"
                 }>
                 {formatAppraisalParticipationStatus(report.appraisalStatus)}
@@ -799,9 +805,10 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
         <Button
           variant='outline'
           className='gap-2 print:hidden'
+          title='PDF로 저장하려면 대상을 &quot;PDF로 저장&quot;으로 두고, 색은 &quot;배경 그래픽&quot;을 켜세요.'
           onClick={() => window.print()}>
-          <FileText className='w-4 h-4' />
-          인쇄
+          <FileText className='h-4 w-4' />
+          인쇄 / PDF 저장
         </Button>
       </div>
 

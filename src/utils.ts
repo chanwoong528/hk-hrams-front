@@ -28,7 +28,7 @@ export const navigation = [
   },
   {
     id: "dashboard-todo" as Page,
-    name: "todo 대시보드",
+    name: "내 업무함",
     icon: ListTodo,
     path: "/todo",
   },

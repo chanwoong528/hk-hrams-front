@@ -34,8 +34,11 @@ import EvaluationReport from "@/pages/EvaluationReport/EvaluationReport";
 import RoleRoute from "@/components/auth/RoleRoute";
 
 import { Toaster } from "@/components/ui/sonner";
+import { installGlobalErrorListeners } from "@/lib/logger";
 
 import "./index.css";
+
+installGlobalErrorListeners();
 
 const router = createBrowserRouter([
   {

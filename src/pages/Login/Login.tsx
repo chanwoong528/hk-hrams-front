@@ -20,7 +20,6 @@ export default function Login() {
   const { mutate: postSignIn, isPending: isLoading } = useMutation({
     mutationFn: (payload: SignInPayload) => POST_signIn(payload),
     onSuccess: (data: any) => {
-      console.log(data.data?.accessToken);
       if (data.data?.requirePasswordReset) {
         navigate("/verify-email", { state: { email } });
         return;
