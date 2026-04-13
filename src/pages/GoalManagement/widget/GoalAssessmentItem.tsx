@@ -273,7 +273,7 @@ const GoalAssessmentItem = ({
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="평가 코멘트를 입력하세요 (필수)"
+            placeholder="[세부 진행 경과]. [하반기 추진 계획]"
             className="min-h-[72px] resize-y bg-white text-sm"
             aria-label="평가 코멘트"
           />
