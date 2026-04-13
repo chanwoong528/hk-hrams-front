@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { POST_appraisalBy } from "@/api/appraisal-by/appraisal-by";
-import { APPRAISAL_TYPES } from "../constants";
+import { APPRAISAL_TYPES, getFinalOverallGradeOptions } from "../constants";
 
 interface UseFinalAssessmentProps {
     currentUserId?: string;
@@ -16,6 +16,9 @@ export function useFinalAssessment({ currentUserId }: UseFinalAssessmentProps) {
     );
     const [grade, setGrade] = useState("");
     const [comment, setComment] = useState("");
+    const [gradeScaleJobGroup, setGradeScaleJobGroup] = useState<
+        string | null | undefined
+    >(undefined);
 
     const { mutate: submitAssessment, isPending } = useMutation({
         mutationFn: POST_appraisalBy,
@@ -33,9 +36,14 @@ export function useFinalAssessment({ currentUserId }: UseFinalAssessmentProps) {
         appraisalId: string,
         initialGrade?: string,
         initialComment?: string,
+        jobGroup?: string | null,
     ) => {
         setSelectedAppraisalId(appraisalId);
-        setGrade(initialGrade || "");
+        setGradeScaleJobGroup(jobGroup);
+        const allowed = getFinalOverallGradeOptions(jobGroup).map((o) => o.value);
+        const nextGrade =
+            initialGrade && allowed.includes(initialGrade) ? initialGrade : "";
+        setGrade(nextGrade);
         setComment(initialComment || "");
         setIsOpen(true);
     };
@@ -45,6 +53,7 @@ export function useFinalAssessment({ currentUserId }: UseFinalAssessmentProps) {
         setSelectedAppraisalId(null);
         setGrade("");
         setComment("");
+        setGradeScaleJobGroup(undefined);
     };
 
     const handleSubmit = () => {
@@ -68,6 +77,7 @@ export function useFinalAssessment({ currentUserId }: UseFinalAssessmentProps) {
         isOpen,
         grade,
         comment,
+        gradeScaleJobGroup,
         isPending,
         setGrade,
         setComment,

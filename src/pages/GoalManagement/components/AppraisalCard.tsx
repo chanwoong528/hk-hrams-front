@@ -16,6 +16,7 @@ interface AppraisalCardProps {
     appraisalId: string,
     existingGrade?: string,
     existingComment?: string,
+    jobGroup?: string | null,
   ) => void;
   onSaveGoalAssessment: (
     goalId: string,
@@ -48,6 +49,7 @@ export function AppraisalCard({
       appraisal.appraisalUserId || appraisal.appraisalId,
       appraisal.selfAssessment?.grade,
       appraisal.selfAssessment?.comment,
+      currentUser?.jobGroup,
     );
   };
 

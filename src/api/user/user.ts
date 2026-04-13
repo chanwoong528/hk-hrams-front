@@ -75,7 +75,6 @@ export const PATCH_user = async (payload: {
   employeeId?: string;
   phoneNumber?: string;
 }) => {
-  console.log("@@@payload>> ", payload);
   const response = await http.patch(`/user/${payload.userId}`, {
     koreanName: payload.koreanName,
     email: payload.email,
