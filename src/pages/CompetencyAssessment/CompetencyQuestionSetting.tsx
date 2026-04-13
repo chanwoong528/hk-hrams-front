@@ -49,6 +49,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isHrOrAdminUser } from "@/lib/hrAccess";
 import type { CompetencyQuestionGroupDto } from "@/api/competency/competency";
+import { GET_departments } from "@/api/department/department";
 
 export default function CompetencyQuestionSetting() {
   const queryClient = useQueryClient();
@@ -81,6 +82,37 @@ export default function CompetencyQuestionSetting() {
     () => isHrOrAdminUser(currentUser?.email, currentUser?.departments),
     [currentUser],
   );
+
+  const { data: allDepartmentsFlat, isLoading: isLoadingAllDepartments } =
+    useQuery({
+      queryKey: ["departmentsFlatForCompetencyQuestionSetting"],
+      queryFn: () => GET_departments("flat"),
+      enabled: isHrOrAdmin,
+      select: (res) => (res?.data ?? []) as DepartmentTreeData[],
+    });
+
+  const departmentSelectRows = useMemo(() => {
+    if (isHrOrAdmin && (allDepartmentsFlat?.length ?? 0) > 0) {
+      return allDepartmentsFlat!.map((d) => ({
+        id: d.id,
+        label: d.text,
+        isLeader: Boolean(
+          currentUser?.departments?.some(
+            (ud) => ud.departmentId === d.id && ud.isLeader,
+          ),
+        ),
+      }));
+    }
+    return (currentUser?.departments ?? []).map((d) => ({
+      id: d.departmentId,
+      label: d.departmentName,
+      isLeader: d.isLeader,
+    }));
+  }, [isHrOrAdmin, allDepartmentsFlat, currentUser?.departments]);
+
+  const isDepartmentSelectDisabled = isHrOrAdmin
+    ? isLoadingAllDepartments || departmentSelectRows.length === 0
+    : !currentUser?.departments?.length;
 
   // Fetch appraisals for the dropdown
   const { data: appraisals, isLoading: isLoadingAppraisals } = useQuery({
@@ -176,14 +208,27 @@ export default function CompetencyQuestionSetting() {
     )
   ) as string[];
 
-  // Automatically select the first leader department if available
+  // 부서장: 리더 부서(없으면 첫 소속) 자동 선택. HR/관리자: 전체 부서 로드 후 미선택이면 첫 부서.
   useEffect(() => {
-    if (currentUser?.departments?.length) {
-      const leaderDept = currentUser.departments.find((d) => d.isLeader);
-      if (leaderDept) setDepartmentId(leaderDept.departmentId);
-      else setDepartmentId(currentUser.departments[0].departmentId); // Fallback
-    }
-  }, [currentUser]);
+    if (isHrOrAdmin) return;
+    if (!currentUser?.departments?.length) return;
+    const leaderDept = currentUser.departments.find((d) => d.isLeader);
+    if (leaderDept) setDepartmentId(leaderDept.departmentId);
+    else setDepartmentId(currentUser.departments[0].departmentId);
+  }, [isHrOrAdmin, currentUser]);
+
+  useEffect(() => {
+    if (!isHrOrAdmin) return;
+    if (isLoadingAllDepartments) return;
+    if (!allDepartmentsFlat?.length) return;
+    if (departmentId) return;
+    setDepartmentId(allDepartmentsFlat[0].id);
+  }, [
+    isHrOrAdmin,
+    isLoadingAllDepartments,
+    allDepartmentsFlat,
+    departmentId,
+  ]);
   
   // Reactive Loading: Load existing questions when selection criteria change
   useEffect(() => {
@@ -530,16 +575,21 @@ export default function CompetencyQuestionSetting() {
               <Select
                 value={departmentId}
                 onValueChange={setDepartmentId}
-                disabled={!currentUser?.departments?.length}>
+                disabled={isDepartmentSelectDisabled}>
                 <SelectTrigger className='h-11 bg-gray-50'>
-                  <SelectValue placeholder='부서를 선택하세요' />
+                  <SelectValue
+                    placeholder={
+                      isHrOrAdmin && isLoadingAllDepartments
+                        ? "부서 목록 불러오는 중..."
+                        : "부서를 선택하세요"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {currentUser?.departments?.map((dept) => (
-                    <SelectItem
-                      key={dept.departmentId}
-                      value={dept.departmentId}>
-                      {dept.departmentName} {dept.isLeader ? "(리더 권한)" : ""}
+                  {departmentSelectRows.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.label}{" "}
+                      {dept.isLeader ? "(리더 권한)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
