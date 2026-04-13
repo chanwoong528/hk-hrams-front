@@ -24,16 +24,22 @@ export function useGoalAssessment({ currentUserId }: UseGoalAssessmentProps) {
         goalId: string,
         grade: string,
         comment: string,
+        gradedByUserId?: string,
+        kpiAchievementRate?: string,
     ) => {
         if (!currentUserId) {
             toast.error("사용자 정보를 찾을 수 없습니다.");
             return;
         }
+        const gradedBy = gradedByUserId ?? currentUserId;
         mutateAssessGoal({
             goalId,
             grade,
             comment,
-            gradedBy: currentUserId,
+            gradedBy,
+            ...(kpiAchievementRate !== undefined
+                ? { kpiAchievementRate }
+                : {}),
         });
     };
 

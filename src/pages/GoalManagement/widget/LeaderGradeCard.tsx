@@ -477,6 +477,7 @@ const AppraisalSection = ({
     grade: string,
     comment: string,
     gradedByUserId?: string,
+    kpiAchievementRate?: string,
   ) => {
     const gradedBy = gradedByUserId ?? currentUserId;
     if (!gradedBy) {
@@ -488,6 +489,9 @@ const AppraisalSection = ({
       grade: grade,
       gradedBy: gradedBy,
       comment: comment,
+      ...(kpiAchievementRate !== undefined
+        ? { kpiAchievementRate }
+        : {}),
     });
   };
 
@@ -894,9 +898,9 @@ const AppraisalSection = ({
                             </DialogTitle>
                           </DialogHeader>
 
-                          <div className="p-6 space-y-6">
+                          <div className="min-w-0 space-y-6 p-4 sm:p-6">
                             {user.goals.length > 0 ? (
-                              <div className="grid gap-5">
+                              <div className="grid min-w-0 gap-5">
                                 {[...user.goals].map((goal) => (
                                   <GoalAssessmentItem
                                     key={goal.goalId}
