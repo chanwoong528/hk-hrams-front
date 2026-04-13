@@ -10,7 +10,6 @@ import LeaderGradeCard from "./widget/LeaderGradeCard";
 import type { MyAppraisal, DepartmentAppraisal } from "./type";
 
 // Refactored Components & Hooks
-import { DashboardStats } from "./components/DashboardStats";
 import { AppraisalCard } from "./components/AppraisalCard";
 import { FinalAssessmentDialog } from "./components/FinalAssessmentDialog";
 import { useFinalAssessment } from "./hooks/useFinalAssessment";
@@ -94,17 +93,14 @@ export default function GoalManagement() {
   }
 
   return (
-    <div className='p-4 lg:p-6 space-y-6'>
+    <div className="p-4 lg:p-6 space-y-6">
       {/* Header */}
-      <div className='flex flex-col sm:flex-row gap-4 justify-between'>
+      <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div>
-          <h2 className='text-gray-900'>목표 관리</h2>
-          <p className='text-gray-600 mt-1'>목표를 설정하고 평가합니다</p>
+          <h2 className="text-gray-900">목표 관리</h2>
+          <p className="text-gray-600 mt-1">목표를 설정하고 평가합니다</p>
         </div>
       </div>
-
-      {/* Statistics */}
-      <DashboardStats appraisals={myAppraisals || []} />
 
       {/* Self Appraisals List */}
       <Card>
@@ -114,7 +110,7 @@ export default function GoalManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className='space-y-4'>
+          <div className="space-y-4">
             {myAppraisals?.map((appraisal) => (
               <AppraisalCard
                 key={appraisal.appraisalId}
