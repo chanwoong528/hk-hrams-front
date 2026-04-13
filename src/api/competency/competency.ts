@@ -101,11 +101,37 @@ export interface CompetencyTemplateDto {
   created: string;
 }
 
+/** GET 응답이 배열 / { data: [] } / { data: { list } } 등으로 올 수 있음 */
+function normalizeCompetencyTemplateList(payload: unknown): CompetencyTemplateDto[] {
+  const tryArray = (v: unknown): CompetencyTemplateDto[] | null =>
+    Array.isArray(v) ? (v as CompetencyTemplateDto[]) : null;
+
+  const direct = tryArray(payload);
+  if (direct) return direct;
+
+  if (payload && typeof payload === "object") {
+    const root = payload as Record<string, unknown>;
+    const fromData = tryArray(root.data);
+    if (fromData) return fromData;
+    if (root.data && typeof root.data === "object") {
+      const inner = root.data as Record<string, unknown>;
+      const fromList = tryArray(inner.list);
+      if (fromList) return fromList;
+      const nestedData = tryArray(inner.data);
+      if (nestedData) return nestedData;
+    }
+    const fromList = tryArray(root.list);
+    if (fromList) return fromList;
+  }
+
+  return [];
+}
+
 export const GET_competencyTemplates = async (): Promise<
   CompetencyTemplateDto[]
 > => {
   const response = await http.get("/competency-template");
-  return response.data || [];
+  return normalizeCompetencyTemplateList(response.data as unknown);
 };
 
 export const POST_createCompetencyTemplate = async (payload: {
