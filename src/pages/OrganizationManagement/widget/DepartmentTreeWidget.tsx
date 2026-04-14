@@ -296,7 +296,7 @@ export default function DepartmentTreeWidget({
         </div>
       </CardHeader>
       <CardContent
-        className='flex-1 overflow-y-auto overflow-x-auto px-2 sm:px-6'
+        className='min-h-0 flex-1 overflow-y-auto overflow-x-auto px-2 sm:px-6'
         onClick={() => onSelectDepartment(null)}>
         <div
           className='bg-blue-50/50 p-3 rounded-lg flex items-center gap-3 mb-4 text-sm text-blue-800'

@@ -82,7 +82,7 @@ export default function DepartmentTree({
         />
       )}
       classes={{
-        root: "box-border h-full py-8 overflow-x-auto overflow-y-hidden",
+        root: "box-border py-8 overflow-x-auto",
         draggingSource: "opacity-30",
         dropTarget: "bg-blue-50/50",
       }}
