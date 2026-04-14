@@ -31,6 +31,7 @@ import CompetencyQuestionSetting from "@/pages/CompetencyAssessment/CompetencyQu
 import CompetencyTemplateManagement from "@/pages/CompetencyAssessment/CompetencyTemplateManagement";
 import CompetencyEvaluation from "@/pages/CompetencyAssessment/CompetencyEvaluation";
 import EvaluationReport from "@/pages/EvaluationReport/EvaluationReport";
+import MultiRaterEvaluateeMapping from "@/pages/LeaderAppraisal/admin/MultiRaterEvaluateeMapping";
 import RoleRoute from "@/components/auth/RoleRoute";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -118,6 +119,14 @@ const router = createBrowserRouter([
             element: (
               <RoleRoute adminOnly>
                 <LeaderReviewManagement />
+              </RoleRoute>
+            ),
+          },
+          {
+            path: "leader-appraisal/evaluatee-mapping",
+            element: (
+              <RoleRoute adminOnly>
+                <MultiRaterEvaluateeMapping />
               </RoleRoute>
             ),
           },

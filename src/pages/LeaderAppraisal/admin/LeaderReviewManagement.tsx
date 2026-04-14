@@ -50,7 +50,7 @@ export default function LeaderReviewManagement() {
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
-    setReviewTitle(`${format(new Date(), "yyyy년 M월")} 리더 평가`);
+    setReviewTitle(`${format(new Date(), "yyyy년 M월")} 다면평가`);
     setReviewDescription("");
   };
 
@@ -75,7 +75,7 @@ export default function LeaderReviewManagement() {
   const { mutate: startBatchReview, isPending: isStarting } = useMutation({
     mutationFn: POST_startLeaderReview,
     onSuccess: (response: any) => {
-      toast.success(response.message || "리더 평가가 시작되었습니다.");
+      toast.success(response.message || "다면평가가 시작되었습니다.");
       setIsModalOpen(false);
       setSelectedTemplate("");
       setExcludedUsers([]);
@@ -147,7 +147,7 @@ export default function LeaderReviewManagement() {
                   id='title'
                   value={reviewTitle}
                   onChange={(e) => setReviewTitle(e.target.value)}
-                  placeholder='예) 2024년 4분기 리더 평가'
+                  placeholder='예) 2024년 4분기 다면평가'
                 />
               </div>
 
@@ -213,7 +213,9 @@ export default function LeaderReviewManagement() {
               </Badge>
             </CardHeader>
             <CardContent>
-              <div className='text-2xl font-bold mb-2'>리더 평가</div>
+              <div className='text-2xl font-bold mb-2'>
+                {review.cycle?.title ?? "다면평가"}
+              </div>
               <div className='text-xs text-muted-foreground space-y-1'>
                 <div className='flex items-center'>
                   <Calendar className='mr-1 h-3 w-3' />

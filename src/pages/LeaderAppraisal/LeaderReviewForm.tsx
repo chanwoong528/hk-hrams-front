@@ -86,6 +86,15 @@ export default function LeaderReviewForm() {
           </span>{" "}
           리더님에 대한 평가입니다.
         </div>
+        {assignment.assignmentOrigin === "mapping" && (
+          <Alert className='border-amber-200 bg-amber-50 text-amber-950'>
+            <AlertDescription>
+              인사에서 이 리더 평가의{" "}
+              <strong>피평가자</strong>로 지정되어 있습니다. 아래 항목을
+              작성·제출해 주세요.
+            </AlertDescription>
+          </Alert>
+        )}
         <Alert className='bg-blue-50 border-blue-100 text-blue-800'>
           <AlertDescription>
             응답 내용은 철저히 익명으로 처리되며, 리더에게는 종합된 결과만

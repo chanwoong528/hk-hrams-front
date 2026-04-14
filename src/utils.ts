@@ -13,6 +13,7 @@ import {
   LayoutTemplate,
   ClipboardEdit,
   FileText,
+  Waypoints,
 } from "lucide-react";
 
 // admin true
@@ -103,6 +104,13 @@ export const navigation = [
         admin: true,
       },
       {
+        id: "leader-evaluatee-mapping" as Page,
+        name: "피평가자 매핑",
+        path: "/leader-appraisal/evaluatee-mapping",
+        icon: Waypoints,
+        admin: true,
+      },
+      {
         id: "template-management" as Page,
         name: "평가 템플릿 관리",
         path: "/leader-appraisal/templates",
@@ -138,6 +146,7 @@ export type Page =
   | "template-management"
   | "my-leader-reviews"
   | "my-leader-results"
+  | "leader-evaluatee-mapping"
   | "competency-management"
   | "competency-setting"
   | "competency-evaluation-self"

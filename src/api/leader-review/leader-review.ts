@@ -35,6 +35,8 @@ export interface LeaderReview {
 export interface ReviewAssignment {
   assignmentId: string;
   status: string; // 'NOT_STARTED' | 'SUBMITTED'
+  /** mapping: HR 전역 피평가자 매핑으로 배정 / team: 리더 팀원 자동 배정 */
+  assignmentOrigin?: string | null;
   deadline?: string;
   createdAt: string;
   leaderReview: LeaderReview;

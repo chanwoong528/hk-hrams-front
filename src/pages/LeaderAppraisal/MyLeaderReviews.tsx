@@ -27,7 +27,8 @@ export default function MyLeaderReviews() {
       <div>
         <h1 className='text-2xl font-bold tracking-tight'>리더 다면 평가</h1>
         <p className='text-muted-foreground mt-2'>
-          배정된 리더 다면 평가에 참여해주세요. 익명성이 보장됩니다.
+          배정된 리더 다면 평가에 참여해주세요. 인사에서 피평가자로 지정된
+          경우에도 동일하게 제출하면 됩니다. 익명성이 보장됩니다.
         </p>
       </div>
 
@@ -50,13 +51,22 @@ export default function MyLeaderReviews() {
               }`}>
               <CardHeader className='pb-3'>
                 <div className='flex justify-between items-start'>
-                  <Badge
-                    variant={isCompleted ? "secondary" : "default"}
-                    className={
-                      isCompleted ? "" : "bg-blue-600 hover:bg-blue-700"
-                    }>
-                    {isCompleted ? "제출 완료" : "진행 중"}
-                  </Badge>
+                  <div className='flex flex-wrap items-center gap-1.5'>
+                    <Badge
+                      variant={isCompleted ? "secondary" : "default"}
+                      className={
+                        isCompleted ? "" : "bg-blue-600 hover:bg-blue-700"
+                      }>
+                      {isCompleted ? "제출 완료" : "진행 중"}
+                    </Badge>
+                    {assignment.assignmentOrigin === "mapping" && (
+                      <Badge
+                        variant='outline'
+                        className='border-amber-300 bg-amber-50 text-amber-900'>
+                        피평가자 지정
+                      </Badge>
+                    )}
+                  </div>
                   {assignment.leaderReview.cycle?.deadline && (
                     <span className='text-xs text-muted-foreground'>
                       ~{" "}
@@ -72,8 +82,16 @@ export default function MyLeaderReviews() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className='text-sm text-muted-foreground mb-4'>
-                  {assignment.leaderReview.cycle?.title || "정기 다면 평가"}
+                <div className='text-sm text-muted-foreground mb-4 space-y-1'>
+                  <div>
+                    {assignment.leaderReview.cycle?.title || "정기 다면 평가"}
+                  </div>
+                  {assignment.assignmentOrigin === "mapping" && (
+                    <p className='text-xs text-amber-900'>
+                      인사에서 이 리더 평가의 피평가자로 지정되어 제출이
+                      필요합니다.
+                    </p>
+                  )}
                 </div>
 
                 <Button

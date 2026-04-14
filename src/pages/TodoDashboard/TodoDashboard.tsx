@@ -185,7 +185,7 @@ export default function TodoDashboard() {
           />
           {todos?.leaderReview && (
             <TodoSection
-              title='나의 리더 평가'
+              title='다면 평가'
               items={todos?.leaderReview}
               icon={UserCheck}
               emptyText='배정된 리더 평가가 없습니다.'
