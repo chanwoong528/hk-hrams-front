@@ -50,6 +50,7 @@ export const PATCH_appraisal = async (payload: {
   status?: string;
   minGradeRank?: number;
   maxGradeRank?: number;
+  macroWorkflowPhase?: number;
 }) => {
   console.log("@@@@@@@@@@@@@@@ payload>> ", payload);
 
@@ -63,6 +64,9 @@ export const PATCH_appraisal = async (payload: {
     }),
     ...(payload.maxGradeRank !== undefined && {
       maxGradeRank: payload.maxGradeRank,
+    }),
+    ...(payload.macroWorkflowPhase !== undefined && {
+      macroWorkflowPhase: payload.macroWorkflowPhase,
     }),
   };
   const response = await http.patch(

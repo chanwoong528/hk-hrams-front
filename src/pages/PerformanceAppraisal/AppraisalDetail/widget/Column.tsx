@@ -1,4 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import type { Appraisal, User } from "@/pages/GoalManagement/type";
+import type { Department } from "@/api/user/user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
@@ -108,6 +110,29 @@ interface DetailColumn {
   departments: Department[];
   competencyTotal: number;
   competencySubmitted: number;
+  perfMidSelfDone?: boolean;
+  perfFinalSelfDone?: boolean;
+  perfMidLeaderDone?: boolean;
+  perfFinalLeaderDone?: boolean;
+  compFinalMidSelfDone?: boolean;
+  compFinalFinalSelfDone?: boolean;
+  compFinalMidLeaderDone?: boolean;
+  compFinalFinalLeaderDone?: boolean;
+}
+
+function workflowDoneBadge(done?: boolean) {
+  if (done === true) {
+    return (
+      <Badge variant='outline' className='text-xs whitespace-nowrap'>
+        완료
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant='secondary' className='text-xs whitespace-nowrap'>
+      미완료
+    </Badge>
+  );
 }
 
 export type SortConfig = {
@@ -264,6 +289,110 @@ export const getColumns = (
         </div>
       );
     },
+  },
+  {
+    id: "midPerfSelf",
+    header: () => (
+      <p className='text-center text-xs max-w-[5.5rem] leading-tight'>
+        중간·성과 자가
+      </p>
+    ),
+    cell: ({ row }) => (
+      <div className='flex justify-center'>
+        {workflowDoneBadge(row.original.perfMidSelfDone)}
+      </div>
+    ),
+  },
+  {
+    id: "midPerfLeader",
+    header: () => (
+      <p className='text-center text-xs max-w-[5.5rem] leading-tight'>
+        중간·성과 리더
+      </p>
+    ),
+    cell: ({ row }) => (
+      <div className='flex justify-center'>
+        {workflowDoneBadge(row.original.perfMidLeaderDone)}
+      </div>
+    ),
+  },
+  {
+    id: "midCompFinalSelf",
+    header: () => (
+      <p className='text-center text-xs max-w-[5.5rem] leading-tight'>
+        중간·역량최종 자가
+      </p>
+    ),
+    cell: ({ row }) => (
+      <div className='flex justify-center'>
+        {workflowDoneBadge(row.original.compFinalMidSelfDone)}
+      </div>
+    ),
+  },
+  {
+    id: "midCompFinalLeader",
+    header: () => (
+      <p className='text-center text-xs max-w-[5.5rem] leading-tight'>
+        중간·역량최종 리더
+      </p>
+    ),
+    cell: ({ row }) => (
+      <div className='flex justify-center'>
+        {workflowDoneBadge(row.original.compFinalMidLeaderDone)}
+      </div>
+    ),
+  },
+  {
+    id: "finalPerfSelf",
+    header: () => (
+      <p className='text-center text-xs max-w-[5.5rem] leading-tight'>
+        기말·성과 자가
+      </p>
+    ),
+    cell: ({ row }) => (
+      <div className='flex justify-center'>
+        {workflowDoneBadge(row.original.perfFinalSelfDone)}
+      </div>
+    ),
+  },
+  {
+    id: "finalPerfLeader",
+    header: () => (
+      <p className='text-center text-xs max-w-[5.5rem] leading-tight'>
+        기말·성과 리더
+      </p>
+    ),
+    cell: ({ row }) => (
+      <div className='flex justify-center'>
+        {workflowDoneBadge(row.original.perfFinalLeaderDone)}
+      </div>
+    ),
+  },
+  {
+    id: "finalCompFinalSelf",
+    header: () => (
+      <p className='text-center text-xs max-w-[5.5rem] leading-tight'>
+        기말·역량최종 자가
+      </p>
+    ),
+    cell: ({ row }) => (
+      <div className='flex justify-center'>
+        {workflowDoneBadge(row.original.compFinalFinalSelfDone)}
+      </div>
+    ),
+  },
+  {
+    id: "finalCompFinalLeader",
+    header: () => (
+      <p className='text-center text-xs max-w-[5.5rem] leading-tight'>
+        기말·역량최종 리더
+      </p>
+    ),
+    cell: ({ row }) => (
+      <div className='flex justify-center'>
+        {workflowDoneBadge(row.original.compFinalFinalLeaderDone)}
+      </div>
+    ),
   },
   {
     id: "actions",

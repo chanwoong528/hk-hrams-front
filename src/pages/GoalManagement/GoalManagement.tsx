@@ -152,12 +152,15 @@ export default function GoalManagement() {
       <FinalAssessmentDialog
         open={finalAssessment.isOpen}
         onOpenChange={finalAssessment.onOpenChange}
+        title={finalAssessment.dialogTitle}
         jobGroup={finalAssessment.gradeScaleJobGroup}
         grade={finalAssessment.grade}
         onGradeChange={finalAssessment.setGrade}
         comment={finalAssessment.comment}
         onCommentChange={finalAssessment.setComment}
         onSubmit={finalAssessment.handleSubmit}
+        activeAssessTerm={finalAssessment.assessTerm}
+        peerSelfRounds={finalAssessment.peerSelfRounds}
       />
     </div>
   );

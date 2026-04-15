@@ -19,8 +19,11 @@ export function useCompetencyFinalAssessment({
   });
 
   const upsertMutation = useMutation({
-    mutationFn: (payload: { appraisalUserId: string; grade: string }) =>
-      POST_competencyFinalAssessment(payload),
+    mutationFn: (payload: {
+      appraisalUserId: string;
+      grade: string;
+      evaluationRound?: "mid" | "final";
+    }) => POST_competencyFinalAssessment(payload),
     onSuccess: (_, variables) => {
       toast.success("최종 평가가 저장되었습니다.");
       queryClient.invalidateQueries({

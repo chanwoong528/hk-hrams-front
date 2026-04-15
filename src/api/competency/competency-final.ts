@@ -5,6 +5,7 @@ export interface CompetencyFinalAssessmentDto {
   appraisalUserId: string;
   assessedById: string;
   grade: string;
+  evaluationRound?: string;
   assessedBy?: {
     userId: string;
     koreanName: string;
@@ -25,6 +26,7 @@ export async function GET_competencyFinalAssessments(appraisalUserId: string) {
 export async function POST_competencyFinalAssessment(payload: {
   appraisalUserId: string;
   grade: string;
+  evaluationRound?: "mid" | "final";
 }) {
   const response = await http.post<ApiResponse<CompetencyFinalAssessmentDto>>(
     "/competency-final",

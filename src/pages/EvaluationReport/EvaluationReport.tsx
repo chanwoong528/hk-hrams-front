@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   GET_evaluationReport,
-  isTeamMemberReportUnlocked,
+  getTeamMemberReportBodyMode,
+  hasLeaderPerformanceFinalGrade,
   type CompetencyReportItem,
   type GoalReportItem,
   type FinalAssessmentItem,
@@ -47,7 +48,7 @@ const GRADE_COLORS: Record<string, string> = {
 /**
  * 피평가자 목록·리포트 헤더용 상태 문구.
  * `finished`는 DB상 리더 평가까지 반영된 상태이나, 팀원 본문(리포트)은
- * `isTeamMemberReportUnlocked` 등으로 따로 막혀 있을 수 있어
+ * 매크로 단계·기말 성과 종합 등으로 따로 막혀 있을 수 있어
  * 전사적 "평가 종료"와 구분한다. "진행중"은 오해 소지가 커서 단계를 직접 쓴다.
  */
 function formatAppraisalParticipationStatus(
@@ -112,14 +113,29 @@ function GradeBadge({ grade, label }: { grade?: string; label: string }) {
   );
 }
 
+function normalizeAssessTerm(
+  term: string | null | undefined,
+): "mid" | "final" {
+  return String(term ?? "")
+    .trim()
+    .toLowerCase() === "mid"
+    ? "mid"
+    : "final";
+}
+
 function FinalGradeInlineList({
   items,
   ownerUserId,
+  roundLabel,
 }: {
   items: Array<FinalAssessmentItem>;
   ownerUserId: string | undefined;
+  /** 예: "중간", "기말" — 미지정 시 "최종" */
+  roundLabel?: string;
 }) {
   if (items.length === 0) return null;
+
+  const labelWord = roundLabel?.trim() || "최종";
 
   const sortedItems = [...items].sort((a, b) => {
     const aIsSelf = ownerUserId != null && a.assessedById === ownerUserId;
@@ -142,7 +158,7 @@ function FinalGradeInlineList({
           className='flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700'
         >
           <span className='font-semibold text-gray-600'>
-            최종 ({item.assessedBy})
+            {labelWord} ({item.assessedBy})
           </span>
           <span
             className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-black ${
@@ -160,12 +176,16 @@ function FinalGradeInlineList({
 
 function CompetencySection({
   items,
-  finalItems,
+  finalItemsMid,
+  finalItemsFinal,
   ownerUserId,
+  presentation,
 }: {
   items: CompetencyReportItem[];
-  finalItems: FinalAssessmentItem[];
+  finalItemsMid: FinalAssessmentItem[];
+  finalItemsFinal: FinalAssessmentItem[];
   ownerUserId: string | undefined;
+  presentation: "mid_only" | "combined";
 }) {
   const byDept: Record<string, CompetencyReportItem[]> = {};
   items.forEach((item) => {
@@ -186,7 +206,22 @@ function CompetencySection({
             {items.length}개 문항
           </Badge>
         </div>
-        <FinalGradeInlineList items={finalItems} ownerUserId={ownerUserId} />
+        <div className='flex flex-col items-end gap-2'>
+          {finalItemsMid.length > 0 ? (
+            <FinalGradeInlineList
+              items={finalItemsMid}
+              ownerUserId={ownerUserId}
+              roundLabel='중간'
+            />
+          ) : null}
+          {presentation === "combined" && finalItemsFinal.length > 0 ? (
+            <FinalGradeInlineList
+              items={finalItemsFinal}
+              ownerUserId={ownerUserId}
+              roundLabel='기말'
+            />
+          ) : null}
+        </div>
       </div>
 
       {Object.entries(byDept).map(([dept, deptItems]) => (
@@ -207,73 +242,10 @@ function CompetencySection({
                   <p className='mb-4 font-semibold text-gray-800'>
                     {item.question}
                   </p>
-                  {item.evaluations && item.evaluations.length > 0 ? (
-                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-                      {item.evaluations.map((ev) => {
-                        const isSelf = ev.isSelf;
-                        const title = isSelf
-                          ? "자가 평가"
-                          : `평가 (${ev.evaluatorName || "평가자"})`;
-                        const bg = isSelf
-                          ? "bg-blue-50/30 border-blue-100/50"
-                          : "bg-green-50/30 border-green-100/50";
-                        const icon = isSelf ? (
-                          <User className='h-4 w-4 text-blue-600' />
-                        ) : (
-                          <Users className='h-4 w-4 text-green-600' />
-                        );
-                        const titleColor = isSelf
-                          ? "text-blue-700"
-                          : "text-green-700";
-                        return (
-                          <div
-                            key={ev.evaluatorId}
-                            className={`${bg} rounded-xl border p-4`}
-                          >
-                            <div className='mb-3 flex flex-wrap items-center gap-2'>
-                              {icon}
-                              <span
-                                className={`text-xs font-bold ${titleColor}`}>
-                                {title}
-                              </span>
-                              <GradeBadge grade={ev.grade ?? undefined} label='' />
-                            </div>
-                            <p className='text-sm leading-relaxed text-gray-600'>
-                              {ev.comment || "의견 없음"}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-                      <div className='rounded-xl border border-blue-100/50 bg-blue-50/30 p-4'>
-                        <div className='mb-3 flex flex-wrap items-center gap-2'>
-                          <User className='h-4 w-4 text-blue-600' />
-                          <span className='text-xs font-bold text-blue-700'>
-                            자가 평가
-                          </span>
-                          <GradeBadge grade={item.selfGrade} label='' />
-                        </div>
-                        <p className='text-sm leading-relaxed text-gray-600'>
-                          {item.selfComment || "의견 없음"}
-                        </p>
-                      </div>
-                      <div className='rounded-xl border border-green-100/50 bg-green-50/30 p-4'>
-                        <div className='mb-3 flex flex-wrap items-center gap-2'>
-                          <Users className='h-4 w-4 text-green-600' />
-                          <span className='text-xs font-bold text-green-700'>
-                            리더 평가
-                            {item.leaderName && ` (${item.leaderName})`}
-                          </span>
-                          <GradeBadge grade={item.leaderGrade} label='' />
-                        </div>
-                        <p className='text-sm leading-relaxed text-gray-600'>
-                          {item.leaderComment || "의견 없음"}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  <CompetencyRoundBody
+                    item={item}
+                    presentation={presentation}
+                  />
                 </div>
               ))}
             </div>
@@ -284,14 +256,248 @@ function CompetencySection({
   );
 }
 
+function goalEvaluationsByTerm(
+  item: GoalReportItem,
+  term: "mid" | "final",
+): NonNullable<GoalReportItem["evaluations"]> {
+  const raw = item.evaluations ?? [];
+  return raw.filter((e) => normalizeAssessTerm(e.assessTerm) === term);
+}
+
+type ReportEvaluationSlice = Array<{
+  evaluatorId: string;
+  evaluatorName: string;
+  grade: string | null;
+  comment: string | null;
+  isSelf: boolean;
+  assessTerm?: string;
+}>;
+
+function GoalEvaluationGrid({
+  slice,
+  sectionHeading,
+}: {
+  slice: ReportEvaluationSlice;
+  sectionHeading?: string;
+}) {
+  if (slice.length === 0) return null;
+
+  return (
+    <div className='space-y-3'>
+      {sectionHeading ? (
+        <p className='text-xs font-bold uppercase tracking-wide text-gray-500'>
+          {sectionHeading}
+        </p>
+      ) : null}
+      <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+        {slice.map((ev) => {
+          const isSelf = ev.isSelf;
+          const title = isSelf
+            ? "자가 평가"
+            : `평가 (${ev.evaluatorName || "평가자"})`;
+          const bg = isSelf
+            ? "bg-blue-50/30 border-blue-100/50"
+            : "bg-green-50/30 border-green-100/50";
+          const icon = isSelf ? (
+            <User className='h-4 w-4 text-blue-600' />
+          ) : (
+            <Users className='h-4 w-4 text-green-600' />
+          );
+          const titleColor = isSelf ? "text-blue-700" : "text-green-700";
+          return (
+            <div
+              key={`${ev.evaluatorId}-${normalizeAssessTerm(ev.assessTerm)}`}
+              className={`${bg} rounded-xl border p-4`}
+            >
+              <div className='mb-3 flex flex-wrap items-center gap-2'>
+                {icon}
+                <span className={`text-xs font-bold ${titleColor}`}>
+                  {title}
+                </span>
+                <GradeBadge grade={ev.grade ?? undefined} label='' />
+              </div>
+              <p className='text-sm leading-relaxed text-gray-600'>
+                {ev.comment || "의견 없음"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function GoalRoundBody({
+  item,
+  presentation,
+}: {
+  item: GoalReportItem;
+  presentation: "mid_only" | "combined";
+}) {
+  const raw = item.evaluations ?? [];
+  if (raw.length > 0) {
+    if (presentation === "mid_only") {
+      const midSlice = goalEvaluationsByTerm(item, "mid");
+      if (midSlice.length === 0) {
+        return (
+          <p className='text-sm text-gray-400'>
+            이 목표의 중간 평가 기록이 없습니다.
+          </p>
+        );
+      }
+      return <GoalEvaluationGrid slice={midSlice} sectionHeading='중간 평가' />;
+    }
+
+    const midSlice = goalEvaluationsByTerm(item, "mid");
+    const finSlice = goalEvaluationsByTerm(item, "final");
+    return (
+      <div className='space-y-6'>
+        {midSlice.length > 0 ? (
+          <GoalEvaluationGrid slice={midSlice} sectionHeading='중간 평가' />
+        ) : null}
+        {finSlice.length > 0 ? (
+          <GoalEvaluationGrid slice={finSlice} sectionHeading='기말 평가' />
+        ) : null}
+        {!midSlice.length && !finSlice.length ? (
+          <p className='text-sm text-gray-400'>평가 기록이 없습니다.</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (presentation === "mid_only") {
+    return (
+      <p className='text-sm text-gray-400'>
+        차수별 기록이 없어 중간 평가만 구분해 표시할 수 없습니다. HR
+        화면에서 확인하거나 목표 평가를 다시 저장해 주세요.
+      </p>
+    );
+  }
+
+  return (
+    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+      <div className='rounded-xl border border-blue-100/50 bg-blue-50/30 p-4'>
+        <div className='mb-2 flex flex-wrap items-center gap-2'>
+          <User className='h-4 w-4 text-blue-600' />
+          <span className='text-xs font-bold text-blue-700'>자가 평가</span>
+          <GradeBadge grade={item.selfGrade} label='' />
+        </div>
+        <p className='text-sm text-gray-600'>
+          {item.selfComment || "의견 없음"}
+        </p>
+      </div>
+      <div className='rounded-xl border border-green-100/50 bg-green-50/30 p-4'>
+        <div className='mb-2 flex flex-wrap items-center gap-2'>
+          <Users className='h-4 w-4 text-green-600' />
+          <span className='text-xs font-bold text-green-700'>
+            리더 평가
+            {item.leaderName && ` (${item.leaderName})`}
+          </span>
+          <GradeBadge grade={item.leaderGrade} label='' />
+        </div>
+        <p className='text-sm text-gray-600'>
+          {item.leaderComment || "의견 없음"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function competencyEvaluationsByTerm(
+  item: CompetencyReportItem,
+  term: "mid" | "final",
+): ReportEvaluationSlice {
+  const raw = item.evaluations ?? [];
+  return raw.filter((e) => normalizeAssessTerm(e.assessTerm) === term);
+}
+
+function CompetencyRoundBody({
+  item,
+  presentation,
+}: {
+  item: CompetencyReportItem;
+  presentation: "mid_only" | "combined";
+}) {
+  const raw = item.evaluations ?? [];
+  if (raw.length > 0) {
+    if (presentation === "mid_only") {
+      const midSlice = competencyEvaluationsByTerm(item, "mid");
+      if (midSlice.length === 0) {
+        return (
+          <p className='text-sm text-gray-400'>
+            이 문항의 중간 평가 기록이 없습니다.
+          </p>
+        );
+      }
+      return <GoalEvaluationGrid slice={midSlice} sectionHeading='중간 평가' />;
+    }
+
+    const midSlice = competencyEvaluationsByTerm(item, "mid");
+    const finSlice = competencyEvaluationsByTerm(item, "final");
+    return (
+      <div className='space-y-6'>
+        {midSlice.length > 0 ? (
+          <GoalEvaluationGrid slice={midSlice} sectionHeading='중간 평가' />
+        ) : null}
+        {finSlice.length > 0 ? (
+          <GoalEvaluationGrid slice={finSlice} sectionHeading='기말 평가' />
+        ) : null}
+        {!midSlice.length && !finSlice.length ? (
+          <p className='text-sm text-gray-400'>평가 기록이 없습니다.</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (presentation === "mid_only") {
+    return (
+      <p className='text-sm text-gray-400'>
+        차수별 기록이 없어 중간 평가만 구분해 표시할 수 없습니다.
+      </p>
+    );
+  }
+
+  return (
+    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+      <div className='rounded-xl border border-blue-100/50 bg-blue-50/30 p-4'>
+        <div className='mb-3 flex flex-wrap items-center gap-2'>
+          <User className='h-4 w-4 text-blue-600' />
+          <span className='text-xs font-bold text-blue-700'>자가 평가</span>
+          <GradeBadge grade={item.selfGrade} label='' />
+        </div>
+        <p className='text-sm leading-relaxed text-gray-600'>
+          {item.selfComment || "의견 없음"}
+        </p>
+      </div>
+      <div className='rounded-xl border border-green-100/50 bg-green-50/30 p-4'>
+        <div className='mb-3 flex flex-wrap items-center gap-2'>
+          <Users className='h-4 w-4 text-green-600' />
+          <span className='text-xs font-bold text-green-700'>
+            리더 평가
+            {item.leaderName && ` (${item.leaderName})`}
+          </span>
+          <GradeBadge grade={item.leaderGrade} label='' />
+        </div>
+        <p className='text-sm leading-relaxed text-gray-600'>
+          {item.leaderComment || "의견 없음"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function GoalSection({
   items,
-  finalItems,
+  finalItemsMid,
+  finalItemsFinal,
   ownerUserId,
+  presentation,
 }: {
   items: GoalReportItem[];
-  finalItems: FinalAssessmentItem[];
+  finalItemsMid: FinalAssessmentItem[];
+  finalItemsFinal: FinalAssessmentItem[];
   ownerUserId: string | undefined;
+  presentation: "mid_only" | "combined";
 }) {
   return (
     <div className='space-y-6'>
@@ -305,7 +511,22 @@ function GoalSection({
             {items.length}개 목표
           </Badge>
         </div>
-        <FinalGradeInlineList items={finalItems} ownerUserId={ownerUserId} />
+        <div className='flex flex-col items-end gap-2'>
+          {finalItemsMid.length > 0 ? (
+            <FinalGradeInlineList
+              items={finalItemsMid}
+              ownerUserId={ownerUserId}
+              roundLabel='중간'
+            />
+          ) : null}
+          {presentation === "combined" && finalItemsFinal.length > 0 ? (
+            <FinalGradeInlineList
+              items={finalItemsFinal}
+              ownerUserId={ownerUserId}
+              roundLabel='기말'
+            />
+          ) : null}
+        </div>
       </div>
 
       <Card className='evaluation-report-print-allow-page-break border-none shadow-sm ring-1 ring-gray-200 overflow-hidden'>
@@ -333,73 +554,7 @@ function GoalSection({
                       </p>
                     </div>
                   </div>
-                  {item.evaluations && item.evaluations.length > 0 ? (
-                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-                      {item.evaluations.map((ev) => {
-                        const isSelf = ev.isSelf;
-                        const title = isSelf
-                          ? "자가 평가"
-                          : `평가 (${ev.evaluatorName || "평가자"})`;
-                        const bg = isSelf
-                          ? "bg-blue-50/30 border-blue-100/50"
-                          : "bg-green-50/30 border-green-100/50";
-                        const icon = isSelf ? (
-                          <User className='h-4 w-4 text-blue-600' />
-                        ) : (
-                          <Users className='h-4 w-4 text-green-600' />
-                        );
-                        const titleColor = isSelf
-                          ? "text-blue-700"
-                          : "text-green-700";
-                        return (
-                          <div
-                            key={ev.evaluatorId}
-                            className={`${bg} rounded-xl border p-4`}
-                          >
-                            <div className='mb-2 flex flex-wrap items-center gap-2'>
-                              {icon}
-                              <span
-                                className={`text-xs font-bold ${titleColor}`}>
-                                {title}
-                              </span>
-                              <GradeBadge grade={ev.grade ?? undefined} label='' />
-                            </div>
-                            <p className='text-sm text-gray-600'>
-                              {ev.comment || "의견 없음"}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-                      <div className='rounded-xl border border-blue-100/50 bg-blue-50/30 p-4'>
-                        <div className='mb-2 flex flex-wrap items-center gap-2'>
-                          <User className='h-4 w-4 text-blue-600' />
-                          <span className='text-xs font-bold text-blue-700'>
-                            자가 평가
-                          </span>
-                          <GradeBadge grade={item.selfGrade} label='' />
-                        </div>
-                        <p className='text-sm text-gray-600'>
-                          {item.selfComment || "의견 없음"}
-                        </p>
-                      </div>
-                      <div className='rounded-xl border border-green-100/50 bg-green-50/30 p-4'>
-                        <div className='mb-2 flex flex-wrap items-center gap-2'>
-                          <Users className='h-4 w-4 text-green-600' />
-                          <span className='text-xs font-bold text-green-700'>
-                            리더 평가
-                            {item.leaderName && ` (${item.leaderName})`}
-                          </span>
-                          <GradeBadge grade={item.leaderGrade} label='' />
-                        </div>
-                        <p className='text-sm text-gray-600'>
-                          {item.leaderComment || "의견 없음"}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  <GoalRoundBody item={item} presentation={presentation} />
                 </div>
               ))
             )}
@@ -650,10 +805,24 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
     queryFn: () => GET_evaluationReport(appraisalUserId),
   });
 
-  const isReportReady = useMemo(() => {
-    if (!report) return false;
-    return isTeamMemberReportUnlocked(report);
+  const teamBodyMode = useMemo(() => {
+    if (!report) return "locked" as const;
+    return getTeamMemberReportBodyMode(report);
   }, [report]);
+
+  const presentation = useMemo<
+    "mid_only" | "combined"
+  >(() => {
+    if (canViewIncompleteReport || teamBodyMode === "full") {
+      return "combined";
+    }
+    return "mid_only";
+  }, [canViewIncompleteReport, teamBodyMode]);
+
+  const showReportBody =
+    canViewIncompleteReport ||
+    teamBodyMode === "mid_only" ||
+    teamBodyMode === "full";
 
   useEffect(() => {
     if (isLoading) return;
@@ -663,7 +832,7 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
       });
       return;
     }
-    if (!isReportReady && !canViewIncompleteReport) {
+    if (!showReportBody) {
       const ownerId = report.owner?.userId;
       const finalsGateDetail = report.finalAssessments.map((f) => ({
         assessType: f.assessType,
@@ -678,30 +847,25 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
           f.assessedById != null &&
           f.assessedById !== ownerId,
       }));
-      console.log(
-        "[EvaluationReport] Blocked: report body hidden for team member",
-        {
-          appraisalUserId,
-          ownerId,
-          canViewIncompleteReport,
-          isReportReady,
-          reason:
-            report.finalAssessments.length === 0
-              ? "no_appraisal_by_rows"
-              : "no_leader_performance_final_with_grade",
-          hint: "Need assessType=performance, assessTerm=final, non-empty grade, assessedById !== owner",
-          finalAssessmentsCount: report.finalAssessments.length,
-          finalsGateDetail,
-          userStatus: report.userStatus,
-          appraisalStatus: report.appraisalStatus,
-        },
-      );
+      console.log("[EvaluationReport] Blocked: team report body (macro < 4)", {
+        appraisalUserId,
+        ownerId,
+        canViewIncompleteReport,
+        teamBodyMode,
+        macroWorkflowPhase: report.macroWorkflowPhase,
+        hasLeaderPerfFinal: hasLeaderPerformanceFinalGrade(report),
+        finalAssessmentsCount: report.finalAssessments.length,
+        finalsGateDetail,
+        userStatus: report.userStatus,
+        appraisalStatus: report.appraisalStatus,
+      });
     }
   }, [
     isLoading,
     report,
-    isReportReady,
+    showReportBody,
     canViewIncompleteReport,
+    teamBodyMode,
     appraisalUserId,
   ]);
 
@@ -736,21 +900,20 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
   }
 
   /*
-   * 팀원 본문 공개: 리더(assessedById !== owner)의 성과(performance) 최종(final)
-   * AppraisalBy가 1건 이상이고 등급이 있으면 통과. 다른 AppraisalBy 행은 무시.
-   * 인사·관리자는 게이트 없이 항상 본문 조회 가능.
+   * 팀원 본문: 매크로 4단계 이상이면 중간 결과, 리더 기말 성과 종합이 있으면 중간+기말.
+   * 인사·관리자는 항상 본문 조회.
    */
 
-  if (!isReportReady && !canViewIncompleteReport) {
+  if (!showReportBody) {
     return (
       <div className='flex flex-col items-center justify-center min-h-[60vh] text-center'>
         <ClipboardList className='w-16 h-16 text-gray-300 mb-4' />
         <h3 className='text-xl font-bold text-gray-800'>
-          종합 평가가 아직 완료되지 않았습니다
+          아직 평가 리포트가 공개되지 않았습니다
         </h3>
         <p className='text-gray-500 mt-2 max-w-md'>
-          리포트를 조회하려면 리더가 제출한 성과 평가의 최종(기말) 등급이
-          등록되어야 합니다.
+          팀장 중간 평가(워크플로 3단계)가 끝나 매크로가 4단계로 넘어가면, 중간
+          평가 결과가 이 페이지에 공개됩니다.
         </p>
         <Button
           variant='outline'
@@ -812,7 +975,7 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
         </Button>
       </div>
 
-      {canViewIncompleteReport && !isReportReady ? (
+      {canViewIncompleteReport && !hasLeaderPerformanceFinalGrade(report) ? (
         <div
           className='rounded-lg border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 print:hidden'
           role='status'>
@@ -821,27 +984,63 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
         </div>
       ) : null}
 
+      {!canViewIncompleteReport && teamBodyMode === "mid_only" ? (
+        <div
+          className='rounded-lg border border-blue-200 bg-blue-50/90 px-4 py-3 text-sm text-blue-950 print:hidden'
+          role='status'>
+          현재 공개 범위는 <strong>중간 평가</strong>까지입니다. 팀장이 기말 성과
+          종합을 제출하면 기말 평가가 같은 리포트에 추가로 표시됩니다.
+        </div>
+      ) : null}
+
+      {!canViewIncompleteReport && teamBodyMode === "full" ? (
+        <div
+          className='rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950 print:hidden'
+          role='status'>
+          중간·기말 평가가 모두 반영된 리포트입니다.
+        </div>
+      ) : null}
+
       {(() => {
-        const competencyFinals = (report.finalAssessments ?? []).filter(
-          (f) => f.assessType === "competency" && f.assessTerm === "final",
+        const finals = report.finalAssessments ?? [];
+        const performanceMids = finals.filter(
+          (f) =>
+            f.assessType === "performance" &&
+            normalizeAssessTerm(f.assessTerm) === "mid",
         );
-        const performanceFinals = (report.finalAssessments ?? []).filter(
-          (f) => f.assessType === "performance" && f.assessTerm === "final",
+        const performanceFinals = finals.filter(
+          (f) =>
+            f.assessType === "performance" &&
+            normalizeAssessTerm(f.assessTerm) === "final",
+        );
+        const competencyMids = finals.filter(
+          (f) =>
+            f.assessType === "competency" &&
+            normalizeAssessTerm(f.assessTerm) === "mid",
+        );
+        const competencyFinals = finals.filter(
+          (f) =>
+            f.assessType === "competency" &&
+            normalizeAssessTerm(f.assessTerm) === "final",
         );
 
         return (
           <>
             <GoalSection
               items={report.goals}
-              finalItems={performanceFinals}
+              finalItemsMid={performanceMids}
+              finalItemsFinal={performanceFinals}
               ownerUserId={report.owner?.userId}
+              presentation={presentation}
             />
 
             {report.competency.length > 0 ? (
               <CompetencySection
                 items={report.competency}
-                finalItems={competencyFinals}
+                finalItemsMid={competencyMids}
+                finalItemsFinal={competencyFinals}
                 ownerUserId={report.owner?.userId}
+                presentation={presentation}
               />
             ) : null}
           </>

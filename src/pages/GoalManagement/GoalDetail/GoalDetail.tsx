@@ -13,6 +13,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useCurrentUserStore } from "@/store/currentUserStore";
 import type { Goal, Appraisal } from "../type";
+import {
+  PERSONAL_GOALS_PHASE_HINT,
+  canMutatePersonalGoalsInMacroPhase,
+} from "../constants";
+
+function getApiErrorMessage(error: unknown): string {
+  const err = error as {
+    response?: { data?: { message?: string } };
+    message?: string;
+  };
+  const msg = err?.response?.data?.message ?? err?.message;
+  if (typeof msg === "string" && msg.trim()) return msg.trim();
+  return "요청 처리 중 오류가 발생했습니다.";
+}
 
 export default function GoalDetail() {
   const { appraisalId } = useParams();
@@ -27,6 +41,10 @@ export default function GoalDetail() {
     enabled: !!appraisalId,
     select: (data) => data.data.list?.[0] as Appraisal,
   });
+
+  const personalGoalsReadOnly =
+    !appraisal ||
+    !canMutatePersonalGoalsInMacroPhase(appraisal.macroWorkflowPhase);
 
   // 2. Fetch Existing Goals
   const { data: goals } = useQuery({
@@ -43,7 +61,7 @@ export default function GoalDetail() {
   const isOfficeManagement =
     (currentUser?.jobGroup ?? "").trim() === "사무관리직";
 
-  const { mutate: postGoals } = useMutation({
+  const { mutateAsync: postGoals } = useMutation({
     mutationFn: (payload: {
       appraisalId: string;
       goals: {
@@ -54,16 +72,12 @@ export default function GoalDetail() {
       }[];
     }) => POST_goals(payload),
     onSuccess: () => {
-      // toast.success("목표가 저장되었습니다");
       queryClient.invalidateQueries({ queryKey: ["goals", appraisalId] });
       queryClient.invalidateQueries({ queryKey: ["appraisalTypes"] });
     },
-    onError: () => {
-      // toast.error("목표 저장 실패")
-    },
   });
 
-  const { mutate: updateGoal } = useMutation({
+  const { mutateAsync: updateGoal } = useMutation({
     mutationFn: (payload: {
       goalId: string;
       title: string;
@@ -82,24 +96,16 @@ export default function GoalDetail() {
           : {}),
       }),
     onSuccess: () => {
-      // toast.success("목표가 수정되었습니다");
       queryClient.invalidateQueries({ queryKey: ["goals", appraisalId] });
       queryClient.invalidateQueries({ queryKey: ["appraisalTypes"] });
-    },
-    onError: () => {
-      // toast.error("목표 수정 실패")
     },
   });
 
-  const { mutate: deleteGoal } = useMutation({
+  const { mutateAsync: deleteGoal } = useMutation({
     mutationFn: (goalId: string) => DELETE_goal(goalId),
     onSuccess: () => {
-      // toast.success("목표가 삭제되었습니다");
       queryClient.invalidateQueries({ queryKey: ["goals", appraisalId] });
       queryClient.invalidateQueries({ queryKey: ["appraisalTypes"] });
-    },
-    onError: () => {
-      // toast.error("목표 삭제 실패")
     },
   });
 
@@ -172,11 +178,7 @@ export default function GoalDetail() {
       if (newGoals.length > 0)
         actionSummaries.push(`추가 ${newGoals.length}건`);
       if (updatedGoals.length > 0)
-        actionSummaries.push(`수정 ${updatedGoals.length}건`); // This count might be inaccurate if we filtered some out in the logic above?
-      // Actually updatedGoals here is the raw list passed from GoalForm.
-      // But we filtered "No Changes" out inside `filteredUpdates` loop.
-      // To be accurate, we should count valid updates.
-      // Let's rely on the user seeing "Saved" for now, or refine count.
+        actionSummaries.push(`수정 ${updatedGoals.length}건`);
       if (deletedGoalIds.length > 0)
         actionSummaries.push(`삭제 ${deletedGoalIds.length}건`);
 
@@ -187,7 +189,7 @@ export default function GoalDetail() {
       }
     } catch (error) {
       console.error("Batch save error", error);
-      toast.error("일부 작업을 처리하는 중 오류가 발생했습니다.");
+      toast.error(getApiErrorMessage(error));
     }
   };
 
@@ -209,6 +211,8 @@ export default function GoalDetail() {
         onSaveAll={handleSaveAll}
         existingGoals={goals?.filter((g) => g.goalType !== "common") || []}
         targetJobGroup={currentUser?.jobGroup}
+        personalGoalsReadOnly={personalGoalsReadOnly}
+        personalGoalsReadOnlyMessage={PERSONAL_GOALS_PHASE_HINT}
         appraisalInfo={{
           title: appraisal?.title,
           description: appraisal?.description,

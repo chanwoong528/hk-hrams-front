@@ -26,6 +26,7 @@ export function useGoalAssessment({ currentUserId }: UseGoalAssessmentProps) {
         comment: string,
         gradedByUserId?: string,
         kpiAchievementRate?: string,
+        assessTerm?: "mid" | "final",
     ) => {
         if (!currentUserId) {
             toast.error("사용자 정보를 찾을 수 없습니다.");
@@ -37,6 +38,7 @@ export function useGoalAssessment({ currentUserId }: UseGoalAssessmentProps) {
             grade,
             comment,
             gradedBy,
+            assessTerm: assessTerm ?? "final",
             ...(kpiAchievementRate !== undefined
                 ? { kpiAchievementRate }
                 : {}),

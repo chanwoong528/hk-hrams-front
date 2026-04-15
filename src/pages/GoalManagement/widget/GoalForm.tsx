@@ -33,6 +33,9 @@ interface GoalFormProps {
   appraisalInfo?: AppraisalInfo;
   /** 사무관리직이면 KPI·목표달성 입력 필수 */
   targetJobGroup?: string | null;
+  /** 매크로 단계 2·4 외에서는 개인 목표 편집 불가 */
+  personalGoalsReadOnly?: boolean;
+  personalGoalsReadOnlyMessage?: string;
 }
 
 export default function GoalForm({
@@ -41,8 +44,13 @@ export default function GoalForm({
   existingGoals = [],
   appraisalInfo,
   targetJobGroup,
+  personalGoalsReadOnly = false,
+  personalGoalsReadOnlyMessage,
 }: GoalFormProps) {
   const isOfficeManagement = (targetJobGroup ?? "").trim() === "사무관리직";
+  const lockMessage =
+    personalGoalsReadOnlyMessage ??
+    "이 단계에서는 개인 목표를 작성·수정할 수 없습니다.";
   const { control, register, handleSubmit, reset } = useForm<{
     goals: GoalFormData[];
   }>({
@@ -77,6 +85,7 @@ export default function GoalForm({
   }, [existingGoals, reset]);
 
   const handleRemove = (index: number) => {
+    if (personalGoalsReadOnly) return;
     const field = fields[index];
     if (field && field.goalId) {
       setDeletedIds((prev) => [...prev, field.goalId!]);
@@ -85,6 +94,8 @@ export default function GoalForm({
   };
 
   const handleSave = handleSubmit((data) => {
+    if (personalGoalsReadOnly) return;
+
     const newGoals: GoalFormData[] = [];
     const updatedGoals: GoalFormData[] = [];
 
@@ -173,7 +184,15 @@ export default function GoalForm({
 
       {/* Unified Goal List (Right Side) */}
       <Card className="border-gray-200 shadow-sm">
-        <CardHeader className="bg-gray-50/50 py-3">
+        <CardHeader className="bg-gray-50/50 py-3 space-y-2">
+          {personalGoalsReadOnly ? (
+            <p
+              role="status"
+              className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 [overflow-wrap:anywhere]"
+            >
+              {lockMessage}
+            </p>
+          ) : null}
           <CardTitle className="flex items-center justify-between text-base">
             <div className="flex items-center gap-2">
               <Plus className="w-4 h-4 text-blue-600" />
@@ -185,6 +204,8 @@ export default function GoalForm({
             <Button
               size="sm"
               className="bg-green-600 hover:bg-green-700 text-white shadow-sm"
+              disabled={personalGoalsReadOnly}
+              aria-disabled={personalGoalsReadOnly}
               onClick={handleSave}
             >
               <Save className="w-4 h-4 mr-2" />
@@ -195,7 +216,9 @@ export default function GoalForm({
         <CardContent className="space-y-4 pt-6">
           {fields.length === 0 && (
             <div className="text-center py-8 text-gray-500 text-sm">
-              등록된 목표가 없습니다. 아래 버튼을 눌러 목표를 추가해주세요.
+              {personalGoalsReadOnly
+                ? "이 단계에서는 새 목표를 등록할 수 없습니다."
+                : "등록된 목표가 없습니다. 아래 버튼을 눌러 목표를 추가해주세요."}
             </div>
           )}
           {fields.map((field, index) => (
@@ -212,6 +235,8 @@ export default function GoalForm({
                 <Input
                   {...register(`goals.${index}.title`, { required: true })}
                   placeholder="과제명 입력"
+                  readOnly={personalGoalsReadOnly}
+                  disabled={personalGoalsReadOnly}
                   className="border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 font-medium"
                 />
               </div>
@@ -224,6 +249,8 @@ export default function GoalForm({
                   {...register(`goals.${index}.description`)}
                   placeholder="과제에 대한 상세 내용을 작성해주세요."
                   rows={2}
+                  readOnly={personalGoalsReadOnly}
+                  disabled={personalGoalsReadOnly}
                   className="resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
                 />
               </div>
@@ -242,6 +269,8 @@ export default function GoalForm({
                       })}
                       placeholder="예: 매출 10% 성장, 처리 건수 등"
                       rows={2}
+                      readOnly={personalGoalsReadOnly}
+                      disabled={personalGoalsReadOnly}
                       className="resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
                     />
                   </div>
@@ -257,6 +286,8 @@ export default function GoalForm({
                       })}
                       placeholder="달성 기준·측정 방식 등"
                       rows={2}
+                      readOnly={personalGoalsReadOnly}
+                      disabled={personalGoalsReadOnly}
                       className="resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
                     />
                   </div>
@@ -268,6 +299,7 @@ export default function GoalForm({
                   size="sm"
                   variant="ghost"
                   className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                  disabled={personalGoalsReadOnly}
                   onClick={() => handleRemove(index)}
                 >
                   <Trash className="w-4 h-4 mr-2" />
@@ -281,7 +313,9 @@ export default function GoalForm({
             <Button
               variant="outline"
               className="w-full border-dashed border-2 border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 h-12"
+              disabled={personalGoalsReadOnly}
               onClick={() => {
+                if (personalGoalsReadOnly) return;
                 append({
                   title: "",
                   description: "",
