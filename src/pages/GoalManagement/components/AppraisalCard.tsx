@@ -146,7 +146,7 @@ export function AppraisalCard({
     }
     if (isAllGoalsAssessed && performanceSelfWindowClosed && totalGoals > 0) {
       return {
-        text: "성과 종합 자가 평가는 워크플로 2단계(중간)·4단계(기말)에서만 제출할 수 있습니다. 해당 단계가 되면 버튼이 활성화됩니다.",
+        text: "성과 종합 자가 평가는 워크플로 3단계(중간)·5단계(기말)에서만 제출할 수 있습니다. 해당 단계가 되면 버튼이 활성화됩니다.",
         tone: "info" as const,
       };
     }
@@ -423,12 +423,7 @@ export function AppraisalCard({
                 goal={goal}
                 currentUserId={currentUserId || ""}
                 onSave={onSaveGoalAssessment}
-                disabled={
-                  goalRowDisabled ||
-                  !canMutatePersonalGoalsInMacroPhase(
-                    appraisal.macroWorkflowPhase,
-                  )
-                }
+                disabled={goalRowDisabled}
                 writableAssessTerm={performanceSelfTerm ?? undefined}
                 targetUserJobGroup={currentUser?.jobGroup}
               />

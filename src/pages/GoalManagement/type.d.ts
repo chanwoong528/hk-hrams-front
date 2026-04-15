@@ -15,6 +15,8 @@ export interface Goal {
   achieveIndicator?: string | null;
   created?: string; // ISO string (Date 형태로 쓰고 싶다면 Date 로 바꿔도 됨)
   updated?: string;
+  /** 목표 승인 버전 (2단계 승인/거절용) */
+  approvalVersion?: number;
   goalAssessmentBy?: {
     goalAssessId: string;
     grade: string;
@@ -22,6 +24,8 @@ export interface Goal {
     gradedBy: string;
     /** 중간(mid)·기말(final). 생략·기타 값은 기말로 표시 */
     assessTerm?: string | null;
+    /** 승인(assessTerm=goal_approval) 대상 버전, mid/final은 -1 */
+    targetApprovalVersion?: number;
     /** 사무관리직·본인 자가 평가 시에만 */
     kpiAchievementRate?: string | null;
     updated?: string;
@@ -75,7 +79,7 @@ export interface Appraisal {
   description: string;
   endDate: string; // ISO string
   status: string;
-  /** HR 매크로 워크플로 1–5 */
+  /** HR 매크로 워크플로 1–6 */
   macroWorkflowPhase?: number;
   createdBy?: string;
   minGradeRank?: number;

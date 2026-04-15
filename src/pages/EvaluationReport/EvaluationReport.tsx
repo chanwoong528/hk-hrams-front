@@ -900,7 +900,7 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
   }
 
   /*
-   * 팀원 본문: 매크로 4단계 이상이면 중간 결과, 리더 기말 성과 종합이 있으면 중간+기말.
+   * 팀원 본문: 매크로 5단계 이상이면 중간 결과, 리더 기말 성과 종합이 있으면 중간+기말.
    * 인사·관리자는 항상 본문 조회.
    */
 
@@ -912,7 +912,7 @@ function ReportDetailView({ appraisalUserId }: { appraisalUserId: string }) {
           아직 평가 리포트가 공개되지 않았습니다
         </h3>
         <p className='text-gray-500 mt-2 max-w-md'>
-          팀장 중간 평가(워크플로 3단계)가 끝나 매크로가 4단계로 넘어가면, 중간
+          팀장 중간 평가(워크플로 4단계)가 끝나 매크로가 5단계로 넘어가면, 중간
           평가 결과가 이 페이지에 공개됩니다.
         </p>
         <Button

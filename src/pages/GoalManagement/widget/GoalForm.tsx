@@ -33,7 +33,7 @@ interface GoalFormProps {
   appraisalInfo?: AppraisalInfo;
   /** 사무관리직이면 KPI·목표달성 입력 필수 */
   targetJobGroup?: string | null;
-  /** 매크로 단계 2·4 외에서는 개인 목표 편집 불가 */
+  /** 매크로 단계 2·5 외에서는 개인 목표 편집 불가 */
   personalGoalsReadOnly?: boolean;
   personalGoalsReadOnlyMessage?: string;
 }

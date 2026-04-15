@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Goal as GoalIcon, Pencil, ChevronDown, ChevronUp } from "lucide-react";
-import { useState, Fragment, useEffect } from "react";
+import { useState, Fragment, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Goal } from "../type";
@@ -36,7 +36,7 @@ interface GoalAssessmentItemProps {
     comment: string,
     gradedByUserId?: string,
     kpiAchievementRate?: string,
-    assessTerm?: "mid" | "final",
+    assessTerm?: "mid" | "final" | "goal_approval",
   ) => void;
   disabled?: boolean;
   targetUserId?: string;
@@ -112,7 +112,12 @@ const GoalAssessmentItem = ({
       hrCanEditOthersGrades &&
       row.gradedBy !== currentUserId &&
       !isSelfRow;
-    const termLabel = normGoalAssessTerm(row.assessTerm) === "mid" ? "중간" : "기말";
+    const termLabel = (() => {
+      const t = normGoalAssessTerm(row.assessTerm);
+      if (t === "mid") return "중간";
+      if (t === "final") return "기말";
+      return "승인";
+    })();
     setEditBadgeLabel(
       isHrEdit ? `${name} · ${termLabel} (HR)` : `${name} · ${termLabel}`,
     );
@@ -191,7 +196,7 @@ const GoalAssessmentItem = ({
         comment,
         row.gradedBy,
         kpiPayload,
-        normGoalAssessTerm(row.assessTerm),
+        normGoalAssessTerm(row.assessTerm) ?? "final",
       );
     }
     setEditingKey(null);
@@ -540,6 +545,36 @@ const GoalAssessmentItem = ({
     .filter(Boolean)
     .join("\n\n");
 
+  const goalApproval = useMemo(() => {
+    const currentVersion = Math.floor(Number(goal.approvalVersion ?? 1)) || 1;
+    const approvals = (rows ?? []).filter(
+      (a) =>
+        String(a.assessTerm ?? "")
+          .trim()
+          .toLowerCase() === "goal_approval" && a.gradedBy !== selfUserId,
+    );
+    if (approvals.length === 0) return null;
+    const currentRows = approvals.filter(
+      (a) => (a.targetApprovalVersion ?? -1) === currentVersion,
+    );
+    if (currentRows.length === 0) return null;
+    const sorted = [...currentRows].sort((a, b) => {
+      const at = new Date(a.updated ?? a.created ?? "").getTime();
+      const bt = new Date(b.updated ?? b.created ?? "").getTime();
+      return bt - at;
+    });
+    return sorted[0];
+  }, [rows, selfUserId, goal.approvalVersion]);
+
+  const goalApprovalStatus = (() => {
+    const g = String(goalApproval?.grade ?? "")
+      .trim()
+      .toUpperCase();
+    if (g === "T") return "approved" as const;
+    if (g === "F") return "rejected" as const;
+    return "pending" as const;
+  })();
+
   return (
     <div className="min-w-0 space-y-5 rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-6">
       <div className="min-w-0 space-y-3">
@@ -575,6 +610,63 @@ const GoalAssessmentItem = ({
                 </p>
               </div>
             </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* 목표 승인(신규 2단계) — 기존 중간/기말 평가와 분리 노출 */}
+      <div
+        className={cn(
+          "rounded-xl border px-4 py-3 text-sm",
+          goalApprovalStatus === "approved"
+            ? "border-emerald-200 bg-emerald-50/70 text-emerald-950"
+            : goalApprovalStatus === "rejected"
+              ? "border-red-200 bg-red-50/70 text-red-950"
+              : "border-slate-200 bg-slate-50/70 text-slate-800",
+        )}
+        role="status"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-xs font-bold uppercase tracking-wide opacity-80">
+              목표 승인
+            </p>
+            <p className="text-sm font-semibold">
+              {goalApprovalStatus === "approved"
+                ? "승인 완료 (T)"
+                : goalApprovalStatus === "rejected"
+                  ? "거절됨 (F) — 목표 수정이 필요합니다"
+                  : "승인 대기"}
+              {goalApproval?.gradedByUser?.koreanName?.trim()
+                ? ` · ${goalApproval.gradedByUser.koreanName}`
+                : null}
+            </p>
+          </div>
+          {goalApprovalStatus === "approved" ? (
+            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none">
+              T
+            </Badge>
+          ) : goalApprovalStatus === "rejected" ? (
+            <Badge className="bg-red-100 text-red-800 hover:bg-red-100 border-none">
+              F
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-slate-600">
+              대기
+            </Badge>
+          )}
+        </div>
+
+        {goalApprovalStatus === "rejected" && goalApproval?.comment?.trim() ? (
+          <div className="mt-2 rounded-md border border-red-100 bg-white/60 px-3 py-2">
+            <p className="text-[11px] font-semibold text-red-700">거절 사유</p>
+            <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-900 [overflow-wrap:anywhere]">
+              {goalApproval.comment}
+            </p>
+            <p className="mt-2 text-[11px] text-slate-600">
+              목표를 수정·저장하면 기존 승인/거절은 무효화되고, 다시 승인을 받아야
+              합니다.
+            </p>
           </div>
         ) : null}
       </div>

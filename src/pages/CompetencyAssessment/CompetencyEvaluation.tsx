@@ -50,7 +50,7 @@ import {
 
 const GRADES = ["O", "E", "M", "P", "N"];
 
-/** HR 제외: 자가는 4단계 이전에 기말 블록 숨김, 리더는 5단계 이전에 기말 숨김 */
+/** HR 제외: 자가는 5단계 이전에 기말 블록 숨김, 리더는 6단계 이전에 기말 숨김 */
 function shouldShowCompetencyTermBlock(
   termKey: "mid" | "final",
   ctx: {
@@ -61,8 +61,8 @@ function shouldShowCompetencyTermBlock(
 ): boolean {
   if (ctx.isHr) return true;
   if (termKey === "final") {
-    if (ctx.isSelfTarget) return ctx.macroPhase >= 4;
-    return ctx.macroPhase >= 5;
+    if (ctx.isSelfTarget) return ctx.macroPhase >= 5;
+    return ctx.macroPhase >= 6;
   }
   return true;
 }
@@ -214,7 +214,7 @@ export default function CompetencyEvaluation() {
     const raw = (assessments as any)?.[0]?.appraisalUser?.appraisal
       ?.macroWorkflowPhase as number | undefined;
     if (raw == null || !Number.isFinite(Number(raw))) return 1;
-    return Math.min(5, Math.max(1, Math.floor(Number(raw))));
+    return Math.min(6, Math.max(1, Math.floor(Number(raw))));
   }, [assessments]);
 
   const handleTargetChange = (val: string) => {
@@ -323,11 +323,11 @@ export default function CompetencyEvaluation() {
     if (!row || !editableByDeadline) return false;
     const term = normalizeAssessTerm(row.assessTerm);
     if (currentTargetUser?.isSelf) {
-      if (term === "mid") return macroWorkflowPhase === 2;
-      return macroWorkflowPhase === 4;
+      if (term === "mid") return macroWorkflowPhase === 3;
+      return macroWorkflowPhase === 5;
     }
-    if (term === "mid") return macroWorkflowPhase === 3;
-    return macroWorkflowPhase === 5;
+    if (term === "mid") return macroWorkflowPhase === 4;
+    return macroWorkflowPhase === 6;
   };
 
   const competencyFinalSubmissionRound = useMemo(():
@@ -503,15 +503,15 @@ export default function CompetencyEvaluation() {
     setFinalGrade(myFinalRecord?.grade ?? "");
   }, [isFinalDialogOpen, myFinalRecord?.grade]);
 
-  /** 본인 화면: 매크로 2·4단계가 아니면 문항 수정 불가(차수별) */
+  /** 본인 화면: 매크로 3·5단계가 아니면 문항 수정 불가(차수별) */
   const isSelfReadOnly = useMemo(() => {
     if (!currentTargetUser?.isSelf || !assessments?.length) return false;
     if (!editableByDeadline) return true;
     return !assessments.some((a: any) => {
       if (a.evaluator?.userId !== currentUser?.userId) return false;
       const term = normalizeAssessTerm(a.assessTerm);
-      if (term === "mid") return macroWorkflowPhase === 2;
-      return macroWorkflowPhase === 4;
+      if (term === "mid") return macroWorkflowPhase === 3;
+      return macroWorkflowPhase === 5;
     });
   }, [
     currentTargetUser?.isSelf,
@@ -744,8 +744,8 @@ export default function CompetencyEvaluation() {
               {isSelfReadOnly && (
                 <div className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full border border-slate-200 text-xs font-bold">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  현재 워크플로 단계에서는 역량 문항을 수정할 수 없습니다 (중간=2단계,
-                  기말=4단계).
+                  현재 워크플로 단계에서는 역량 문항을 수정할 수 없습니다 (중간=3단계,
+                  기말=5단계).
                 </div>
               )}
             </div>
@@ -847,8 +847,8 @@ export default function CompetencyEvaluation() {
                             }
                             if (!competencyFinalSubmissionRound) {
                               return currentTargetUser?.isSelf
-                                ? "역량 종합 자가 평가는 워크플로 2단계(중간)·4단계(기말)에서 제출할 수 있습니다."
-                                : "역량 종합 평가(리더)는 워크플로 3단계(중간)·5단계(기말)에서 제출할 수 있습니다.";
+                                ? "역량 종합 자가 평가는 워크플로 3단계(중간)·5단계(기말)에서 제출할 수 있습니다."
+                                : "역량 종합 평가(리더)는 워크플로 4단계(중간)·6단계(기말)에서 제출할 수 있습니다.";
                             }
                             if (!finalButton.requiredDone) {
                               return currentTargetUser?.isSelf

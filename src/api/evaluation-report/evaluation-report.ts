@@ -89,7 +89,7 @@ export function hasLeaderPerformanceFinalGrade(
 function normalizeMacroPhase(raw: number | string | null | undefined): number {
     const n = Math.floor(Number(raw ?? 1));
     if (!Number.isFinite(n)) return 1;
-    return Math.min(5, Math.max(1, n));
+    return Math.min(6, Math.max(1, n));
 }
 
 export type TeamMemberReportBodyMode = "locked" | "mid_only" | "full";
@@ -103,14 +103,15 @@ export function getTeamMemberReportBodyMode(
     report: EvaluationReportResponse,
 ): TeamMemberReportBodyMode {
     const phase = normalizeMacroPhase(report.macroWorkflowPhase);
-    if (phase < 4) return "locked";
+    // 신규 2단계 삽입으로 팀장 중간이 4단계 → 중간 공개는 5단계부터
+    if (phase < 5) return "locked";
     if (!hasLeaderPerformanceFinalGrade(report)) return "mid_only";
     return "full";
 }
 
 export interface EvaluationReportResponse {
     appraisalUserId: string;
-    /** HR 매크로 1~5 (3=팀장 중간, 5=팀장 기말) */
+    /** HR 매크로 1~6 (4=팀장 중간, 6=팀장 기말) */
     macroWorkflowPhase?: number;
     owner: { userId: string; koreanName: string };
     appraisalTitle: string;

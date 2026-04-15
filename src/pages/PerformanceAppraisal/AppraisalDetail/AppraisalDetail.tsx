@@ -140,7 +140,7 @@ export default function AppraisalDetail() {
       | undefined;
     const p = fromList?.macroWorkflowPhase ?? appraisalMeta?.macroWorkflowPhase;
     if (p == null || !Number.isFinite(Number(p))) return 1;
-    return Math.min(5, Math.max(1, Math.floor(Number(p))));
+    return Math.min(6, Math.max(1, Math.floor(Number(p))));
   })();
 
   const { mutate: patchMacroPhase, isPending: isPatchingPhase } = useMutation({
@@ -233,13 +233,15 @@ export default function AppraisalDetail() {
       case 1:
         return "1단계: 팀장 역량 배포";
       case 2:
-        return "2단계: 팀원 본인(중간)";
+        return "2단계: 팀원 목표 작성·팀장 승인";
       case 3:
-        return "3단계: 팀장·상위 평가(중간)";
+        return "3단계: 팀원 본인(중간)";
       case 4:
-        return "4단계: 팀원 본인(기말)";
+        return "4단계: 팀장·상위 평가(중간)";
       case 5:
-        return "5단계: 팀장·상위 평가(기말)";
+        return "5단계: 팀원 본인(기말)";
+      case 6:
+        return "6단계: 팀장·상위 평가(기말)";
       default:
         return "";
     }
@@ -271,14 +273,14 @@ export default function AppraisalDetail() {
                 <ChevronLeft className='h-4 w-4' aria-hidden />
               </Button>
               <span className='text-sm font-medium tabular-nums min-w-[6rem] text-center'>
-                {macroPhase} / 5
+                {macroPhase} / 6
               </span>
               <Button
                 type='button'
                 variant='outline'
                 size='icon'
                 className='shrink-0'
-                disabled={macroPhase >= 5 || isPatchingPhase}
+                disabled={macroPhase >= 6 || isPatchingPhase}
                 onClick={() => patchMacroPhase(macroPhase + 1)}
                 aria-label='다음 단계'>
                 <ChevronRight className='h-4 w-4' aria-hidden />

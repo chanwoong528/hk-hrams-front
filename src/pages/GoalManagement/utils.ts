@@ -1,12 +1,16 @@
 import { APPRAISAL_STATUS } from "./constants";
 import type { Goal } from "./type";
 
-/** goal_assessment_by.assessTerm — MID/mid 등 정규화, 그 외는 final */
-export function normGoalAssessTerm(raw?: string | null): "mid" | "final" {
+/** goal_assessment_by.assessTerm — mid/final만 인정, 그 외(예: goal_approval)는 null */
+export function normGoalAssessTerm(
+  raw?: string | null,
+): "mid" | "final" | null {
   const t = String(raw ?? "")
     .trim()
     .toLowerCase();
-  return t === "mid" ? "mid" : "final";
+  if (t === "mid") return "mid";
+  if (t === "final") return "final";
+  return null;
 }
 
 export function pickGoalAssessmentForUserAndTerm(
