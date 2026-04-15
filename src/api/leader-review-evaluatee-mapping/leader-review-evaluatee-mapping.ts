@@ -152,9 +152,17 @@ export const POST_leaderReviewEvaluateePoolExtra = async (userId: string) => {
   return response.data as { data: { userId: string }; message?: string };
 };
 
-export const DELETE_leaderReviewEvaluateePoolExtra = async (userId: string) => {
+export const DELETE_leaderReviewEvaluateePoolExtra = async (
+  userId: string,
+  scopeLeaderUserId?: string | null,
+) => {
+  const q = new URLSearchParams();
+  if (scopeLeaderUserId?.trim()) {
+    q.set("scopeLeaderUserId", scopeLeaderUserId.trim());
+  }
+  const suffix = q.toString() ? `?${q.toString()}` : "";
   const response = await http.delete(
-    `/leader-review-evaluatee-mapping/global/evaluatee-pool/${userId}`,
+    `/leader-review-evaluatee-mapping/global/evaluatee-pool/${userId}${suffix}`,
   );
   return response.data as { data: { ok: true }; message?: string };
 };
