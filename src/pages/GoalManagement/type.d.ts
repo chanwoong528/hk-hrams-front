@@ -28,6 +28,7 @@ export interface Goal {
     targetApprovalVersion?: number;
     /** 사무관리직·본인 자가 평가 시에만 */
     kpiAchievementRate?: string | null;
+    created?: string | null;
     updated?: string;
     gradedByUser?: {
       userId: string;

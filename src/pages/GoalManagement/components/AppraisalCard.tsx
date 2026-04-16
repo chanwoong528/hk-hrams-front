@@ -51,7 +51,7 @@ interface AppraisalCardProps {
     comment: string,
     gradedByUserId?: string,
     kpiAchievementRate?: string,
-    assessTerm?: "mid" | "final",
+    assessTerm?: "mid" | "final" | "goal_approval",
   ) => void;
 }
 

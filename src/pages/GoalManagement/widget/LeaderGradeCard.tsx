@@ -610,9 +610,6 @@ const AppraisalSection = ({
                     a.assessTerm === leaderPerfAssessTerm &&
                     (a.assessType === "performance" || !a.assessType),
                 );
-              const isFinalAssessed = progressLikeSpectator
-                ? !!(user.assessments && user.assessments.length > 0)
-                : isRoundAssessedByLeader;
               const graderGradeLines = collectGraderGradeLinesForMember(user);
 
               const myFinalAssessment =
