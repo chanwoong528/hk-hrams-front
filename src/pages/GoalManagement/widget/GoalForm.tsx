@@ -36,16 +36,18 @@ interface GoalFormProps {
   /** 매크로 단계 2·5 외에서는 개인 목표 편집 불가 */
   personalGoalsReadOnly?: boolean;
   personalGoalsReadOnlyMessage?: string;
+  lockedGoalIds?: string[];
 }
 
 export default function GoalForm({
   onSaveAll,
-  showLeft = true,
+  showLeft = false,
   existingGoals = [],
   appraisalInfo,
   targetJobGroup,
   personalGoalsReadOnly = false,
   personalGoalsReadOnlyMessage,
+  lockedGoalIds = [],
 }: GoalFormProps) {
   const isOfficeManagement = (targetJobGroup ?? "").trim() === "사무관리직";
   const lockMessage =
@@ -61,6 +63,8 @@ export default function GoalForm({
     name: "goals",
     control,
   });
+
+  const lockedGoalIdSet = new Set(lockedGoalIds);
 
   // Track IDs of deleted existing goals
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
@@ -85,8 +89,9 @@ export default function GoalForm({
   }, [existingGoals, reset]);
 
   const handleRemove = (index: number) => {
-    if (personalGoalsReadOnly) return;
     const field = fields[index];
+    const isLockedGoal = !!field?.goalId && lockedGoalIdSet.has(field.goalId);
+    if (personalGoalsReadOnly || isLockedGoal) return;
     if (field && field.goalId) {
       setDeletedIds((prev) => [...prev, field.goalId!]);
     }
@@ -226,6 +231,11 @@ export default function GoalForm({
               key={field.id}
               className="group relative grid gap-4 p-5 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200"
             >
+              {field.goalId && lockedGoalIdSet.has(field.goalId) ? (
+                <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                  승인 완료된 목표는 수정/삭제할 수 없습니다.
+                </p>
+              ) : null}
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-100 group-hover:bg-blue-500 rounded-l-xl transition-colors" />
 
               <div className="grid gap-2">
@@ -235,8 +245,14 @@ export default function GoalForm({
                 <Input
                   {...register(`goals.${index}.title`, { required: true })}
                   placeholder="과제명 입력"
-                  readOnly={personalGoalsReadOnly}
-                  disabled={personalGoalsReadOnly}
+                  readOnly={
+                    personalGoalsReadOnly ||
+                    (!!field.goalId && lockedGoalIdSet.has(field.goalId))
+                  }
+                  disabled={
+                    personalGoalsReadOnly ||
+                    (!!field.goalId && lockedGoalIdSet.has(field.goalId))
+                  }
                   className="border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 font-medium"
                 />
               </div>
@@ -249,8 +265,14 @@ export default function GoalForm({
                   {...register(`goals.${index}.description`)}
                   placeholder="과제에 대한 상세 내용을 작성해주세요."
                   rows={2}
-                  readOnly={personalGoalsReadOnly}
-                  disabled={personalGoalsReadOnly}
+                  readOnly={
+                    personalGoalsReadOnly ||
+                    (!!field.goalId && lockedGoalIdSet.has(field.goalId))
+                  }
+                  disabled={
+                    personalGoalsReadOnly ||
+                    (!!field.goalId && lockedGoalIdSet.has(field.goalId))
+                  }
                   className="resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
                 />
               </div>
@@ -269,8 +291,14 @@ export default function GoalForm({
                       })}
                       placeholder="예: 매출 10% 성장, 처리 건수 등"
                       rows={2}
-                      readOnly={personalGoalsReadOnly}
-                      disabled={personalGoalsReadOnly}
+                      readOnly={
+                        personalGoalsReadOnly ||
+                        (!!field.goalId && lockedGoalIdSet.has(field.goalId))
+                      }
+                      disabled={
+                        personalGoalsReadOnly ||
+                        (!!field.goalId && lockedGoalIdSet.has(field.goalId))
+                      }
                       className="resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
                     />
                   </div>
@@ -286,8 +314,14 @@ export default function GoalForm({
                       })}
                       placeholder="달성 기준·측정 방식 등"
                       rows={2}
-                      readOnly={personalGoalsReadOnly}
-                      disabled={personalGoalsReadOnly}
+                      readOnly={
+                        personalGoalsReadOnly ||
+                        (!!field.goalId && lockedGoalIdSet.has(field.goalId))
+                      }
+                      disabled={
+                        personalGoalsReadOnly ||
+                        (!!field.goalId && lockedGoalIdSet.has(field.goalId))
+                      }
                       className="resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
                     />
                   </div>
@@ -299,7 +333,10 @@ export default function GoalForm({
                   size="sm"
                   variant="ghost"
                   className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                  disabled={personalGoalsReadOnly}
+                  disabled={
+                    personalGoalsReadOnly ||
+                    (!!field.goalId && lockedGoalIdSet.has(field.goalId))
+                  }
                   onClick={() => handleRemove(index)}
                 >
                   <Trash className="w-4 h-4 mr-2" />

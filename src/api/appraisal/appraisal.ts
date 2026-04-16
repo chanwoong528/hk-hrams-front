@@ -23,19 +23,13 @@ export const POST_addAppraisalUsersToOngoing = async (payload: {
 
 export const POST_appraisal = async (payload: {
   title: string;
-  appraisalYear: string;
-  appraisalTerm: string;
   description: string;
-  endDate: string;
   minGradeRank?: number;
   maxGradeRank?: number;
 }) => {
   const response = await http.post("/appraisal", {
     title: payload.title,
-    appraisalYear: payload.appraisalYear,
-    appraisalTerm: payload.appraisalTerm,
     description: payload.description,
-    endDate: payload.endDate,
     minGradeRank: payload.minGradeRank,
     maxGradeRank: payload.maxGradeRank,
   });
@@ -46,7 +40,6 @@ export const PATCH_appraisal = async (payload: {
   appraisalId: string;
   title?: string;
   description?: string;
-  endDate?: string;
   status?: string;
   minGradeRank?: number;
   maxGradeRank?: number;
@@ -57,7 +50,6 @@ export const PATCH_appraisal = async (payload: {
   const payloadToSend = {
     ...(payload.title && { title: payload.title }),
     ...(payload.description && { description: payload.description }),
-    ...(payload.endDate && { endDate: payload.endDate }),
     ...(payload.status && { status: payload.status }),
     ...(payload.minGradeRank !== undefined && {
       minGradeRank: payload.minGradeRank,

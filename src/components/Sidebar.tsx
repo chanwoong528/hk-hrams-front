@@ -2,9 +2,11 @@ import { useState } from "react";
 import { navigation } from "@/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { LogOut, ChevronDown, ChevronRight } from "lucide-react";
 import { useCurrentUserStore } from "@/store/currentUserStore";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GET_appraisalsByDistinctType } from "@/api/appraisal/appraisal";
 
 type NavItem = {
   id: string;
@@ -56,6 +58,24 @@ function isRouteActive(
   }
 
   return false;
+}
+
+function getMacroPhaseBadgeText(phase: unknown): string | null {
+  const p = Math.floor(Number(phase));
+  if (!Number.isFinite(p)) return null;
+
+  const label = (() => {
+    if (p === 1) return "역량 평가 항목 설정 기간";
+    if (p === 2) return "목표 수립 기간";
+    if (p === 3) return "자가 중간 평가 기간 ";
+    if (p === 4) return "중간 평가 기간";
+    if (p === 5) return "자가 최종 평가 기간";
+    if (p === 6) return "최종 평가 기간";
+    return null;
+  })();
+
+  if (!label) return null;
+  return `${label}`;
 }
 
 function NavItemComponent({
@@ -141,8 +161,9 @@ function NavItemComponent({
             <div className="w-5 h-5 shrink-0" aria-hidden />
           )}
           <span
-            className='min-w-0 flex-1 truncate font-medium'
-            title={item.name}>
+            className="min-w-0 flex-1 truncate font-medium"
+            title={item.name}
+          >
             {item.name}
           </span>
         </button>
@@ -191,6 +212,37 @@ export default function SidebarContent({
   const { currentUser, clearCurrentUser } = useCurrentUserStore();
   const queryClient = useQueryClient();
 
+  const { data: myAppraisals } = useQuery({
+    queryKey: ["sidebarMyAppraisals"],
+    queryFn: () => GET_appraisalsByDistinctType("my-appraisal"),
+    enabled: !!currentUser?.userId,
+    select: (res: any) => (res?.data ?? []) as Array<any>,
+    // 사이드바 단계 배지는 상태 변경을 빠르게 반영해야 하므로 주기 갱신
+    staleTime: 0,
+    refetchInterval: 3_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+
+  const phaseBadgeText = (() => {
+    const list = myAppraisals ?? [];
+    if (list.length === 0) return null;
+
+    const pick = (status: string) =>
+      list.find(
+        (a) =>
+          String(a?.status ?? "")
+            .trim()
+            .toLowerCase() === status,
+      );
+
+    const ongoing = pick("ongoing");
+    const draft = pick("draft");
+    const fallback = ongoing ?? draft ?? list[0];
+
+    return getMacroPhaseBadgeText(fallback?.macroWorkflowPhase);
+  })();
+
   const handleLogout = () => {
     clearCurrentUser();
     queryClient.clear();
@@ -200,8 +252,7 @@ export default function SidebarContent({
   const isAdmin =
     currentUser?.email === "mooncw@hankookilbo.com" ||
     !!currentUser?.departments?.some(
-      (d) =>
-        d.departmentName.trim().toLowerCase() === "hr",
+      (d) => d.departmentName.trim().toLowerCase() === "hr",
     );
 
   const isLeader =
@@ -255,7 +306,18 @@ export default function SidebarContent({
   return (
     <div className="flex h-full min-w-0 flex-col">
       <div className="border-b p-6">
-        <h1 className="text-blue-600">HRAMS</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-blue-600">HRAMS</h1>
+          {phaseBadgeText ? (
+            <Badge
+              variant="secondary"
+              className="h-5 px-2 text-[10px] font-semibold rounded-full"
+              title="현재 인사평가 워크플로 단계"
+            >
+              {phaseBadgeText}
+            </Badge>
+          ) : null}
+        </div>
         <p className="text-sm text-gray-600 mt-1">인사 성과 관리 시스템</p>
       </div>
       <nav className="min-w-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden p-4">

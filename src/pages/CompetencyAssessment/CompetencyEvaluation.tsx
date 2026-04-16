@@ -260,7 +260,9 @@ export default function CompetencyEvaluation() {
 
   /** 문항 × (중간|기말) — 성과 평가와 동일한 차수 모델 */
   const buildQuestionTermGroups = (items: any[]) => {
-    const ownerId = items[0]?.appraisalUser?.owner?.userId as string | undefined;
+    const ownerId = items[0]?.appraisalUser?.owner?.userId as
+      | string
+      | undefined;
     const groups: Record<
       string,
       {
@@ -285,11 +287,7 @@ export default function CompetencyEvaluation() {
       const term = normalizeAssessTerm(item.assessTerm);
       const bucket = term === "mid" ? groups[qId].mid : groups[qId].final;
       const evaluatorId = item.evaluator?.userId;
-      const isOwnerSelf = !!(
-        ownerId &&
-        evaluatorId &&
-        ownerId === evaluatorId
-      );
+      const isOwnerSelf = !!(ownerId && evaluatorId && ownerId === evaluatorId);
       const isMeEvaluator = evaluatorId === currentUser?.userId;
       if (isOwnerSelf) {
         bucket.selfRecord = item;
@@ -330,10 +328,7 @@ export default function CompetencyEvaluation() {
     return macroWorkflowPhase === 6;
   };
 
-  const competencyFinalSubmissionRound = useMemo(():
-    | "mid"
-    | "final"
-    | null => {
+  const competencyFinalSubmissionRound = useMemo((): "mid" | "final" | null => {
     if (!currentTargetUser) return null;
     if (currentTargetUser.isSelf) {
       return competencyFinalRoundForSelf(macroWorkflowPhase);
@@ -523,9 +518,7 @@ export default function CompetencyEvaluation() {
 
   // Handle local changes
   const handleLocalUpdate = (assessmentId: string, updates: LocalEdit) => {
-    const row = assessments?.find(
-      (a: any) => a.assessmentId === assessmentId,
-    );
+    const row = assessments?.find((a: any) => a.assessmentId === assessmentId);
     if (!canEditCompetencyAssessmentRow(row)) return;
     if (isSelfReadOnly) return;
     setLocalEdits((prev) => ({
@@ -736,16 +729,12 @@ export default function CompetencyEvaluation() {
                   </Badge>
                 )}
               </h2>
-              <p className="text-sm text-gray-500">
-                {currentTargetUser?.isSelf
-                  ? "본인의 성과와 역량을 객관적으로 되돌아보며 솔직하게 작성해주세요."
-                  : "팀원의 역량 발휘 수준과 기여도를 공정하게 평가해주세요."}
-              </p>
+
               {isSelfReadOnly && (
                 <div className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full border border-slate-200 text-xs font-bold">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  현재 워크플로 단계에서는 역량 문항을 수정할 수 없습니다 (중간=3단계,
-                  기말=5단계).
+                  현재 워크플로 단계에서는 역량 문항을 수정할 수 없습니다
+                  (중간=3단계, 기말=5단계).
                 </div>
               )}
             </div>
@@ -832,89 +821,91 @@ export default function CompetencyEvaluation() {
           {!isLoadingAssessments && selectedAppraisalUserId ? (
             <div className="max-w-5xl mx-auto space-y-8 pb-20">
               <div className="rounded-xl border bg-white p-4 shadow-sm">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-sm font-bold text-gray-900">
-                          역량 최종 평가
-                        </p>
-                        <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
-                          {(() => {
-                            if (deptNames.length === 0) {
-                              return "배정된 역량 평가 문항이 없어 최종 평가를 진행할 수 없습니다.";
-                            }
-                            if (!editableByDeadline && selectedAppraisalMeta.endDate) {
-                              return "평가 마감일이 지나 최종 평가를 저장/수정할 수 없습니다.";
-                            }
-                            if (!competencyFinalSubmissionRound) {
-                              return currentTargetUser?.isSelf
-                                ? "역량 종합 자가 평가는 워크플로 3단계(중간)·5단계(기말)에서 제출할 수 있습니다."
-                                : "역량 종합 평가(리더)는 워크플로 4단계(중간)·6단계(기말)에서 제출할 수 있습니다.";
-                            }
-                            if (!finalButton.requiredDone) {
-                              return currentTargetUser?.isSelf
-                                ? "모든 역량 평가 문항의 등급을 먼저 등록하면 ‘최종 자가 평가’를 저장할 수 있습니다."
-                                : "팀원 자가평가가 완료되고, 리더가 모든 문항의 등급을 등록한 뒤 ‘최종 평가’를 저장할 수 있습니다.";
-                            }
-                            return "모든 문항 등급 등록 후, 종합 등급(O/E/M/P/N)을 저장하세요.";
-                          })()}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {!currentTargetUser?.isSelf ? (
-                          <div className="mr-1 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                            <span className="font-semibold text-slate-600">
-                              팀원 최종 자가
-                            </span>
-                            <span className="tabular-nums text-slate-900">
-                              <span className="text-slate-500">중간</span>{" "}
-                              <span className="font-bold">
-                                {ownerCompetencySnapshots.mid?.grade?.trim() ||
-                                  "—"}
-                              </span>
-                            </span>
-                            <span className="text-slate-300">|</span>
-                            <span className="tabular-nums text-slate-900">
-                              <span className="text-slate-500">기말</span>{" "}
-                              <span className="font-bold">
-                                {ownerCompetencySnapshots.final?.grade?.trim() ||
-                                  "—"}
-                              </span>
-                            </span>
-                          </div>
-                        ) : null}
-                        <Button
-                          variant="outline"
-                          disabled={
-                            deptNames.length === 0 ||
-                            !finalButton.canOpen ||
-                            competencyFinal.isSaving
-                          }
-                          className="gap-2"
-                          onClick={() => setIsFinalDialogOpen(true)}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          {finalButton.title}
-                          {myFinalRecord?.grade ? (
-                            <span className="ml-1 font-bold">
-                              {myFinalRecord.grade}
-                            </span>
-                          ) : null}
-                        </Button>
-                        {!editableByDeadline && selectedAppraisalMeta.endDate ? (
-                          <span className="text-xs font-medium text-red-500">
-                            마감 후 수정 불가
-                          </span>
-                        ) : null}
-                        {editableByDeadline &&
-                        selectedAppraisalMeta.endDate &&
-                        myFinalRecord?.grade ? (
-                          <span className="text-xs text-slate-600">
-                            마감 전까지 수정 가능
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-sm font-bold text-gray-900">
+                      역량 최종 평가
+                    </p>
+                    <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
+                      {(() => {
+                        if (deptNames.length === 0) {
+                          return "배정된 역량 평가 문항이 없어 최종 평가를 진행할 수 없습니다.";
+                        }
+                        if (
+                          !editableByDeadline &&
+                          selectedAppraisalMeta.endDate
+                        ) {
+                          return "평가 마감일이 지나 최종 평가를 저장/수정할 수 없습니다.";
+                        }
+                        if (!competencyFinalSubmissionRound) {
+                          return currentTargetUser?.isSelf
+                            ? "역량 종합 자가 평가는 워크플로 3단계(중간)·5단계(기말)에서 제출할 수 있습니다."
+                            : "역량 종합 평가(리더)는 워크플로 4단계(중간)·6단계(기말)에서 제출할 수 있습니다.";
+                        }
+                        if (!finalButton.requiredDone) {
+                          return currentTargetUser?.isSelf
+                            ? "모든 역량 평가 문항의 등급을 먼저 등록하면 ‘최종 자가 평가’를 저장할 수 있습니다."
+                            : "팀원 자가평가가 완료되고, 리더가 모든 문항의 등급을 등록한 뒤 ‘최종 평가’를 저장할 수 있습니다.";
+                        }
+                        return "모든 문항 등급 등록 후, 종합 등급(O/E/M/P/N)을 저장하세요.";
+                      })()}
+                    </p>
                   </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {!currentTargetUser?.isSelf ? (
+                      <div className="mr-1 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                        <span className="font-semibold text-slate-600">
+                          팀원 최종 자가
+                        </span>
+                        <span className="tabular-nums text-slate-900">
+                          <span className="text-slate-500">중간</span>{" "}
+                          <span className="font-bold">
+                            {ownerCompetencySnapshots.mid?.grade?.trim() || "—"}
+                          </span>
+                        </span>
+                        <span className="text-slate-300">|</span>
+                        <span className="tabular-nums text-slate-900">
+                          <span className="text-slate-500">기말</span>{" "}
+                          <span className="font-bold">
+                            {ownerCompetencySnapshots.final?.grade?.trim() ||
+                              "—"}
+                          </span>
+                        </span>
+                      </div>
+                    ) : null}
+                    <Button
+                      variant="outline"
+                      disabled={
+                        deptNames.length === 0 ||
+                        !finalButton.canOpen ||
+                        competencyFinal.isSaving
+                      }
+                      className="gap-2"
+                      onClick={() => setIsFinalDialogOpen(true)}
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      {finalButton.title}
+                      {myFinalRecord?.grade ? (
+                        <span className="ml-1 font-bold">
+                          {myFinalRecord.grade}
+                        </span>
+                      ) : null}
+                    </Button>
+                    {!editableByDeadline && selectedAppraisalMeta.endDate ? (
+                      <span className="text-xs font-medium text-red-500">
+                        마감 후 수정 불가
+                      </span>
+                    ) : null}
+                    {editableByDeadline &&
+                    selectedAppraisalMeta.endDate &&
+                    myFinalRecord?.grade ? (
+                      <span className="text-xs text-slate-600">
+                        마감 전까지 수정 가능
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
 
               {deptNames.length > 0 ? (
                 <Tabs defaultValue={deptNames[0]} className="w-full">
@@ -932,243 +923,241 @@ export default function CompetencyEvaluation() {
 
                   {deptNames.map((dept) => (
                     <TabsContent key={dept} value={dept} className="space-y-4">
-                    {buildQuestionTermGroups(assessmentsByDept[dept]).map(
-                      (group) => {
-                        const termBlocks = (
-                          ["mid", "final"] as const
-                        ).flatMap((termKey) => {
-                          if (
-                            !shouldShowCompetencyTermBlock(termKey, {
-                              isHr: isHR,
-                              isSelfTarget: !!currentTargetUser?.isSelf,
-                              macroPhase: macroWorkflowPhase,
-                            })
-                          ) {
-                            return [];
-                          }
-                          const bucket = group[termKey];
-                          const myRecord = bucket.myRecord;
-                          const selfRecord = bucket.selfRecord;
-                          const otherRecords = bucket.otherRecords;
-                          const roundLabel =
-                            termKey === "mid" ? "중간 평가" : "기말 평가";
-                          const hasAny =
-                            myRecord ||
-                            selfRecord ||
-                            otherRecords.length > 0;
-                          if (!hasAny) return [];
+                      {buildQuestionTermGroups(assessmentsByDept[dept]).map(
+                        (group) => {
+                          const termBlocks = (
+                            ["mid", "final"] as const
+                          ).flatMap((termKey) => {
+                            if (
+                              !shouldShowCompetencyTermBlock(termKey, {
+                                isHr: isHR,
+                                isSelfTarget: !!currentTargetUser?.isSelf,
+                                macroPhase: macroWorkflowPhase,
+                              })
+                            ) {
+                              return [];
+                            }
+                            const bucket = group[termKey];
+                            const myRecord = bucket.myRecord;
+                            const selfRecord = bucket.selfRecord;
+                            const otherRecords = bucket.otherRecords;
+                            const roundLabel =
+                              termKey === "mid" ? "중간 평가" : "기말 평가";
+                            const hasAny =
+                              myRecord || selfRecord || otherRecords.length > 0;
+                            if (!hasAny) return [];
 
-                          const currentEdit = myRecord
-                            ? localEdits[myRecord.assessmentId]
-                            : null;
-                          const displayGrade =
-                            currentEdit?.grade !== undefined
-                              ? currentEdit.grade
-                              : myRecord?.grade;
-                          const isDirty = !!currentEdit;
-                          const rowReadOnly =
-                            !canEditCompetencyAssessmentRow(myRecord);
+                            const currentEdit = myRecord
+                              ? localEdits[myRecord.assessmentId]
+                              : null;
+                            const displayGrade =
+                              currentEdit?.grade !== undefined
+                                ? currentEdit.grade
+                                : myRecord?.grade;
+                            const isDirty = !!currentEdit;
+                            const rowReadOnly =
+                              !canEditCompetencyAssessmentRow(myRecord);
 
-                          return [
-                            <div
-                              key={`${group.competencyId}-${termKey}`}
-                              className="space-y-4 border-t border-dashed border-gray-200 pt-4 first:border-t-0 first:pt-0"
-                            >
-                              <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                                  {roundLabel}
-                                </span>
-                              </div>
-                              {(currentTargetUser?.isSelf || isHR) &&
-                                otherRecords.length > 0 && (
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-1.5 text-blue-700 font-semibold text-xs">
-                                      <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                                      {isHR
-                                        ? "평가자별 피드백"
-                                        : "동료·리더 피드백"}
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                      {otherRecords.map((rec: any) => (
-                                        <div
-                                          key={rec.assessmentId}
-                                          className="bg-blue-50/50 px-3 py-2 rounded-lg border border-blue-100/80 flex items-start gap-2.5"
-                                        >
-                                          <div className="w-8 h-8 rounded-lg bg-white border border-blue-200 flex items-center justify-center text-blue-700 text-xs font-bold shrink-0">
-                                            {rec.grade || "—"}
-                                          </div>
-                                          <div className="flex-1 min-w-0 space-y-0.5">
-                                            <div className="text-[11px] font-semibold text-blue-900">
-                                              {rec.evaluator?.koreanName}
+                            return [
+                              <div
+                                key={`${group.competencyId}-${termKey}`}
+                                className="space-y-4 border-t border-dashed border-gray-200 pt-4 first:border-t-0 first:pt-0"
+                              >
+                                <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                                  <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                                    {roundLabel}
+                                  </span>
+                                </div>
+                                {(currentTargetUser?.isSelf || isHR) &&
+                                  otherRecords.length > 0 && (
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-1.5 text-blue-700 font-semibold text-xs">
+                                        <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                                        {isHR
+                                          ? "평가자별 피드백"
+                                          : "동료·리더 피드백"}
+                                      </div>
+                                      <div className="flex flex-col gap-2">
+                                        {otherRecords.map((rec: any) => (
+                                          <div
+                                            key={rec.assessmentId}
+                                            className="bg-blue-50/50 px-3 py-2 rounded-lg border border-blue-100/80 flex items-start gap-2.5"
+                                          >
+                                            <div className="w-8 h-8 rounded-lg bg-white border border-blue-200 flex items-center justify-center text-blue-700 text-xs font-bold shrink-0">
+                                              {rec.grade || "—"}
                                             </div>
-                                            <p className="text-xs text-gray-700 leading-snug">
-                                              {rec.comment ||
-                                                "의견이 작성되지 않았습니다."}
-                                            </p>
+                                            <div className="flex-1 min-w-0 space-y-0.5">
+                                              <div className="text-[11px] font-semibold text-blue-900">
+                                                {rec.evaluator?.koreanName}
+                                              </div>
+                                              <p className="text-xs text-gray-700 leading-snug">
+                                                {rec.comment ||
+                                                  "의견이 작성되지 않았습니다."}
+                                              </p>
+                                            </div>
                                           </div>
-                                        </div>
-                                      ))}
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                {!currentTargetUser?.isSelf && selfRecord && (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-1.5 text-green-700 font-semibold text-xs">
+                                      <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                                      팀원 자기평가 · {roundLabel}
+                                    </div>
+                                    <div className="bg-green-50/50 px-3 py-2.5 rounded-lg border border-green-100 flex items-start gap-2.5">
+                                      <div className="w-9 h-9 rounded-lg bg-white border border-green-200 flex flex-col items-center justify-center shrink-0">
+                                        <span className="text-[9px] text-green-600 font-bold leading-none">
+                                          등급
+                                        </span>
+                                        <span className="text-sm font-black text-green-700 leading-tight">
+                                          {selfRecord.grade || "—"}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-gray-700 leading-snug italic">
+                                          {selfRecord.comment ||
+                                            "팀원이 작성한 의견이 없습니다."}
+                                        </p>
+                                      </div>
                                     </div>
                                   </div>
                                 )}
 
-                              {!currentTargetUser?.isSelf && selfRecord && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-1.5 text-green-700 font-semibold text-xs">
-                                    <ClipboardList className="w-3.5 h-3.5 shrink-0" />
-                                    팀원 자기평가 · {roundLabel}
-                                  </div>
-                                  <div className="bg-green-50/50 px-3 py-2.5 rounded-lg border border-green-100 flex items-start gap-2.5">
-                                    <div className="w-9 h-9 rounded-lg bg-white border border-green-200 flex flex-col items-center justify-center shrink-0">
-                                      <span className="text-[9px] text-green-600 font-bold leading-none">
-                                        등급
-                                      </span>
-                                      <span className="text-sm font-black text-green-700 leading-tight">
-                                        {selfRecord.grade || "—"}
-                                      </span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs text-gray-700 leading-snug italic">
-                                        {selfRecord.comment ||
-                                          "팀원이 작성한 의견이 없습니다."}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
+                                {myRecord ? (
+                                  (() => {
+                                    const isLeaderBlocked =
+                                      !currentTargetUser?.isSelf &&
+                                      (!selfRecord ||
+                                        !String(selfRecord.grade ?? "").trim());
 
-                              {myRecord ? (
-                                (() => {
-                                  const isLeaderBlocked =
-                                    !currentTargetUser?.isSelf &&
-                                    (!selfRecord ||
-                                      !String(selfRecord.grade ?? "").trim());
+                                    if (isLeaderBlocked) {
+                                      return (
+                                        <div className="bg-gray-50 px-4 py-5 rounded-lg text-center border border-dashed border-gray-300 space-y-1.5">
+                                          <ClipboardList className="w-6 h-6 mx-auto text-gray-300" />
+                                          <p className="text-xs font-semibold text-gray-600">
+                                            팀원이 해당 차수 자가평가를 완료하지
+                                            않았습니다
+                                          </p>
+                                          <p className="text-[11px] text-gray-400">
+                                            자가 완료 후 같은 차수의 리더 평가를
+                                            진행할 수 있습니다.
+                                          </p>
+                                        </div>
+                                      );
+                                    }
 
-                                  if (isLeaderBlocked) {
                                     return (
-                                      <div className="bg-gray-50 px-4 py-5 rounded-lg text-center border border-dashed border-gray-300 space-y-1.5">
-                                        <ClipboardList className="w-6 h-6 mx-auto text-gray-300" />
-                                        <p className="text-xs font-semibold text-gray-600">
-                                          팀원이 해당 차수 자가평가를 완료하지
-                                          않았습니다
-                                        </p>
-                                        <p className="text-[11px] text-gray-400">
-                                          자가 완료 후 같은 차수의 리더 평가를
-                                          진행할 수 있습니다.
+                                      <div className="max-w-lg space-y-2.5 border-t border-dashed border-gray-200 pt-3">
+                                        <Label className="flex flex-wrap items-baseline gap-x-2 text-xs font-semibold text-gray-800">
+                                          평가 등급
+                                          <span className="text-[10px] font-normal text-gray-500">
+                                            {roundLabel} · 필수
+                                          </span>
+                                        </Label>
+                                        <div
+                                          className="grid grid-cols-5 gap-1.5 w-full max-w-xs"
+                                          role="group"
+                                          aria-label={`${roundLabel} 등급 선택`}
+                                        >
+                                          {GRADES.map((g) => (
+                                            <button
+                                              key={g}
+                                              type="button"
+                                              disabled={
+                                                isSaving ||
+                                                isSelfReadOnly ||
+                                                rowReadOnly
+                                              }
+                                              onClick={() =>
+                                                handleLocalUpdate(
+                                                  myRecord.assessmentId,
+                                                  { grade: g },
+                                                )
+                                              }
+                                              className={`aspect-square max-h-11 rounded-lg border text-sm font-bold transition-all ${
+                                                isSelfReadOnly || rowReadOnly
+                                                  ? displayGrade === g
+                                                    ? "cursor-not-allowed border-green-700 bg-green-600 text-white"
+                                                    : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-300"
+                                                  : displayGrade === g
+                                                    ? isDirty
+                                                      ? "border-amber-500 bg-amber-500 text-white shadow-sm"
+                                                      : "border-blue-600 bg-blue-600 text-white shadow-sm"
+                                                    : "border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:bg-blue-50/50"
+                                              }`}
+                                            >
+                                              {g}
+                                            </button>
+                                          ))}
+                                        </div>
+                                        <p className="text-[10px] text-gray-400">
+                                          O / E / M / P / N
                                         </p>
                                       </div>
                                     );
-                                  }
+                                  })()
+                                ) : (
+                                  <div className="bg-gray-50 px-3 py-4 rounded-lg text-center text-gray-500 border border-dashed border-gray-200 text-xs">
+                                    <Users className="w-5 h-5 mx-auto mb-1 opacity-40" />
+                                    이 차수에 대한 평가 권한이 없습니다.
+                                  </div>
+                                )}
+                              </div>,
+                            ];
+                          });
 
-                                  return (
-                                    <div className="max-w-lg space-y-2.5 border-t border-dashed border-gray-200 pt-3">
-                                      <Label className="flex flex-wrap items-baseline gap-x-2 text-xs font-semibold text-gray-800">
-                                        평가 등급
-                                        <span className="text-[10px] font-normal text-gray-500">
-                                          {roundLabel} · 필수
-                                        </span>
-                                      </Label>
-                                      <div
-                                        className="grid grid-cols-5 gap-1.5 w-full max-w-xs"
-                                        role="group"
-                                        aria-label={`${roundLabel} 등급 선택`}
-                                      >
-                                        {GRADES.map((g) => (
-                                          <button
-                                            key={g}
-                                            type="button"
-                                            disabled={
-                                              isSaving ||
-                                              isSelfReadOnly ||
-                                              rowReadOnly
-                                            }
-                                            onClick={() =>
-                                              handleLocalUpdate(
-                                                myRecord.assessmentId,
-                                                { grade: g },
-                                              )
-                                            }
-                                            className={`aspect-square max-h-11 rounded-lg border text-sm font-bold transition-all ${
-                                              isSelfReadOnly || rowReadOnly
-                                                ? displayGrade === g
-                                                  ? "cursor-not-allowed border-green-700 bg-green-600 text-white"
-                                                  : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-300"
-                                                : displayGrade === g
-                                                  ? isDirty
-                                                    ? "border-amber-500 bg-amber-500 text-white shadow-sm"
-                                                    : "border-blue-600 bg-blue-600 text-white shadow-sm"
-                                                  : "border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:bg-blue-50/50"
-                                            }`}
-                                          >
-                                            {g}
-                                          </button>
-                                        ))}
-                                      </div>
-                                      <p className="text-[10px] text-gray-400">
-                                        O / E / M / P / N
-                                      </p>
-                                    </div>
-                                  );
-                                })()
-                              ) : (
-                                <div className="bg-gray-50 px-3 py-4 rounded-lg text-center text-gray-500 border border-dashed border-gray-200 text-xs">
-                                  <Users className="w-5 h-5 mx-auto mb-1 opacity-40" />
-                                  이 차수에 대한 평가 권한이 없습니다.
-                                </div>
-                              )}
-                            </div>,
-                          ];
-                        });
+                          const anyDirty = (["mid", "final"] as const).some(
+                            (t) => {
+                              if (
+                                !shouldShowCompetencyTermBlock(t, {
+                                  isHr: isHR,
+                                  isSelfTarget: !!currentTargetUser?.isSelf,
+                                  macroPhase: macroWorkflowPhase,
+                                })
+                              ) {
+                                return false;
+                              }
+                              const id = group[t].myRecord?.assessmentId;
+                              return id ? !!localEdits[id] : false;
+                            },
+                          );
 
-                        const anyDirty = (
-                          ["mid", "final"] as const
-                        ).some((t) => {
-                          if (
-                            !shouldShowCompetencyTermBlock(t, {
-                              isHr: isHR,
-                              isSelfTarget: !!currentTargetUser?.isSelf,
-                              macroPhase: macroWorkflowPhase,
-                            })
-                          ) {
-                            return false;
-                          }
-                          const id = group[t].myRecord?.assessmentId;
-                          return id ? !!localEdits[id] : false;
-                        });
-
-                        return (
-                          <Card
-                            key={group.competencyId}
-                            className={`transition-all duration-300 border-none shadow-sm ring-1 ${
-                              anyDirty
-                                ? "ring-amber-400 bg-amber-50/10"
-                                : "ring-gray-200"
-                            }`}
-                          >
-                            <CardHeader className="py-3 px-4 border-b bg-gray-50/30">
-                              <div className="flex items-start gap-3">
-                                <div className="w-7 h-7 rounded-md bg-white border text-[11px] shadow-sm flex items-center justify-center font-bold text-gray-400 shrink-0 mt-0.5">
-                                  Q
+                          return (
+                            <Card
+                              key={group.competencyId}
+                              className={`transition-all duration-300 border-none shadow-sm ring-1 ${
+                                anyDirty
+                                  ? "ring-amber-400 bg-amber-50/10"
+                                  : "ring-gray-200"
+                              }`}
+                            >
+                              <CardHeader className="py-3 px-4 border-b bg-gray-50/30">
+                                <div className="flex items-start gap-3">
+                                  <div className="w-7 h-7 rounded-md bg-white border text-[11px] shadow-sm flex items-center justify-center font-bold text-gray-400 shrink-0 mt-0.5">
+                                    Q
+                                  </div>
+                                  <div className="space-y-0.5 min-w-0">
+                                    <CardTitle className="text-base font-bold text-gray-800 leading-snug">
+                                      {group.question}
+                                    </CardTitle>
+                                    {anyDirty && (
+                                      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none text-[10px] py-0">
+                                        저장 대기 중
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="space-y-0.5 min-w-0">
-                                  <CardTitle className="text-base font-bold text-gray-800 leading-snug">
-                                    {group.question}
-                                  </CardTitle>
-                                  {anyDirty && (
-                                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none text-[10px] py-0">
-                                      저장 대기 중
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="p-4 sm:p-5 space-y-4">
-                              {termBlocks}
-                            </CardContent>
-                          </Card>
-                        );
-                      },
-                    )}
+                              </CardHeader>
+                              <CardContent className="p-4 sm:p-5 space-y-4">
+                                {termBlocks}
+                              </CardContent>
+                            </Card>
+                          );
+                        },
+                      )}
                     </TabsContent>
                   ))}
                 </Tabs>
@@ -1181,8 +1170,8 @@ export default function CompetencyEvaluation() {
                     배정된 역량 평가 항목이 없습니다.
                   </h3>
                   <p className="text-gray-500 mt-2 max-w-sm">
-                    평가 주기가 시작되지 않았거나, 현재 부서에 배정된 문항이 없을
-                    수 있습니다.
+                    평가 주기가 시작되지 않았거나, 현재 부서에 배정된 문항이
+                    없을 수 있습니다.
                   </p>
                 </div>
               )}

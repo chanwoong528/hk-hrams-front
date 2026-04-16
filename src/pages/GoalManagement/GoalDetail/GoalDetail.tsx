@@ -57,6 +57,28 @@ export default function GoalDetail() {
     select: (data) => data.data as Goal[],
   });
 
+  const isCurrentVersionApproved = (goal: Goal): boolean => {
+    const currentVersion = Math.floor(Number(goal.approvalVersion ?? 1)) || 1;
+    const approvalRow = (goal.goalAssessmentBy ?? []).find((assessment) => {
+      const isApprovalTerm =
+        String(assessment.assessTerm ?? "")
+          .trim()
+          .toLowerCase() === "goal_approval";
+      const isCurrentVersion =
+        Number(assessment.targetApprovalVersion ?? -1) === currentVersion;
+      return isApprovalTerm && isCurrentVersion;
+    });
+    return String(approvalRow?.grade ?? "")
+      .trim()
+      .toUpperCase() === "T";
+  };
+
+  const lockedGoalIdSet = new Set(
+    (goals ?? [])
+      .filter((goal) => goal.goalType !== "common" && isCurrentVersionApproved(goal))
+      .map((goal) => goal.goalId),
+  );
+
   // 3. Mutations
   const isOfficeManagement =
     (currentUser?.jobGroup ?? "").trim() === "사무관리직";
@@ -139,6 +161,9 @@ export default function GoalDetail() {
       // 2. Update Existing Goals
       updatedGoals.forEach((goal) => {
         if (goal.goalId) {
+          if (lockedGoalIdSet.has(goal.goalId)) {
+            return;
+          }
           const originalGoal = goals?.find((g) => g.goalId === goal.goalId);
           if (
             originalGoal &&
@@ -168,6 +193,9 @@ export default function GoalDetail() {
       // or we just accept it for now.
       // Let's iterate.
       deletedGoalIds.forEach((id) => {
+        if (lockedGoalIdSet.has(id)) {
+          return;
+        }
         promises.push(deleteGoal(id));
       });
 
@@ -210,6 +238,7 @@ export default function GoalDetail() {
       <GoalForm
         onSaveAll={handleSaveAll}
         existingGoals={goals?.filter((g) => g.goalType !== "common") || []}
+        lockedGoalIds={Array.from(lockedGoalIdSet)}
         targetJobGroup={currentUser?.jobGroup}
         personalGoalsReadOnly={personalGoalsReadOnly}
         personalGoalsReadOnlyMessage={PERSONAL_GOALS_PHASE_HINT}
