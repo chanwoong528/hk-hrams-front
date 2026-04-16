@@ -1041,13 +1041,6 @@ const AppraisalSection = ({
                                       approvalRow ??
                                       latestDbApprovalRow ??
                                       null;
-                                    const baseRowVersion = Number(
-                                      baseRow?.targetApprovalVersion ?? -1,
-                                    );
-                                    const isPrefilledFromOldVersion =
-                                      !!baseRow &&
-                                      baseRowVersion !== -1 &&
-                                      baseRowVersion !== currentVersion;
 
                                     const savedComment = baseRow?.comment ?? "";
                                     const draft =

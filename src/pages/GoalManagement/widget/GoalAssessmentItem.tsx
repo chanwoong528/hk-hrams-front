@@ -16,7 +16,6 @@ import {
 import type { Goal } from "../type";
 import {
   normGoalAssessTerm,
-  pickFirstNonOwnerGoalAssessmentForTerm,
   pickGoalAssessmentForUserAndTerm,
 } from "../utils";
 
