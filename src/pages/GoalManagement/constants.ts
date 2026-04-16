@@ -5,6 +5,19 @@ export const APPRAISAL_STATUS = {
     SUBMITTED: "submitted",
 } as const;
 
+/** 개인 목표 작성·수정 가능한 HR 매크로 단계 (API Goal 규칙과 동일) */
+export const PERSONAL_GOAL_MACRO_PHASES: readonly number[] = [2, 5];
+
+export function canMutatePersonalGoalsInMacroPhase(
+    phase?: number | null,
+): boolean {
+    const p = phase ?? 1;
+    return PERSONAL_GOAL_MACRO_PHASES.includes(p);
+}
+
+export const PERSONAL_GOALS_PHASE_HINT =
+    "개인 목표는 워크플로 2·5단계(목표작성/승인, 팀원 기말)에서만 작성·수정할 수 있습니다.";
+
 export const APPRAISAL_TYPES = {
     PERFORMANCE: "performance",
 } as const;

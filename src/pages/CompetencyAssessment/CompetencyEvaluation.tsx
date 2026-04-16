@@ -42,8 +42,30 @@ import { isHrOrAdminUser } from "@/lib/hrAccess";
 import { CompetencyFinalAssessmentDialog } from "./components/CompetencyFinalAssessmentDialog";
 import { useCompetencyFinalAssessment } from "./hooks/useCompetencyFinalAssessment";
 import { isAppraisalEditableByEndDate } from "../GoalManagement/utils";
+import {
+  competencyFinalRoundForLeader,
+  competencyFinalRoundForSelf,
+  normalizeAssessTerm,
+} from "@/lib/appraisalMacroWorkflow";
 
 const GRADES = ["O", "E", "M", "P", "N"];
+
+/** HR 제외: 자가는 5단계 이전에 기말 블록 숨김, 리더는 6단계 이전에 기말 숨김 */
+function shouldShowCompetencyTermBlock(
+  termKey: "mid" | "final",
+  ctx: {
+    isHr: boolean;
+    isSelfTarget: boolean;
+    macroPhase: number;
+  },
+): boolean {
+  if (ctx.isHr) return true;
+  if (termKey === "final") {
+    if (ctx.isSelfTarget) return ctx.macroPhase >= 5;
+    return ctx.macroPhase >= 6;
+  }
+  return true;
+}
 
 interface LocalEdit {
   grade?: string;
@@ -188,6 +210,13 @@ export default function CompetencyEvaluation() {
     enabled: !!selectedAppraisalUserId,
   });
 
+  const macroWorkflowPhase = useMemo(() => {
+    const raw = (assessments as any)?.[0]?.appraisalUser?.appraisal
+      ?.macroWorkflowPhase as number | undefined;
+    if (raw == null || !Number.isFinite(Number(raw))) return 1;
+    return Math.min(6, Math.max(1, Math.floor(Number(raw))));
+  }, [assessments]);
+
   const handleTargetChange = (val: string) => {
     if (Object.keys(localEdits).length > 0) {
       if (
@@ -219,40 +248,56 @@ export default function CompetencyEvaluation() {
 
   const deptNames = Object.keys(assessmentsByDept);
 
-  // Helper to group by question within a department and identify records
-  const getGroupedAssessments = (items: any[]) => {
+  type CompetencyTermBucket = {
+    selfRecord?: any;
+    myRecord?: any;
+    otherRecords: any[];
+  };
+
+  const emptyTermBucket = (): CompetencyTermBucket => ({
+    otherRecords: [],
+  });
+
+  /** 문항 × (중간|기말) — 성과 평가와 동일한 차수 모델 */
+  const buildQuestionTermGroups = (items: any[]) => {
+    const ownerId = items[0]?.appraisalUser?.owner?.userId as string | undefined;
     const groups: Record<
       string,
       {
+        competencyId: string;
         question: string;
-        selfRecord?: any;
-        myRecord?: any;
-        otherRecords: any[];
+        mid: CompetencyTermBucket;
+        final: CompetencyTermBucket;
       }
     > = {};
 
     items.forEach((item) => {
       const qId = item.competencyQuestion?.competencyId;
+      if (!qId) return;
       if (!groups[qId]) {
         groups[qId] = {
+          competencyId: qId,
           question: item.competencyQuestion?.question,
-          otherRecords: [],
+          mid: emptyTermBucket(),
+          final: emptyTermBucket(),
         };
       }
-
-      const ownerId = item.appraisalUser?.owner?.userId;
+      const term = normalizeAssessTerm(item.assessTerm);
+      const bucket = term === "mid" ? groups[qId].mid : groups[qId].final;
       const evaluatorId = item.evaluator?.userId;
-      const isOwnerSelf = !!(ownerId && evaluatorId && ownerId === evaluatorId);
+      const isOwnerSelf = !!(
+        ownerId &&
+        evaluatorId &&
+        ownerId === evaluatorId
+      );
       const isMeEvaluator = evaluatorId === currentUser?.userId;
-
       if (isOwnerSelf) {
-        groups[qId].selfRecord = item;
+        bucket.selfRecord = item;
       }
-
       if (isMeEvaluator) {
-        groups[qId].myRecord = item;
+        bucket.myRecord = item;
       } else if (!isOwnerSelf) {
-        groups[qId].otherRecords.push(item);
+        bucket.otherRecords.push(item);
       }
     });
 
@@ -274,6 +319,28 @@ export default function CompetencyEvaluation() {
     return null;
   }, [myAppraisals, teamParticipations, selectedAppraisalUserId, currentUser]);
 
+  const canEditCompetencyAssessmentRow = (row: any | undefined) => {
+    if (!row || !editableByDeadline) return false;
+    const term = normalizeAssessTerm(row.assessTerm);
+    if (currentTargetUser?.isSelf) {
+      if (term === "mid") return macroWorkflowPhase === 3;
+      return macroWorkflowPhase === 5;
+    }
+    if (term === "mid") return macroWorkflowPhase === 4;
+    return macroWorkflowPhase === 6;
+  };
+
+  const competencyFinalSubmissionRound = useMemo(():
+    | "mid"
+    | "final"
+    | null => {
+    if (!currentTargetUser) return null;
+    if (currentTargetUser.isSelf) {
+      return competencyFinalRoundForSelf(macroWorkflowPhase);
+    }
+    return competencyFinalRoundForLeader(macroWorkflowPhase);
+  }, [currentTargetUser, macroWorkflowPhase]);
+
   const competencyFinal = useCompetencyFinalAssessment({
     appraisalUserId: selectedAppraisalUserId,
   });
@@ -285,18 +352,78 @@ export default function CompetencyEvaluation() {
     return id;
   }, [assessments]);
 
-  const myFinalRecord = useMemo(() => {
-    const list = competencyFinal.finalQuery.data?.data ?? [];
-    const me = currentUser?.userId;
-    if (!me) return undefined;
-    return list.find((r: any) => r.assessedById === me);
-  }, [competencyFinal.finalQuery.data?.data, currentUser?.userId]);
+  const finalAssessmentList = useMemo(
+    () => (competencyFinal.finalQuery.data?.data ?? []) as any[],
+    [competencyFinal.finalQuery.data?.data],
+  );
 
-  const selfFinalRecord = useMemo(() => {
-    const list = competencyFinal.finalQuery.data?.data ?? [];
-    if (!ownerUserId) return undefined;
-    return list.find((r: any) => r.assessedById === ownerUserId);
-  }, [competencyFinal.finalQuery.data?.data, ownerUserId]);
+  const myFinalRecord = useMemo(() => {
+    const me = currentUser?.userId;
+    if (!me || !competencyFinalSubmissionRound) return undefined;
+    const r = competencyFinalSubmissionRound;
+    return finalAssessmentList.find(
+      (row: any) =>
+        row.assessedById === me && (row.evaluationRound || "mid") === r,
+    );
+  }, [
+    finalAssessmentList,
+    currentUser?.userId,
+    competencyFinalSubmissionRound,
+  ]);
+
+  const evaluatorCompetencySnapshots = useMemo(() => {
+    const me = currentUser?.userId;
+    if (!me) return { mid: undefined, final: undefined } as const;
+    const toSnap = (row: any) => ({
+      grade: String(row?.grade ?? ""),
+      updated:
+        typeof row?.updated === "string"
+          ? row.updated
+          : row?.updated
+            ? new Date(row.updated).toISOString()
+            : undefined,
+    });
+    const midRow = finalAssessmentList.find(
+      (row: any) =>
+        row.assessedById === me && (row.evaluationRound || "mid") === "mid",
+    );
+    const finalRow = finalAssessmentList.find(
+      (row: any) =>
+        row.assessedById === me && (row.evaluationRound || "mid") === "final",
+    );
+    return {
+      mid: midRow ? toSnap(midRow) : undefined,
+      final: finalRow ? toSnap(finalRow) : undefined,
+    };
+  }, [finalAssessmentList, currentUser?.userId]);
+
+  /** 피평가자(팀원) 역량 최종 자가 — 중간·기말 (리더 화면 요약용) */
+  const ownerCompetencySnapshots = useMemo(() => {
+    if (!ownerUserId) return { mid: undefined, final: undefined } as const;
+    const toSnap = (row: any) => ({
+      grade: String(row?.grade ?? ""),
+      updated:
+        typeof row?.updated === "string"
+          ? row.updated
+          : row?.updated
+            ? new Date(row.updated).toISOString()
+            : undefined,
+    });
+    const midRow = finalAssessmentList.find(
+      (row: any) =>
+        row.assessedById === ownerUserId &&
+        (row.evaluationRound || "mid") === "mid",
+    );
+    const finalRow = finalAssessmentList.find(
+      (row: any) =>
+        row.assessedById === ownerUserId &&
+        (row.evaluationRound || "mid") === "final",
+    );
+    return {
+      mid: midRow ? toSnap(midRow) : undefined,
+      final: finalRow ? toSnap(finalRow) : undefined,
+    };
+  }, [finalAssessmentList, ownerUserId]);
 
   const finalButton = useMemo(() => {
     const me = currentUser?.userId;
@@ -311,10 +438,21 @@ export default function CompetencyEvaluation() {
       | undefined;
     if (!ownerId) return { canOpen: false, title: "" };
 
-    const selfRecords = assessments.filter(
-      (a: any) => a.evaluator?.userId === ownerId,
-    );
-    const myRecords = assessments.filter((a: any) => a.evaluator?.userId === me);
+    const round = competencyFinalSubmissionRound;
+    const selfRecords = !round
+      ? []
+      : assessments.filter(
+          (a: any) =>
+            a.evaluator?.userId === ownerId &&
+            normalizeAssessTerm(a.assessTerm) === round,
+        );
+    const myRecords = !round
+      ? []
+      : assessments.filter(
+          (a: any) =>
+            a.evaluator?.userId === me &&
+            normalizeAssessTerm(a.assessTerm) === round,
+        );
 
     const isSelfComplete =
       selfRecords.length > 0 &&
@@ -323,18 +461,32 @@ export default function CompetencyEvaluation() {
       myRecords.length > 0 &&
       myRecords.every((r: any) => Boolean((r.grade ?? "").trim()));
 
+    const roundOk = competencyFinalSubmissionRound != null;
+
     if (isSelf) {
+      const title =
+        competencyFinalSubmissionRound === "final"
+          ? "역량 기말 최종 자가 평가"
+          : competencyFinalSubmissionRound === "mid"
+            ? "역량 중간 최종 자가 평가"
+            : "역량 최종 자가 평가";
       return {
-        canOpen: isSelfComplete && editableByDeadline,
-        title: "역량 최종 자가 평가",
+        canOpen: isSelfComplete && editableByDeadline && roundOk,
+        title,
         requiredDone: isSelfComplete,
       };
     }
 
     // leader evaluating a team member
+    const leaderTitle =
+      competencyFinalSubmissionRound === "final"
+        ? "역량 기말 최종 평가"
+        : competencyFinalSubmissionRound === "mid"
+          ? "역량 중간 최종 평가"
+          : "역량 최종 평가";
     return {
-      canOpen: isSelfComplete && isMyComplete && editableByDeadline,
-      title: "역량 최종 평가",
+      canOpen: isSelfComplete && isMyComplete && editableByDeadline && roundOk,
+      title: leaderTitle,
       requiredDone: isSelfComplete && isMyComplete,
     };
   }, [
@@ -343,6 +495,7 @@ export default function CompetencyEvaluation() {
     currentUser?.userId,
     selectedAppraisalUserId,
     editableByDeadline,
+    competencyFinalSubmissionRound,
   ]);
 
   useEffect(() => {
@@ -350,48 +503,31 @@ export default function CompetencyEvaluation() {
     setFinalGrade(myFinalRecord?.grade ?? "");
   }, [isFinalDialogOpen, myFinalRecord?.grade]);
 
-  // Determine if self-assessment should be read-only
-  // Read-only when ALL questions have both: (1) self grade completed (2) leader grade completed
+  /** 본인 화면: 매크로 3·5단계가 아니면 문항 수정 불가(차수별) */
   const isSelfReadOnly = useMemo(() => {
-    if (!currentTargetUser?.isSelf || !assessments || assessments.length === 0)
-      return false;
-
-    // Group all assessments by competencyId
-    const grouped: Record<
-      string,
-      { hasSelfGrade: boolean; hasLeaderGrade: boolean }
-    > = {};
-
-    assessments.forEach((item: any) => {
-      const qId = item.competencyQuestion?.competencyId;
-      if (!qId) return;
-      if (!grouped[qId]) {
-        grouped[qId] = { hasSelfGrade: false, hasLeaderGrade: false };
-      }
-
-      const ownerId = item.appraisalUser?.owner?.userId;
-      const evaluatorId = item.evaluator?.userId;
-      const isOwnerSelf = !!(ownerId && evaluatorId && ownerId === evaluatorId);
-
-      if (isOwnerSelf && item.grade) {
-        grouped[qId].hasSelfGrade = true;
-      }
-      if (!isOwnerSelf && item.grade) {
-        grouped[qId].hasLeaderGrade = true;
-      }
+    if (!currentTargetUser?.isSelf || !assessments?.length) return false;
+    if (!editableByDeadline) return true;
+    return !assessments.some((a: any) => {
+      if (a.evaluator?.userId !== currentUser?.userId) return false;
+      const term = normalizeAssessTerm(a.assessTerm);
+      if (term === "mid") return macroWorkflowPhase === 3;
+      return macroWorkflowPhase === 5;
     });
-
-    const questionIds = Object.keys(grouped);
-    if (questionIds.length === 0) return false;
-
-    return questionIds.every(
-      (qId) => grouped[qId].hasSelfGrade && grouped[qId].hasLeaderGrade,
-    );
-  }, [currentTargetUser?.isSelf, assessments]);
+  }, [
+    currentTargetUser?.isSelf,
+    assessments,
+    currentUser?.userId,
+    macroWorkflowPhase,
+    editableByDeadline,
+  ]);
 
   // Handle local changes
   const handleLocalUpdate = (assessmentId: string, updates: LocalEdit) => {
-    if (isSelfReadOnly) return; // Prevent edits when read-only
+    const row = assessments?.find(
+      (a: any) => a.assessmentId === assessmentId,
+    );
+    if (!canEditCompetencyAssessmentRow(row)) return;
+    if (isSelfReadOnly) return;
     setLocalEdits((prev) => ({
       ...prev,
       [assessmentId]: {
@@ -606,9 +742,10 @@ export default function CompetencyEvaluation() {
                   : "팀원의 역량 발휘 수준과 기여도를 공정하게 평가해주세요."}
               </p>
               {isSelfReadOnly && (
-                <div className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full border border-green-200 text-xs font-bold">
+                <div className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-700 rounded-full border border-slate-200 text-xs font-bold">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  리더 평가 완료 — 자가평가가 확정되었습니다
+                  현재 워크플로 단계에서는 역량 문항을 수정할 수 없습니다 (중간=3단계,
+                  기말=5단계).
                 </div>
               )}
             </div>
@@ -654,6 +791,8 @@ export default function CompetencyEvaluation() {
           title={finalButton.title}
           grade={finalGrade}
           onGradeChange={setFinalGrade}
+          activeRound={competencyFinalSubmissionRound}
+          peerSnapshots={evaluatorCompetencySnapshots}
           submitDisabled={
             !finalGrade ||
             !finalButton.requiredDone ||
@@ -663,9 +802,16 @@ export default function CompetencyEvaluation() {
           onSubmit={() => {
             if (!selectedAppraisalUserId) return;
             if (!finalGrade) return;
+            if (!competencyFinalSubmissionRound) {
+              toast.error(
+                "지금 워크플로 단계에서는 역량 최종 평가를 제출할 수 없습니다.",
+              );
+              return;
+            }
             competencyFinal.upsertFinal({
               appraisalUserId: selectedAppraisalUserId,
               grade: finalGrade,
+              evaluationRound: competencyFinalSubmissionRound,
             });
             setIsFinalDialogOpen(false);
           }}
@@ -699,6 +845,11 @@ export default function CompetencyEvaluation() {
                             if (!editableByDeadline && selectedAppraisalMeta.endDate) {
                               return "평가 마감일이 지나 최종 평가를 저장/수정할 수 없습니다.";
                             }
+                            if (!competencyFinalSubmissionRound) {
+                              return currentTargetUser?.isSelf
+                                ? "역량 종합 자가 평가는 워크플로 3단계(중간)·5단계(기말)에서 제출할 수 있습니다."
+                                : "역량 종합 평가(리더)는 워크플로 4단계(중간)·6단계(기말)에서 제출할 수 있습니다.";
+                            }
                             if (!finalButton.requiredDone) {
                               return currentTargetUser?.isSelf
                                 ? "모든 역량 평가 문항의 등급을 먼저 등록하면 ‘최종 자가 평가’를 저장할 수 있습니다."
@@ -710,12 +861,24 @@ export default function CompetencyEvaluation() {
                       </div>
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         {!currentTargetUser?.isSelf ? (
-                          <div className="mr-1 flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                          <div className="mr-1 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
                             <span className="font-semibold text-slate-600">
-                              팀원 최종 자가 평가
+                              팀원 최종 자가
                             </span>
-                            <span className="font-bold tabular-nums text-slate-900">
-                              {selfFinalRecord?.grade?.trim() || "—"}
+                            <span className="tabular-nums text-slate-900">
+                              <span className="text-slate-500">중간</span>{" "}
+                              <span className="font-bold">
+                                {ownerCompetencySnapshots.mid?.grade?.trim() ||
+                                  "—"}
+                              </span>
+                            </span>
+                            <span className="text-slate-300">|</span>
+                            <span className="tabular-nums text-slate-900">
+                              <span className="text-slate-500">기말</span>{" "}
+                              <span className="font-bold">
+                                {ownerCompetencySnapshots.final?.grade?.trim() ||
+                                  "—"}
+                              </span>
                             </span>
                           </div>
                         ) : null}
@@ -768,77 +931,77 @@ export default function CompetencyEvaluation() {
                   </TabsList>
 
                   {deptNames.map((dept) => (
-                    <TabsContent key={dept} value={dept} className="space-y-6">
-                    {getGroupedAssessments(assessmentsByDept[dept]).map(
+                    <TabsContent key={dept} value={dept} className="space-y-4">
+                    {buildQuestionTermGroups(assessmentsByDept[dept]).map(
                       (group) => {
-                        const myRecord = group.myRecord;
-                        const selfRecord = group.selfRecord;
-                        const otherRecords = group.otherRecords; // Other evaluators if any
+                        const termBlocks = (
+                          ["mid", "final"] as const
+                        ).flatMap((termKey) => {
+                          if (
+                            !shouldShowCompetencyTermBlock(termKey, {
+                              isHr: isHR,
+                              isSelfTarget: !!currentTargetUser?.isSelf,
+                              macroPhase: macroWorkflowPhase,
+                            })
+                          ) {
+                            return [];
+                          }
+                          const bucket = group[termKey];
+                          const myRecord = bucket.myRecord;
+                          const selfRecord = bucket.selfRecord;
+                          const otherRecords = bucket.otherRecords;
+                          const roundLabel =
+                            termKey === "mid" ? "중간 평가" : "기말 평가";
+                          const hasAny =
+                            myRecord ||
+                            selfRecord ||
+                            otherRecords.length > 0;
+                          if (!hasAny) return [];
 
-                        // Get current value from local state or original data
-                        const currentEdit = myRecord
-                          ? localEdits[myRecord.assessmentId]
-                          : null;
-                        const displayGrade =
-                          currentEdit?.grade !== undefined
-                            ? currentEdit.grade
-                            : myRecord?.grade;
-                        const isDirty = !!currentEdit;
+                          const currentEdit = myRecord
+                            ? localEdits[myRecord.assessmentId]
+                            : null;
+                          const displayGrade =
+                            currentEdit?.grade !== undefined
+                              ? currentEdit.grade
+                              : myRecord?.grade;
+                          const isDirty = !!currentEdit;
+                          const rowReadOnly =
+                            !canEditCompetencyAssessmentRow(myRecord);
 
-                        return (
-                          <Card
-                            key={group.question}
-                            className={`transition-all duration-300 border-none shadow-sm ring-1 ${
-                              isDirty
-                                ? "ring-amber-400 bg-amber-50/10"
-                                : "ring-gray-200"
-                            }`}
-                          >
-                            <CardHeader className="pb-4 border-b bg-gray-50/30">
-                              <div className="flex items-start gap-4">
-                                <div className="w-8 h-8 rounded-lg bg-white border shadow-sm flex items-center justify-center font-bold text-gray-400 shrink-0 mt-1">
-                                  Q
-                                </div>
-                                <div className="space-y-1">
-                                  <CardTitle className="text-lg font-bold text-gray-800 leading-snug">
-                                    {group.question}
-                                  </CardTitle>
-                                  {isDirty && (
-                                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none text-[10px]">
-                                      저장 대기 중
-                                    </Badge>
-                                  )}
-                                </div>
+                          return [
+                            <div
+                              key={`${group.competencyId}-${termKey}`}
+                              className="space-y-4 border-t border-dashed border-gray-200 pt-4 first:border-t-0 first:pt-0"
+                            >
+                              <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                                <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                                  {roundLabel}
+                                </span>
                               </div>
-                            </CardHeader>
-                            <CardContent className="p-8 space-y-8">
-                              {/* Display Other Feedbacks (Team member view sees Leader feedback, HR sees all) */}
                               {(currentTargetUser?.isSelf || isHR) &&
                                 otherRecords.length > 0 && (
-                                  <div className="space-y-3">
-                                    <div className="flex items-center gap-2 text-blue-700 font-bold text-sm">
-                                      <MessageSquare className="w-4 h-4" />
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-1.5 text-blue-700 font-semibold text-xs">
+                                      <MessageSquare className="w-3.5 h-3.5 shrink-0" />
                                       {isHR
-                                        ? "평가자별 피드백 현황"
-                                        : "동료 및 리더 피드백"}
+                                        ? "평가자별 피드백"
+                                        : "동료·리더 피드백"}
                                     </div>
-                                    <div className="grid gap-4">
+                                    <div className="flex flex-col gap-2">
                                       {otherRecords.map((rec: any) => (
                                         <div
                                           key={rec.assessmentId}
-                                          className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex items-start gap-4"
+                                          className="bg-blue-50/50 px-3 py-2 rounded-lg border border-blue-100/80 flex items-start gap-2.5"
                                         >
-                                          <div className="w-10 h-10 rounded-full bg-white border border-blue-200 flex items-center justify-center text-blue-600 font-bold shrink-0">
-                                            {rec.grade || "-"}
+                                          <div className="w-8 h-8 rounded-lg bg-white border border-blue-200 flex items-center justify-center text-blue-700 text-xs font-bold shrink-0">
+                                            {rec.grade || "—"}
                                           </div>
-                                          <div className="flex-1 space-y-1">
-                                            <div className="text-xs font-bold text-blue-800 flex justify-between">
-                                              <span>
-                                                평가자:{" "}
-                                                {rec.evaluator?.koreanName}
-                                              </span>
+                                          <div className="flex-1 min-w-0 space-y-0.5">
+                                            <div className="text-[11px] font-semibold text-blue-900">
+                                              {rec.evaluator?.koreanName}
                                             </div>
-                                            <p className="text-sm text-gray-700 leading-relaxed">
+                                            <p className="text-xs text-gray-700 leading-snug">
                                               {rec.comment ||
                                                 "의견이 작성되지 않았습니다."}
                                             </p>
@@ -849,24 +1012,23 @@ export default function CompetencyEvaluation() {
                                   </div>
                                 )}
 
-                              {/* Self Assessment Context for Leader */}
                               {!currentTargetUser?.isSelf && selfRecord && (
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2 text-green-700 font-bold text-sm">
-                                    <ClipboardList className="w-4 h-4" />
-                                    팀원 자기평가 (Self-Assessment)
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-1.5 text-green-700 font-semibold text-xs">
+                                    <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                                    팀원 자기평가 · {roundLabel}
                                   </div>
-                                  <div className="bg-green-50/50 p-5 rounded-2xl border border-green-100 flex items-start gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-white border border-green-200 flex flex-col items-center justify-center shrink-0 shadow-sm">
-                                      <span className="text-[10px] text-green-600 font-bold">
+                                  <div className="bg-green-50/50 px-3 py-2.5 rounded-lg border border-green-100 flex items-start gap-2.5">
+                                    <div className="w-9 h-9 rounded-lg bg-white border border-green-200 flex flex-col items-center justify-center shrink-0">
+                                      <span className="text-[9px] text-green-600 font-bold leading-none">
                                         등급
                                       </span>
-                                      <span className="text-lg font-black text-green-700">
-                                        {selfRecord.grade || "-"}
+                                      <span className="text-sm font-black text-green-700 leading-tight">
+                                        {selfRecord.grade || "—"}
                                       </span>
                                     </div>
-                                    <div className="flex-1 space-y-1">
-                                      <p className="text-sm text-gray-700 leading-relaxed italic">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs text-gray-700 leading-snug italic">
                                         {selfRecord.comment ||
                                           "팀원이 작성한 의견이 없습니다."}
                                       </p>
@@ -875,76 +1037,133 @@ export default function CompetencyEvaluation() {
                                 </div>
                               )}
 
-                              {/* Evaluation Input */}
                               {myRecord ? (
                                 (() => {
-                                  // Block leader from evaluating until team member completes self-assessment
                                   const isLeaderBlocked =
                                     !currentTargetUser?.isSelf &&
-                                    (!selfRecord || !selfRecord.grade);
+                                    (!selfRecord ||
+                                      !String(selfRecord.grade ?? "").trim());
 
                                   if (isLeaderBlocked) {
                                     return (
-                                      <div className="bg-gray-50 p-8 rounded-2xl text-center border border-dashed border-gray-300 space-y-2">
-                                        <ClipboardList className="w-8 h-8 mx-auto text-gray-300" />
-                                        <p className="text-sm font-bold text-gray-500">
-                                          팀원이 자가평가를 완료하지 않았습니다
+                                      <div className="bg-gray-50 px-4 py-5 rounded-lg text-center border border-dashed border-gray-300 space-y-1.5">
+                                        <ClipboardList className="w-6 h-6 mx-auto text-gray-300" />
+                                        <p className="text-xs font-semibold text-gray-600">
+                                          팀원이 해당 차수 자가평가를 완료하지
+                                          않았습니다
                                         </p>
-                                        <p className="text-xs text-gray-400">
-                                          팀원의 자가평가가 완료된 후 리더
-                                          평가를 진행할 수 있습니다.
+                                        <p className="text-[11px] text-gray-400">
+                                          자가 완료 후 같은 차수의 리더 평가를
+                                          진행할 수 있습니다.
                                         </p>
                                       </div>
                                     );
                                   }
 
                                   return (
-                                    <div className="max-w-3xl space-y-4 border-t border-dashed pt-4">
-                                      <Label className="flex items-center gap-2 text-sm font-bold text-gray-700">
-                                        평가 등급 선택
-                                        <span className="text-xs font-normal text-gray-400">
-                                          (필수 항목)
+                                    <div className="max-w-lg space-y-2.5 border-t border-dashed border-gray-200 pt-3">
+                                      <Label className="flex flex-wrap items-baseline gap-x-2 text-xs font-semibold text-gray-800">
+                                        평가 등급
+                                        <span className="text-[10px] font-normal text-gray-500">
+                                          {roundLabel} · 필수
                                         </span>
                                       </Label>
-                                      <div className="flex flex-wrap gap-2">
+                                      <div
+                                        className="grid grid-cols-5 gap-1.5 w-full max-w-xs"
+                                        role="group"
+                                        aria-label={`${roundLabel} 등급 선택`}
+                                      >
                                         {GRADES.map((g) => (
                                           <button
                                             key={g}
-                                            disabled={isSaving || isSelfReadOnly}
+                                            type="button"
+                                            disabled={
+                                              isSaving ||
+                                              isSelfReadOnly ||
+                                              rowReadOnly
+                                            }
                                             onClick={() =>
                                               handleLocalUpdate(
                                                 myRecord.assessmentId,
                                                 { grade: g },
                                               )
                                             }
-                                            className={`min-w-[60px] flex-1 rounded-xl border-2 py-4 text-center text-lg font-black transition-all ${
-                                              isSelfReadOnly
+                                            className={`aspect-square max-h-11 rounded-lg border text-sm font-bold transition-all ${
+                                              isSelfReadOnly || rowReadOnly
                                                 ? displayGrade === g
                                                   ? "cursor-not-allowed border-green-700 bg-green-600 text-white"
-                                                  : "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-300"
+                                                  : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-300"
                                                 : displayGrade === g
                                                   ? isDirty
-                                                    ? "-translate-y-1 border-amber-600 bg-amber-500 text-white shadow-lg"
-                                                    : "-translate-y-1 border-blue-700 bg-blue-600 text-white shadow-lg"
-                                                  : "border-gray-100 bg-white text-gray-400 hover:border-blue-200 hover:bg-blue-50/30"
+                                                    ? "border-amber-500 bg-amber-500 text-white shadow-sm"
+                                                    : "border-blue-600 bg-blue-600 text-white shadow-sm"
+                                                  : "border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:bg-blue-50/50"
                                             }`}
                                           >
                                             {g}
                                           </button>
                                         ))}
                                       </div>
-                                      <p className="text-center text-[10px] text-gray-400">
+                                      <p className="text-[10px] text-gray-400">
                                         O / E / M / P / N
                                       </p>
                                     </div>
                                   );
                                 })()
                               ) : (
-                                <div className="bg-gray-100 p-8 rounded-2xl text-center text-gray-500 border border-dashed border-gray-300">
-                                  <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                  본 문항에 대한 평가 권한이 없습니다.
+                                <div className="bg-gray-50 px-3 py-4 rounded-lg text-center text-gray-500 border border-dashed border-gray-200 text-xs">
+                                  <Users className="w-5 h-5 mx-auto mb-1 opacity-40" />
+                                  이 차수에 대한 평가 권한이 없습니다.
                                 </div>
                               )}
+                            </div>,
+                          ];
+                        });
+
+                        const anyDirty = (
+                          ["mid", "final"] as const
+                        ).some((t) => {
+                          if (
+                            !shouldShowCompetencyTermBlock(t, {
+                              isHr: isHR,
+                              isSelfTarget: !!currentTargetUser?.isSelf,
+                              macroPhase: macroWorkflowPhase,
+                            })
+                          ) {
+                            return false;
+                          }
+                          const id = group[t].myRecord?.assessmentId;
+                          return id ? !!localEdits[id] : false;
+                        });
+
+                        return (
+                          <Card
+                            key={group.competencyId}
+                            className={`transition-all duration-300 border-none shadow-sm ring-1 ${
+                              anyDirty
+                                ? "ring-amber-400 bg-amber-50/10"
+                                : "ring-gray-200"
+                            }`}
+                          >
+                            <CardHeader className="py-3 px-4 border-b bg-gray-50/30">
+                              <div className="flex items-start gap-3">
+                                <div className="w-7 h-7 rounded-md bg-white border text-[11px] shadow-sm flex items-center justify-center font-bold text-gray-400 shrink-0 mt-0.5">
+                                  Q
+                                </div>
+                                <div className="space-y-0.5 min-w-0">
+                                  <CardTitle className="text-base font-bold text-gray-800 leading-snug">
+                                    {group.question}
+                                  </CardTitle>
+                                  {anyDirty && (
+                                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none text-[10px] py-0">
+                                      저장 대기 중
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-4 sm:p-5 space-y-4">
+                              {termBlocks}
                             </CardContent>
                           </Card>
                         );

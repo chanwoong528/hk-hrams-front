@@ -9,7 +9,10 @@ export interface CompetencyQuestionDto {
 
 export interface CompetencyAssessmentDto {
   assessmentId: string;
+  /** 중간(mid) · 기말(final) 문항 평가 */
+  assessTerm?: string;
   competencyQuestion: {
+    competencyId?: string;
     question: string;
     department: {
       departmentId: string;

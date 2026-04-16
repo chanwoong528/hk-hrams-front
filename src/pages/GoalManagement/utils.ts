@@ -1,6 +1,54 @@
 import { APPRAISAL_STATUS } from "./constants";
 import type { Goal } from "./type";
 
+/** goal_assessment_by.assessTerm — mid/final만 인정, 그 외(예: goal_approval)는 null */
+export function normGoalAssessTerm(
+  raw?: string | null,
+): "mid" | "final" | null {
+  const t = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  if (t === "mid") return "mid";
+  if (t === "final") return "final";
+  return null;
+}
+
+export function pickGoalAssessmentForUserAndTerm(
+  rows: NonNullable<Goal["goalAssessmentBy"]> | undefined,
+  gradedBy: string,
+  term: "mid" | "final",
+) {
+  return rows?.find(
+    (a) =>
+      a.gradedBy === gradedBy && normGoalAssessTerm(a.assessTerm) === term,
+  );
+}
+
+/** 본인이 아닌 평가자(보통 팀장)의 해당 차수 목표 평가 1건 */
+export function pickFirstNonOwnerGoalAssessmentForTerm(
+  rows: NonNullable<Goal["goalAssessmentBy"]> | undefined,
+  ownerUserId: string,
+  term: "mid" | "final",
+) {
+  return rows?.find(
+    (a) =>
+      a.gradedBy !== ownerUserId &&
+      normGoalAssessTerm(a.assessTerm) === term,
+  );
+}
+
+export function goalHasUserAssessmentForTerm(
+  goal: Goal,
+  userId: string | undefined,
+  term: "mid" | "final",
+): boolean {
+  if (!userId) return false;
+  return !!goal.goalAssessmentBy?.some(
+    (a) =>
+      a.gradedBy === userId && normGoalAssessTerm(a.assessTerm) === term,
+  );
+}
+
 /** 평가 마감일(endDate) 당일 23:59:59(로컬)까지 true — 최종 자가 평가 등 수정 허용에 사용 */
 export function isAppraisalEditableByEndDate(
   endDate: string | null | undefined,
@@ -41,17 +89,27 @@ export const getStatusText = (status: string) => {
     }
 };
 
-export const sortGoalsByProgress = (goals: Goal[], currentUserId?: string) => {
-    return [...goals].sort((a, b) => {
-        const aDone = a.goalAssessmentBy?.some(
+export const sortGoalsByProgress = (
+  goals: Goal[],
+  currentUserId?: string,
+  activeAssessTerm?: "mid" | "final" | null,
+) => {
+  return [...goals].sort((a, b) => {
+    const aDone =
+      activeAssessTerm != null && currentUserId
+        ? goalHasUserAssessmentForTerm(a, currentUserId, activeAssessTerm)
+        : !!a.goalAssessmentBy?.some(
             (assess) => assess.gradedBy === currentUserId,
-        );
-        const bDone = b.goalAssessmentBy?.some(
+          );
+    const bDone =
+      activeAssessTerm != null && currentUserId
+        ? goalHasUserAssessmentForTerm(b, currentUserId, activeAssessTerm)
+        : !!b.goalAssessmentBy?.some(
             (assess) => assess.gradedBy === currentUserId,
-        );
+          );
 
-        if (!aDone && bDone) return -1;
-        if (aDone && !bDone) return 1;
-        return 0;
-    });
+    if (!aDone && bDone) return -1;
+    if (aDone && !bDone) return 1;
+    return 0;
+  });
 };

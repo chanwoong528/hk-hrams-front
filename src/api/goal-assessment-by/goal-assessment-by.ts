@@ -6,6 +6,7 @@ export const POST_goalAssessmentBy = async (payload: {
   gradedBy: string;
   comment?: string;
   kpiAchievementRate?: string;
+  assessTerm?: "mid" | "final" | "goal_approval";
 }) => {
   const response = await http.post(`/goal-assessment-by`, payload);
   return response.data;

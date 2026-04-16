@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 
 import { useDebounce } from "@uidotdev/usehooks";
 
-import { Search, UserPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, UserPlus } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,9 @@ import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 
 import {
+  GET_appraisalDetail,
   GET_appraisalDetailByAppraisalId,
+  PATCH_appraisal,
   POST_addAppraisalUsersToOngoing,
 } from "@/api/appraisal/appraisal";
 import { GET_usersByPagination } from "@/api/user/user";
@@ -125,6 +127,39 @@ export default function AppraisalDetail() {
       enabled: !!appraisalId,
     });
 
+  const { data: appraisalMeta } = useQuery({
+    queryKey: ["appraisalMeta", appraisalId],
+    queryFn: () => GET_appraisalDetail(appraisalId as string, 1, 1),
+    select: (res) => res.data?.list?.[0] as { macroWorkflowPhase?: number } | undefined,
+    enabled: !!appraisalId,
+  });
+
+  const macroPhase = (() => {
+    const fromList = appraisalDetail?.list?.[0]?.appraisal as
+      | { macroWorkflowPhase?: number }
+      | undefined;
+    const p = fromList?.macroWorkflowPhase ?? appraisalMeta?.macroWorkflowPhase;
+    if (p == null || !Number.isFinite(Number(p))) return 1;
+    return Math.min(6, Math.max(1, Math.floor(Number(p))));
+  })();
+
+  const { mutate: patchMacroPhase, isPending: isPatchingPhase } = useMutation({
+    mutationFn: (next: number) =>
+      PATCH_appraisal({
+        appraisalId: appraisalId as string,
+        macroWorkflowPhase: next,
+      }),
+    onSuccess: async () => {
+      toast.success("워크플로 단계가 변경되었습니다.");
+      await queryClient.invalidateQueries({ queryKey: ["appraisalDetail"] });
+      await queryClient.invalidateQueries({ queryKey: ["appraisalMeta"] });
+      await queryClient.invalidateQueries({ queryKey: ["appraisalTypes"] });
+    },
+    onError: () => {
+      toast.error("단계 변경에 실패했습니다.");
+    },
+  });
+
   const { data: allUsersList } = useQuery({
     queryKey: ["users", "appraisal-add-participants"],
     // 대상 추가 드롭다운은 전체 사용자 목록이 필요함 (기본 /user limit=10 회피)
@@ -193,6 +228,25 @@ export default function AppraisalDetail() {
     console.log(" appraisalUserId>> ", appraisalUserId);
   };
 
+  const macroPhaseDescription = (() => {
+    switch (macroPhase) {
+      case 1:
+        return "1단계: 팀장 역량 배포";
+      case 2:
+        return "2단계: 팀원 목표 작성·팀장 승인";
+      case 3:
+        return "3단계: 팀원 본인(중간)";
+      case 4:
+        return "4단계: 팀장·상위 평가(중간)";
+      case 5:
+        return "5단계: 팀원 본인(기말)";
+      case 6:
+        return "6단계: 팀장·상위 평가(기말)";
+      default:
+        return "";
+    }
+  })();
+
   return (
     <div className='p-4 lg:p-6 space-y-6'>
       <div className='flex flex-col sm:flex-row gap-4 justify-between'>
@@ -202,6 +256,41 @@ export default function AppraisalDetail() {
             직원들의 성과를 평가하고 관리합니다
           </p>
         </div>
+        {canAddParticipants && appraisalId && (
+          <div className='flex flex-col items-stretch sm:items-end gap-2 rounded-lg border bg-muted/30 px-3 py-2'>
+            <p className='text-xs text-muted-foreground text-center sm:text-right'>
+              HR 워크플로 단계
+            </p>
+            <div className='flex items-center gap-2 justify-center sm:justify-end'>
+              <Button
+                type='button'
+                variant='outline'
+                size='icon'
+                className='shrink-0'
+                disabled={macroPhase <= 1 || isPatchingPhase}
+                onClick={() => patchMacroPhase(macroPhase - 1)}
+                aria-label='이전 단계'>
+                <ChevronLeft className='h-4 w-4' aria-hidden />
+              </Button>
+              <span className='text-sm font-medium tabular-nums min-w-[6rem] text-center'>
+                {macroPhase} / 6
+              </span>
+              <Button
+                type='button'
+                variant='outline'
+                size='icon'
+                className='shrink-0'
+                disabled={macroPhase >= 6 || isPatchingPhase}
+                onClick={() => patchMacroPhase(macroPhase + 1)}
+                aria-label='다음 단계'>
+                <ChevronRight className='h-4 w-4' aria-hidden />
+              </Button>
+            </div>
+            <p className='text-xs text-muted-foreground text-center sm:text-right max-w-xs'>
+              {macroPhaseDescription}
+            </p>
+          </div>
+        )}
       </div>
 
       <Card>

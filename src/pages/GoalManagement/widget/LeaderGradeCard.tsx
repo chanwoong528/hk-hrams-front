@@ -1,7 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useCurrentUserStore } from "@/store/currentUserStore";
-import type { Appraisal, DepartmentAppraisal, Goal, User } from "../type";
+import type {
+  Appraisal,
+  DepartmentAppraisal,
+  Goal,
+  PerformanceSummarySnapshot,
+  User,
+} from "../type";
 import { CheckCircle, Goal as GoalIcon, Plus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +41,12 @@ import { POST_appraisalBy } from "@/api/appraisal-by/appraisal-by";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -43,6 +55,7 @@ import {
 } from "@/components/ui/select";
 
 import GoalAssessmentItem from "./GoalAssessmentItem";
+import { goalHasUserAssessmentForTerm } from "../utils";
 import {
   isHrOrAdminUser,
   shouldBlockHrSelfGrading,
@@ -52,6 +65,10 @@ import {
   OrganizationGradeStackedBar,
   pickRankBasedDisplayAssessment,
 } from "@/lib/organizationGradeDistribution";
+import {
+  assessTermForLeaderPerformance,
+  canLeaderMutateMemberGoalAssessment,
+} from "@/lib/appraisalMacroWorkflow";
 
 function formatFinalAppraisalContext(row: {
   assessType?: string;
@@ -60,9 +77,24 @@ function formatFinalAppraisalContext(row: {
   const parts: string[] = [];
   if (row.assessType === "performance") parts.push("성과");
   else if (row.assessType === "competency") parts.push("역량");
-  if (row.assessTerm === "final") parts.push("기말");
-  return parts.length > 0 ? parts.join(" ") : "최종 평가";
+  if (row.assessTerm === "mid") parts.push("중간");
+  else if (row.assessTerm === "final") parts.push("기말");
+  return parts.length > 0 ? parts.join(" ") : "평가";
 }
+
+const parseDbDateToMs = (raw: unknown): number => {
+  const s = String(raw ?? "").trim();
+  if (!s) return Number.NaN;
+
+  const isoMs = Date.parse(s);
+  if (!Number.isNaN(isoMs)) return isoMs;
+
+  // "YYYY-MM-DD HH:mm:ss.SSSSSS" → "YYYY-MM-DDTHH:mm:ss.SSS"
+  const normalized = s
+    .replace(" ", "T")
+    .replace(/(\.\d{3})\d+$/, "$1");
+  return Date.parse(normalized);
+};
 
 type GraderGradeLine = {
   key: string;
@@ -71,29 +103,28 @@ type GraderGradeLine = {
   context: string;
   /** 피평가자 본인이 아닌 리더 등 — HR/관리자가 배지 클릭으로 수정 가능 */
   hrEditableAssessedById?: string;
+  assessTerm?: string;
 };
 
-/** 목표별 점수 제외 — 기말(또는 구분 없는) AppraisalBy + 본인 자가평가(기말) */
+/** 목표별 점수 제외 — AppraisalBy(중간·기말) + 본인 자가(참고) */
 function collectGraderGradeLinesForMember(user: User): GraderGradeLine[] {
   const lines: GraderGradeLine[] = [];
 
   (user.assessments ?? []).forEach((row, idx) => {
     if (!row.assessedById) return;
-    if (row.assessTerm === "mid") return;
+    if (row.assessedById === user.userId) return;
 
     const name =
       row.assessedByUser?.koreanName?.trim() ||
       `평가자 ${row.assessedById.slice(0, 8)}…`;
     const grade = row.grade?.trim() || "—";
-    const isRevieweeSelf = row.assessedById === user.userId;
     lines.push({
       key: `appr-${row.assessedById}-${idx}-${row.assessType ?? ""}-${row.assessTerm ?? ""}`,
       name,
       grade,
       context: formatFinalAppraisalContext(row),
-      hrEditableAssessedById: isRevieweeSelf
-        ? undefined
-        : row.assessedById,
+      hrEditableAssessedById: row.assessedById,
+      assessTerm: row.assessTerm,
     });
   });
 
@@ -109,11 +140,57 @@ function collectGraderGradeLinesForMember(user: User): GraderGradeLine[] {
       key: `self-${user.appraisalUserId ?? user.userId}`,
       name: `${user.koreanName} (본인)`,
       grade: selfGrade,
-      context: "자가 평가 (기말)",
+      context: "자가 평가",
     });
   }
 
   return lines;
+}
+
+function isPerformanceSummaryRow(
+  a: NonNullable<User["assessments"]>[number],
+): boolean {
+  const t = (a.assessType ?? "").trim();
+  return !t || t === "performance";
+}
+
+function PerformanceSelfSummaryPanel({
+  title,
+  snapshot,
+}: {
+  title: string;
+  snapshot?: PerformanceSummarySnapshot | null;
+}) {
+  const grade = (snapshot?.grade ?? "").trim();
+  const comment = (snapshot?.comment ?? "").trim();
+  const isEmpty = !grade && !comment;
+  if (isEmpty) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/80 p-3">
+        <h5 className="text-xs font-semibold text-gray-700 mb-1">{title}</h5>
+        <p className="text-xs text-gray-400">미작성</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+      <h5 className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-2">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+        {title}
+      </h5>
+      {grade ? (
+        <div className="mb-2 flex items-center gap-2 text-sm">
+          <span className="text-gray-500">등급</span>
+          <Badge variant="outline" className="bg-white">
+            {grade}등급
+          </Badge>
+        </div>
+      ) : null}
+      <div className="rounded border border-gray-100 bg-white p-2 text-xs whitespace-pre-wrap text-gray-600">
+        {comment || "코멘트 없음"}
+      </div>
+    </div>
+  );
 }
 
 const AppraisalSection = ({
@@ -174,6 +251,29 @@ const AppraisalSection = ({
 
   const progressLikeSpectator = isSpectator || hrCannotSelfGrade;
 
+  const leaderGoalAssessmentAllowed = canLeaderMutateMemberGoalAssessment(
+    appraisal.macroWorkflowPhase,
+  );
+
+  const leaderPerfAssessTerm = assessTermForLeaderPerformance(
+    appraisal.macroWorkflowPhase,
+  );
+
+  const isGoalApprovalPhase = appraisal.macroWorkflowPhase === 2;
+
+  const [goalApprovalDrafts, setGoalApprovalDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [goalApprovalGradeDrafts, setGoalApprovalGradeDrafts] = useState<
+    Record<string, "T" | "F" | null | undefined>
+  >({});
+  const [goalApprovalCommentTouched, setGoalApprovalCommentTouched] = useState<
+    Record<string, boolean | undefined>
+  >({});
+  const [goalApprovalGradeTouched, setGoalApprovalGradeTouched] = useState<
+    Record<string, boolean | undefined>
+  >({});
+
   const queryClient = useQueryClient();
 
   const { mutate: mutateAddCommonGoal } = useMutation({
@@ -201,13 +301,20 @@ const AppraisalSection = ({
   const { mutate: mutateAssessGoal } = useMutation({
     mutationFn: POST_goalAssessmentBy,
     onSuccess: () => {
-      toast.success("목표 평가가 저장되었습니다");
+      toast.success("목표 평가/승인이 저장되었습니다");
       queryClient.invalidateQueries({ queryKey: ["teamMembersAppraisals"] });
     },
     onError: () => {
       toast.error("목표 평가 저장에 실패했습니다");
     },
   });
+
+  const resetGoalApprovalDraftState = useCallback(() => {
+    setGoalApprovalDrafts({});
+    setGoalApprovalGradeDrafts({});
+    setGoalApprovalCommentTouched({});
+    setGoalApprovalGradeTouched({});
+  }, []);
 
   const { mutate: mutateAppraisalAssessment } = useMutation({
     mutationFn: POST_appraisalBy,
@@ -256,14 +363,25 @@ const AppraisalSection = ({
       (!!finalOverrideAssessedById &&
         finalOverrideAssessedById !== currentUserId);
 
+    const perfTerm = assessTermForLeaderPerformance(
+      appraisal.macroWorkflowPhase,
+    );
+    if (!perfTerm) {
+      toast.error(
+        "지금 워크플로 단계에서는 팀장 성과 종합 평가를 제출할 수 없습니다. (중간: 4단계, 기말: 6단계)",
+      );
+      return;
+    }
+
     if (mustHaveExistingLeaderRow) {
       const exists = selectedUserForFinal.assessments?.some(
         (a) =>
           a.assessedById === assessorId &&
-          a.assessTerm !== "mid",
+          a.assessTerm === perfTerm &&
+          (a.assessType === "performance" || !a.assessType),
       );
       if (!exists) {
-        toast.error("선택한 평가자의 기존 최종 평가가 없습니다.");
+        toast.error("선택한 평가자의 해당 차수 성과 평가가 없습니다.");
         return;
       }
     }
@@ -272,7 +390,7 @@ const AppraisalSection = ({
       appraisalId: selectedUserForFinal.appraisalUserId!,
       assessedById: assessorId,
       assessType: "performance",
-      assessTerm: "final",
+      assessTerm: perfTerm,
       grade: finalGrade,
       comment: finalComment,
     });
@@ -284,10 +402,18 @@ const AppraisalSection = ({
     comment: string,
     gradedByUserId?: string,
     kpiAchievementRate?: string,
+    assessTerm?: "mid" | "final" | "goal_approval",
   ) => {
     const gradedBy = gradedByUserId ?? currentUserId;
     if (!gradedBy) {
       toast.error("사용자 정보를 찾을 수 없습니다.");
+      return;
+    }
+    const term = assessTerm ?? leaderPerfAssessTerm;
+    if (!term) {
+      toast.error(
+        "지금 워크플로 단계에서는 팀장 목표 평가를 저장할 수 없습니다.",
+      );
       return;
     }
     mutateAssessGoal({
@@ -295,6 +421,7 @@ const AppraisalSection = ({
       grade: grade,
       gradedBy: gradedBy,
       comment: comment,
+      assessTerm: term,
       ...(kpiAchievementRate !== undefined
         ? { kpiAchievementRate }
         : {}),
@@ -451,29 +578,52 @@ const AppraisalSection = ({
               const assessedGoals = user.goals.filter((g) =>
                 progressLikeSpectator
                   ? !!(g.goalAssessmentBy && g.goalAssessmentBy.length > 0)
-                  : !!(g.goalAssessmentBy?.some(
-                      (a) => a.gradedBy === currentUserId,
-                    )),
+                  : !!(
+                      leaderPerfAssessTerm != null &&
+                      goalHasUserAssessmentForTerm(
+                        g,
+                        currentUserId,
+                        leaderPerfAssessTerm,
+                      )
+                    ),
               ).length;
               const isFullyAssessed =
                 totalGoals > 0 && totalGoals === assessedGoals;
-              const isFinalAssessed = progressLikeSpectator
-                ? !!(user.assessments && user.assessments.length > 0)
-                : !!user.assessments?.some(
-                    (a) => a.assessedById === currentUserId,
-                  );
-              const leaderFinalAssessments = (user.assessments ?? []).filter(
+              const leaderPerformanceAssessments = (
+                user.assessments ?? []
+              ).filter(
                 (a) =>
                   !!a.assessedById &&
                   a.assessedById !== user.userId &&
-                  a.assessTerm !== "mid",
+                  (a.assessType === "performance" || !a.assessType),
               );
-              const hasNonSelfFinal = leaderFinalAssessments.length > 0;
+              const hasLeaderPerformanceForRound =
+                leaderPerfAssessTerm != null &&
+                leaderPerformanceAssessments.some(
+                  (a) => a.assessTerm === leaderPerfAssessTerm,
+                );
+              const isRoundAssessedByLeader =
+                leaderPerfAssessTerm != null &&
+                !!user.assessments?.some(
+                  (a) =>
+                    a.assessedById === currentUserId &&
+                    a.assessTerm === leaderPerfAssessTerm &&
+                    (a.assessType === "performance" || !a.assessType),
+                );
+              const isFinalAssessed = progressLikeSpectator
+                ? !!(user.assessments && user.assessments.length > 0)
+                : isRoundAssessedByLeader;
               const graderGradeLines = collectGraderGradeLinesForMember(user);
 
-              const myFinalAssessment = user.assessments?.find(
-                (a) => a.assessedById === currentUserId,
-              );
+              const myFinalAssessment =
+                leaderPerfAssessTerm != null
+                  ? user.assessments?.find(
+                      (a) =>
+                        a.assessedById === currentUserId &&
+                        a.assessTerm === leaderPerfAssessTerm &&
+                        (a.assessType === "performance" || !a.assessType),
+                    )
+                  : undefined;
               const displayFinalAssessment = pickRankBasedDisplayAssessment(
                 user.assessments,
                 user.userId,
@@ -481,35 +631,22 @@ const AppraisalSection = ({
               const isSubmittedOrFinished =
                 user.status === "submitted" || user.status === "finished";
 
-              let canEditFinal = false;
-              if (!isSpectator && !hrCannotSelfGrade && isSubmittedOrFinished) {
-                if (!isFinalAssessed) {
-                  canEditFinal = true;
-                } else if (
-                  myFinalAssessment &&
-                  user.selfAssessment?.updated &&
-                  myFinalAssessment.updated
-                ) {
-                  const userTime = new Date(
-                    user.selfAssessment.updated,
-                  ).getTime();
-                  const leaderTime = new Date(
-                    myFinalAssessment.updated,
-                  ).getTime();
-                  if (userTime > leaderTime) {
-                    canEditFinal = true;
-                  }
-                }
-              }
+              /** 팀원이 제출·완료된 뒤에도 해당 차수(중간/기말)에서는 성과 종합을 계속 수정 가능 */
+              const canEditFinal =
+                !isSpectator &&
+                !hrCannotSelfGrade &&
+                isSubmittedOrFinished &&
+                leaderPerfAssessTerm != null;
 
               const finalButtonDisabled =
                 !isSpectator &&
-                (!isSubmittedOrFinished ||
+                (leaderPerfAssessTerm === null ||
+                  !isSubmittedOrFinished ||
                   (!canEditFinal && !hrCannotSelfGrade));
 
               const finalButtonLooksComplete = hrCannotSelfGrade
-                ? hasNonSelfFinal
-                : isFinalAssessed;
+                ? hasLeaderPerformanceForRound
+                : isRoundAssessedByLeader;
 
               return (
                 <TableRow
@@ -581,7 +718,8 @@ const AppraisalSection = ({
                             const row = user.assessments?.find(
                               (a) =>
                                 a.assessedById === line.hrEditableAssessedById &&
-                                a.assessTerm !== "mid",
+                                a.assessTerm ===
+                                  (line.assessTerm ?? leaderPerfAssessTerm),
                             );
                             setFinalOverrideAssessedById(
                               line.hrEditableAssessedById,
@@ -705,24 +843,394 @@ const AppraisalSection = ({
                           </DialogHeader>
 
                           <div className="min-w-0 space-y-6 p-4 sm:p-6">
-                            {user.goals.length > 0 ? (
-                              <div className="grid min-w-0 gap-5">
-                                {[...user.goals].map((goal) => (
-                                  <GoalAssessmentItem
-                                    key={goal.goalId}
-                                    goal={goal}
-                                    currentUserId={currentUserId}
-                                    targetUserId={user.userId}
-                                    targetUserJobGroup={user.jobGroup}
-                                    onSave={handleSaveAssessment}
-                                    isSpectator={isSpectator}
-                                    hrCanEditOthersGrades={isAdmin}
-                                    hrCannotSubmitOwnGoalGrade={
-                                      hrCannotSelfGrade
-                                    }
-                                  />
-                                ))}
+                            {!isSpectator && isGoalApprovalPhase ? (
+                              <div
+                                role="status"
+                                className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-950 [overflow-wrap:anywhere]"
+                              >
+                                이 단계에서는 팀원이 작성한 목표를 <strong>직속 팀장</strong>이
+                                승인(T) 또는 거절(F)합니다. 목표가 수정되면 기존 승인/거절은
+                                자동으로 무효화되며, 모든 목표가 승인(T)되어야 인사/관리자가
+                                다음 단계로 넘어갈 수 있습니다.
                               </div>
+                            ) : null}
+
+                            {!isSpectator && !isGoalApprovalPhase && !leaderGoalAssessmentAllowed ? (
+                              <p
+                                role="status"
+                                className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 [overflow-wrap:anywhere]"
+                              >
+                                팀장 목표 평가는 워크플로 4단계(중간)·6단계(기말)에서만
+                                작성·수정할 수 있습니다. 현재는 조회만 가능합니다.
+                              </p>
+                            ) : null}
+                            {user.goals.length > 0 ? (
+                              isGoalApprovalPhase ? (
+                                <div className="grid min-w-0 gap-4">
+                                  {[...user.goals].map((goal) => {
+                                    const currentVersion = Math.floor(
+                                      Number(goal.approvalVersion ?? 1),
+                                    ) || 1;
+                                    const allApprovalRows = (
+                                      goal.goalAssessmentBy ?? []
+                                    ).filter(
+                                      (a) =>
+                                        String(a.assessTerm ?? "")
+                                          .trim()
+                                          .toLowerCase() === "goal_approval",
+                                    );
+
+                                    const rowsSortedByLatestDbWrite = [
+                                      ...allApprovalRows,
+                                    ].sort((a, b) => {
+                                      const at = parseDbDateToMs(
+                                        a.updated ?? a.created,
+                                      );
+                                      const bt = parseDbDateToMs(
+                                        b.updated ?? b.created,
+                                      );
+                                      const aValid = Number.isFinite(at);
+                                      const bValid = Number.isFinite(bt);
+                                      if (aValid && bValid) return bt - at;
+                                      if (aValid && !bValid) return -1;
+                                      if (!aValid && bValid) return 1;
+
+                                      // If timestamps aren't parsable, fall back to version desc.
+                                      const av = Number(a.targetApprovalVersion ?? -1);
+                                      const bv = Number(b.targetApprovalVersion ?? -1);
+                                      if (av !== bv) return bv - av;
+                                      return 0;
+                                    });
+
+                                    const approvalRowsForMe = currentUserId
+                                      ? rowsSortedByLatestDbWrite.filter(
+                                          (a) => a.gradedBy === currentUserId,
+                                        )
+                                      : [];
+
+                                    // 최신 DB 저장 row (가능하면 내 row 우선)
+                                    const latestDbApprovalRow =
+                                      approvalRowsForMe[0] ??
+                                      rowsSortedByLatestDbWrite[0] ??
+                                      null;
+
+                                    // 현재 버전 row (가능하면 내 row 우선)
+                                    const approvalRow =
+                                      (currentUserId
+                                        ? allApprovalRows.find(
+                                            (a) =>
+                                              a.gradedBy === currentUserId &&
+                                              (a.targetApprovalVersion ??
+                                                -1) ===
+                                                currentVersion,
+                                          )
+                                        : null) ??
+                                      allApprovalRows.find(
+                                        (a) =>
+                                          (a.targetApprovalVersion ?? -1) ===
+                                          currentVersion,
+                                      ) ??
+                                      null;
+                                    const approvalGrade = String(approvalRow?.grade ?? "")
+                                      .trim()
+                                      .toUpperCase();
+                                    const approvalStatus =
+                                      approvalGrade === "T"
+                                        ? ("approved" as const)
+                                        : approvalGrade === "F"
+                                          ? ("rejected" as const)
+                                          : ("pending" as const);
+
+                                    const baseRow = approvalRow ?? latestDbApprovalRow ?? null;
+                                    const baseRowVersion = Number(
+                                      baseRow?.targetApprovalVersion ?? -1,
+                                    );
+                                    const isPrefilledFromOldVersion =
+                                      !!baseRow &&
+                                      baseRowVersion !== -1 &&
+                                      baseRowVersion !== currentVersion;
+
+                                    const savedComment = baseRow?.comment ?? "";
+                                    const draft = goalApprovalDrafts[goal.goalId] ?? "";
+                                    const isCommentTouched = !!goalApprovalCommentTouched[goal.goalId];
+                                    const effectiveComment = isCommentTouched
+                                      ? draft
+                                      : savedComment;
+                                    const draftGrade =
+                                      goalApprovalGradeDrafts[goal.goalId];
+                                    const currentSavedGrade =
+                                      String(baseRow?.grade ?? "")
+                                        .trim()
+                                        .toUpperCase() === "T"
+                                        ? ("T" as const)
+                                        : String(baseRow?.grade ?? "")
+                                              .trim()
+                                              .toUpperCase() === "F"
+                                          ? ("F" as const)
+                                          : null;
+                                    const selectedGrade =
+                                      draftGrade ?? currentSavedGrade;
+                                    const isSaveReady = selectedGrade != null;
+                                    const isGradeTouched = !!goalApprovalGradeTouched[goal.goalId];
+                                    const hasGradeDraft = isGradeTouched && (draftGrade ?? null) !== currentSavedGrade;
+                                    const hasCommentDraft = isCommentTouched && effectiveComment !== savedComment;
+                                    const isDirty = hasGradeDraft || hasCommentDraft;
+                                    const approvalHistoryRows = rowsSortedByLatestDbWrite
+                                      .filter(
+                                        (a) =>
+                                          (a.targetApprovalVersion ?? -1) !==
+                                          currentVersion,
+                                      )
+                                      .sort((a, b) => {
+                                        const av = Number(a.targetApprovalVersion ?? -1);
+                                        const bv = Number(b.targetApprovalVersion ?? -1);
+                                        if (av !== bv) return bv - av;
+                                        const at = new Date(
+                                          a.updated ?? a.created ?? "",
+                                        ).getTime();
+                                        const bt = new Date(
+                                          b.updated ?? b.created ?? "",
+                                        ).getTime();
+                                        return bt - at;
+                                      });
+
+                                    const statusBadge = (() => {
+                                      if (approvalStatus === "approved") {
+                                        return (
+                                          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none">
+                                            승인됨 (T)
+                                          </Badge>
+                                        );
+                                      }
+                                      if (approvalStatus === "rejected") {
+                                        return (
+                                          <Badge className="bg-red-100 text-red-800 hover:bg-red-100 border-none">
+                                            거절됨 (F)
+                                          </Badge>
+                                        );
+                                      }
+                                      return (
+                                        <Badge variant="outline" className="text-slate-600">
+                                          승인 대기
+                                        </Badge>
+                                      );
+                                    })();
+
+                                    return (
+                                      <Card key={goal.goalId} className="border-none shadow-sm ring-1 ring-slate-200">
+                                        <CardHeader className="py-3 px-4 border-b bg-slate-50/40">
+                                          <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                              <p className="font-bold text-slate-900 truncate">
+                                                {goal.title}
+                                              </p>
+                                              <p className="mt-1 text-xs text-slate-600 line-clamp-2">
+                                                {goal.description}
+                                              </p>
+                                            </div>
+                                            <div className="shrink-0">{statusBadge}</div>
+                                          </div>
+                                        </CardHeader>
+                                        <CardContent className="p-4 space-y-3">
+                                          <div className="flex flex-wrap gap-2">
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              className={
+                                                selectedGrade === "T"
+                                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                  : "bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-800 border border-emerald-200"
+                                              }
+                                              variant={
+                                                selectedGrade === "T"
+                                                  ? "default"
+                                                  : "outline"
+                                              }
+                                              onClick={() =>
+                                                (setGoalApprovalGradeTouched((prev) => ({
+                                                  ...prev,
+                                                  [goal.goalId]: true,
+                                                })),
+                                                setGoalApprovalGradeDrafts((prev) => ({
+                                                  ...prev,
+                                                  [goal.goalId]: "T",
+                                                })))
+                                              }
+                                            >
+                                              승인 (T)
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="outline"
+                                              className={
+                                                selectedGrade === "F"
+                                                  ? "bg-red-600 text-white hover:bg-red-700 border-red-600"
+                                                  : "border-red-200 text-red-700 hover:bg-red-50"
+                                              }
+                                              onClick={() =>
+                                                (setGoalApprovalGradeTouched((prev) => ({
+                                                  ...prev,
+                                                  [goal.goalId]: true,
+                                                })),
+                                                setGoalApprovalGradeDrafts((prev) => ({
+                                                  ...prev,
+                                                  [goal.goalId]: "F",
+                                                })))
+                                              }
+                                            >
+                                              거절 (F)
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              className="ml-auto"
+                                              disabled={
+                                                !currentUserId ||
+                                                !isSaveReady ||
+                                                !isDirty
+                                              }
+                                              onClick={() => {
+                                                if (!currentUserId) return;
+                                                if (!selectedGrade) return;
+                                                mutateAssessGoal({
+                                                  goalId: goal.goalId,
+                                                  gradedBy: currentUserId,
+                                                  assessTerm: "goal_approval",
+                                                  grade: selectedGrade,
+                                                  comment: effectiveComment,
+                                                });
+                                              }}
+                                            >
+                                              저장
+                                            </Button>
+                                          </div>
+
+                                          <div className="space-y-1">
+                                            <Label className="text-xs text-slate-600">
+                                              승인/거절 코멘트 (선택)
+                                            </Label>
+                                            <Textarea
+                                              value={effectiveComment}
+                                              onChange={(e) =>
+                                                (setGoalApprovalCommentTouched((prev) => ({
+                                                  ...prev,
+                                                  [goal.goalId]: true,
+                                                })),
+                                                setGoalApprovalDrafts((prev) => ({
+                                                  ...prev,
+                                                  [goal.goalId]: e.target.value,
+                                                })))
+                                              }
+                                              rows={3}
+                                              className="text-sm"
+                                              placeholder="거절 사유 또는 승인 메모를 남겨주세요."
+                                            />
+                                            {savedComment.trim() ? (
+                                              <p className="text-xs text-slate-500">
+                                                {isPrefilledFromOldVersion
+                                                  ? "이전 버전 마지막 저장 코멘트: "
+                                                  : "마지막 저장 코멘트: "}
+                                                {savedComment}
+                                              </p>
+                                            ) : null}
+                                          </div>
+
+                                          {approvalHistoryRows.length > 0 ? (
+                                            <Accordion type="single" collapsible>
+                                              <AccordionItem value={`approval-history-${goal.goalId}`}>
+                                                <AccordionTrigger className="py-2 text-xs text-slate-700 hover:no-underline">
+                                                  승인/거절 이력 보기
+                                                </AccordionTrigger>
+                                                <AccordionContent className="pb-0">
+                                                  <div className="space-y-2">
+                                                    {approvalHistoryRows.map((row) => {
+                                                      const rowGrade = String(row.grade ?? "")
+                                                        .trim()
+                                                        .toUpperCase();
+                                                      const rowVersion =
+                                                        Number(row.targetApprovalVersion ?? -1) ||
+                                                        -1;
+                                                      const isCurrent =
+                                                        rowVersion === currentVersion;
+                                                      const rowUpdated = row.updated ?? row.created ?? "";
+                                                      const label =
+                                                        rowGrade === "T"
+                                                          ? "승인 (T)"
+                                                          : rowGrade === "F"
+                                                            ? "거절 (F)"
+                                                            : row.grade;
+                                                      return (
+                                                        <div
+                                                          key={`${row.goalAssessId}`}
+                                                          className="rounded-md border border-slate-200 bg-white px-3 py-2"
+                                                        >
+                                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                              <Badge
+                                                                variant="outline"
+                                                                className="text-xs"
+                                                              >
+                                                                v{rowVersion}
+                                                                {isCurrent ? " (현재)" : ""}
+                                                              </Badge>
+                                                              <span className="text-xs font-medium text-slate-900">
+                                                                {label}
+                                                              </span>
+                                                            </div>
+                                                            {rowUpdated ? (
+                                                              <span className="text-xs text-slate-500">
+                                                                {new Date(rowUpdated).toLocaleString()}
+                                                              </span>
+                                                            ) : null}
+                                                          </div>
+                                                          {row.comment?.trim() ? (
+                                                            <p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap">
+                                                              {row.comment}
+                                                            </p>
+                                                          ) : (
+                                                            <p className="mt-1 text-xs text-slate-400">
+                                                              코멘트 없음
+                                                            </p>
+                                                          )}
+                                                        </div>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </AccordionContent>
+                                              </AccordionItem>
+                                            </Accordion>
+                                          ) : null}
+                                        </CardContent>
+                                      </Card>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="grid min-w-0 gap-5">
+                                  {[...user.goals].map((goal) => (
+                                    <GoalAssessmentItem
+                                      key={goal.goalId}
+                                      goal={goal}
+                                      currentUserId={currentUserId}
+                                      targetUserId={user.userId}
+                                      targetUserJobGroup={user.jobGroup}
+                                      onSave={handleSaveAssessment}
+                                      disabled={
+                                        !isSpectator && !leaderGoalAssessmentAllowed
+                                      }
+                                      writableAssessTerm={
+                                        leaderPerfAssessTerm ?? undefined
+                                      }
+                                      isSpectator={isSpectator}
+                                      hrCanEditOthersGrades={isAdmin}
+                                      hrCannotSubmitOwnGoalGrade={
+                                        hrCannotSelfGrade
+                                      }
+                                    />
+                                  ))}
+                                </div>
+                              )
                             ) : (
                               <div className="text-center py-16 bg-white rounded-xl border border-dashed">
                                 <GoalIcon className="w-8 h-8 text-gray-300 mx-auto mb-4" />
@@ -760,8 +1268,17 @@ const AppraisalSection = ({
                             );
                             return;
                           }
+                          if (leaderPerfAssessTerm == null) {
+                            toast.error(
+                              "팀장 성과 종합 평가는 3단계(중간)·5단계(기말)에서만 진행할 수 있습니다.",
+                            );
+                            return;
+                          }
                           if (hrCannotSelfGrade) {
-                            const first = leaderFinalAssessments[0];
+                            const first =
+                              leaderPerformanceAssessments.find(
+                                (a) => a.assessTerm === leaderPerfAssessTerm,
+                              ) ?? leaderPerformanceAssessments[0];
                             setFinalOverrideAssessedById(
                               first?.assessedById ?? null,
                             );
@@ -781,6 +1298,9 @@ const AppraisalSection = ({
                             setFinalGrade("");
                             setFinalComment("");
                           }
+                          // 목표 승인(2단계) 모달은 "마지막 저장 상태"를 기준으로 열려야 한다.
+                          // 이전에 입력하던 draft/touched 상태가 남아있으면 빈 값이 보일 수 있어서 여기서 초기화한다.
+                          resetGoalApprovalDraftState();
                           setSelectedUserForFinal(user);
                         }}
                       >
@@ -788,14 +1308,12 @@ const AppraisalSection = ({
                         {!isSubmittedOrFinished
                           ? "제출 대기"
                           : hrCannotSelfGrade
-                            ? hasNonSelfFinal
+                            ? hasLeaderPerformanceForRound
                               ? "등급 수정 (HR)"
                               : "리더 평가 대기"
-                            : !isFinalAssessed
+                            : !isRoundAssessedByLeader
                               ? "최종 평가"
-                              : canEditFinal
-                                ? "평가 수정"
-                                : "평가 완료"}
+                              : "평가 수정"}
                       </Button>
                     </div>
                   </TableCell>
@@ -814,36 +1332,96 @@ const AppraisalSection = ({
             setFinalOverrideAssessedById(null);
             setFinalGrade("");
             setFinalComment("");
+            resetGoalApprovalDraftState();
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              최종 평가 ({selectedUserForFinal?.koreanName})
+              {leaderPerfAssessTerm === "mid"
+                ? `중간 성과 종합 평가 (${selectedUserForFinal?.koreanName})`
+                : leaderPerfAssessTerm === "final"
+                  ? `기말 성과 종합 평가 (${selectedUserForFinal?.koreanName})`
+                  : `성과 종합 평가 (${selectedUserForFinal?.koreanName})`}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {selectedUserForFinal?.selfAssessment && (
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 mb-4">
-                <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  본인 평가 (참고용)
-                </h5>
-                <div className="text-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-gray-500">등급:</span>
-                    <Badge variant="outline" className="bg-white">
-                      {selectedUserForFinal.selfAssessment.grade}등급
-                    </Badge>
-                  </div>
-                  <div className="text-gray-600 bg-white p-2 rounded border border-gray-100 mt-1 whitespace-pre-wrap text-xs">
-                    {selectedUserForFinal.selfAssessment.comment ||
-                      "코멘트 없음"}
-                  </div>
+            {selectedUserForFinal ? (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-600">
+                  피평가자 성과 종합 자가 (참고)
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <PerformanceSelfSummaryPanel
+                    title="중간 자가"
+                    snapshot={selectedUserForFinal.selfPerformanceMid}
+                  />
+                  <PerformanceSelfSummaryPanel
+                    title="기말 자가"
+                    snapshot={
+                      selectedUserForFinal.selfPerformanceFinal ??
+                      (!selectedUserForFinal.selfPerformanceMid &&
+                      selectedUserForFinal.selfAssessment
+                        ? {
+                            grade: selectedUserForFinal.selfAssessment.grade,
+                            comment:
+                              selectedUserForFinal.selfAssessment.comment,
+                            updated:
+                              selectedUserForFinal.selfAssessment.updated,
+                          }
+                        : undefined)
+                    }
+                  />
                 </div>
               </div>
-            )}
+            ) : null}
+            {selectedUserForFinal ? (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-600">
+                  팀장 성과 종합 제출 내역 (참고)
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {(() => {
+                    const rows = selectedUserForFinal.assessments ?? [];
+                    const leaderMid = rows.find(
+                      (a) =>
+                        isPerformanceSummaryRow(a) &&
+                        a.assessedById === currentUserId &&
+                        (a.assessTerm ?? "final") === "mid",
+                    );
+                    const leaderFinal = rows.find(
+                      (a) =>
+                        isPerformanceSummaryRow(a) &&
+                        a.assessedById === currentUserId &&
+                        (a.assessTerm ?? "final") === "final",
+                    );
+                    const toSnap = (
+                      a: NonNullable<User["assessments"]>[number] | undefined,
+                    ): PerformanceSummarySnapshot | undefined =>
+                      a
+                        ? {
+                            grade: a.grade,
+                            comment: a.comment ?? "",
+                            updated: a.updated,
+                          }
+                        : undefined;
+                    return (
+                      <>
+                        <PerformanceSelfSummaryPanel
+                          title="중간 팀장 평가"
+                          snapshot={toSnap(leaderMid)}
+                        />
+                        <PerformanceSelfSummaryPanel
+                          title="기말 팀장 평가"
+                          snapshot={toSnap(leaderFinal)}
+                        />
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            ) : null}
             <div className="space-y-4">
               <Label>기존 평가 내역</Label>
               <div className="space-y-3">
@@ -900,7 +1478,10 @@ const AppraisalSection = ({
                     setFinalOverrideAssessedById(id);
                     const row = selectedUserForFinal.assessments?.find(
                       (a) =>
-                        a.assessedById === id && a.assessTerm !== "mid",
+                        a.assessedById === id &&
+                        leaderPerfAssessTerm &&
+                        a.assessTerm === leaderPerfAssessTerm &&
+                        (a.assessType === "performance" || !a.assessType),
                     );
                     if (row) {
                       setFinalGrade(row.grade);
@@ -917,7 +1498,9 @@ const AppraisalSection = ({
                         (a) =>
                           !!a.assessedById &&
                           a.assessedById !== selectedUserForFinal.userId &&
-                          a.assessTerm !== "mid",
+                          !!leaderPerfAssessTerm &&
+                          a.assessTerm === leaderPerfAssessTerm &&
+                          (a.assessType === "performance" || !a.assessType),
                       )
                       .map((a) => (
                         <SelectItem
@@ -935,10 +1518,12 @@ const AppraisalSection = ({
                   (a) =>
                     !!a.assessedById &&
                     a.assessedById !== selectedUserForFinal.userId &&
-                    a.assessTerm !== "mid",
+                    !!leaderPerfAssessTerm &&
+                    a.assessTerm === leaderPerfAssessTerm &&
+                    (a.assessType === "performance" || !a.assessType),
                 ).length === 0 && (
                   <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md p-2">
-                    리더가 남긴 최종 평가가 없어 등급을 수정할 수 없습니다.
+                    선택한 차수의 리더 성과 평가가 없어 등급을 수정할 수 없습니다.
                   </p>
                 )}
               </div>
@@ -1020,11 +1605,18 @@ const AppraisalSection = ({
             </Button>
             {!isSpectator &&
               (!hrCannotSelfGrade || !!finalOverrideAssessedById) && (
-                <Button onClick={handleFinalAssessment} className="bg-blue-600">
+                <Button
+                  onClick={handleFinalAssessment}
+                  disabled={leaderPerfAssessTerm == null}
+                  className="bg-blue-600">
                   {hrCannotSelfGrade
                     ? "등급 저장 (HR)"
                     : selectedUserForFinal?.assessments?.some(
-                          (a) => a.assessedById === currentUserId,
+                          (a) =>
+                            a.assessedById === currentUserId &&
+                            leaderPerfAssessTerm &&
+                            a.assessTerm === leaderPerfAssessTerm &&
+                            (a.assessType === "performance" || !a.assessType),
                         )
                       ? "종합 평가 수정"
                       : "평가 제출"}

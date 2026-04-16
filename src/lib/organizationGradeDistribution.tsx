@@ -2,21 +2,24 @@ import type { User } from "@/pages/GoalManagement/type";
 
 const RANK_SENTINEL_NO_ELIGIBLE = 999;
 
-/** HR 소속 제외 평가자 중 department.rank 최소(가장 상위)인 사람의 기말 평가 */
+/** HR 소속 제외 평가자 중 department.rank 최소(가장 상위)인 사람의 성과 종합 평가(기말 우선, 없으면 중간) */
 export function pickRankBasedDisplayAssessment(
   assessments: User["assessments"] | undefined,
   revieweeUserId: string,
 ): NonNullable<User["assessments"]>[number] | undefined {
   if (!assessments?.length) return undefined;
-  const finals = assessments.filter(
+  const leaderPerf = assessments.filter(
     (a) =>
       a.assessedById &&
       a.assessedById !== revieweeUserId &&
-      a.assessTerm !== "mid",
+      (a.assessType === "performance" || !a.assessType),
   );
-  if (!finals.length) return undefined;
+  const finals = leaderPerf.filter((a) => a.assessTerm === "final");
+  const mids = leaderPerf.filter((a) => a.assessTerm === "mid");
+  const pool = finals.length > 0 ? finals : mids;
+  if (!pool.length) return undefined;
 
-  const withNonHrRank = finals.filter(
+  const withNonHrRank = pool.filter(
     (a) =>
       typeof a.assessorMinRankNonHr === "number" &&
       a.assessorMinRankNonHr < RANK_SENTINEL_NO_ELIGIBLE,

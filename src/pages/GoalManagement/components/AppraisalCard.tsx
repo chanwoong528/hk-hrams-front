@@ -1,18 +1,35 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, ListChecks, Pencil, Plus } from "lucide-react";
+import { Star, ListChecks, Pencil, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { MyAppraisal } from "../type";
+import type { MyAppraisal, PerformanceSummarySnapshot } from "../type";
 import {
   getStatusColor,
   getStatusText,
+  goalHasUserAssessmentForTerm,
   isAppraisalEditableByEndDate,
   sortGoalsByProgress,
 } from "../utils";
-import { APPRAISAL_STATUS } from "../constants";
+import {
+  APPRAISAL_STATUS,
+  PERSONAL_GOALS_PHASE_HINT,
+  canMutatePersonalGoalsInMacroPhase,
+} from "../constants";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import GoalAssessmentItem from "../widget/GoalAssessmentItem";
 import { useCurrentUserStore } from "@/store/currentUserStore";
+import { assessTermForSelfPerformance } from "@/lib/appraisalMacroWorkflow";
 
 interface AppraisalCardProps {
   appraisal: MyAppraisal;
@@ -22,6 +39,11 @@ interface AppraisalCardProps {
     existingGrade?: string,
     existingComment?: string,
     jobGroup?: string | null,
+    macroWorkflowPhase?: number,
+    peerSelfRounds?: {
+      mid?: PerformanceSummarySnapshot;
+      final?: PerformanceSummarySnapshot;
+    },
   ) => void;
   onSaveGoalAssessment: (
     goalId: string,
@@ -29,6 +51,7 @@ interface AppraisalCardProps {
     comment: string,
     gradedByUserId?: string,
     kpiAchievementRate?: string,
+    assessTerm?: "mid" | "final",
   ) => void;
 }
 
@@ -41,9 +64,19 @@ export function AppraisalCard({
   const navigate = useNavigate();
   const { currentUser } = useCurrentUserStore();
 
-  // Helper to check if a goal is assessed by current user
+  const performanceSelfTerm = assessTermForSelfPerformance(
+    appraisal.macroWorkflowPhase,
+  );
+  const performanceSelfWindowClosed = performanceSelfTerm === null;
+
   const isGoalAssessedByMe = (goal: MyAppraisal["goals"][0]) =>
-    goal.goalAssessmentBy?.some((a) => a.gradedBy === currentUserId);
+    performanceSelfTerm != null && currentUserId
+      ? goalHasUserAssessmentForTerm(
+          goal,
+          currentUserId,
+          performanceSelfTerm,
+        )
+      : goal.goalAssessmentBy?.some((a) => a.gradedBy === currentUserId);
 
   const assessedGoalsCount = appraisal.goals.filter(isGoalAssessedByMe).length;
   const totalGoals = appraisal.goals.length;
@@ -53,26 +86,68 @@ export function AppraisalCard({
   const editableByDeadline = isAppraisalEditableByEndDate(appraisal.endDate);
   const finalAssessmentLockedByStatus =
     (isSubmitted || isFinished) && !editableByDeadline;
+
   const finalAssessmentButtonDisabled =
-    !isAllGoalsAssessed || finalAssessmentLockedByStatus;
+    !isAllGoalsAssessed ||
+    finalAssessmentLockedByStatus ||
+    performanceSelfWindowClosed;
   const goalRowDisabled = (isSubmitted || isFinished) && !editableByDeadline;
 
   const handleFinalAssessmentClick = () => {
+    const term = assessTermForSelfPerformance(appraisal.macroWorkflowPhase);
+    const initial =
+      term === "final"
+        ? appraisal.selfPerformanceFinal
+        : term === "mid"
+          ? appraisal.selfPerformanceMid
+          : undefined;
+
     onOpenFinalAssessment(
       appraisal.appraisalUserId || appraisal.appraisalId,
-      appraisal.selfAssessment?.grade,
-      appraisal.selfAssessment?.comment,
+      initial?.grade,
+      initial?.comment,
       currentUser?.jobGroup,
+      appraisal.macroWorkflowPhase,
+      {
+        mid: appraisal.selfPerformanceMid,
+        final: appraisal.selfPerformanceFinal,
+      },
     );
   };
 
-  const sortedGoals = sortGoalsByProgress(appraisal.goals, currentUserId);
+  const sortedGoals = sortGoalsByProgress(
+    appraisal.goals,
+    currentUserId,
+    performanceSelfTerm,
+  );
+
+  const canMutatePersonalGoals = canMutatePersonalGoalsInMacroPhase(
+    appraisal.macroWorkflowPhase,
+  );
+  const registerGoalsBlocked = totalGoals === 0 && !canMutatePersonalGoals;
+
+  const termLabel = (t: "mid" | "final") =>
+    t === "mid" ? "중간" : "기말";
+
+  const otherPerf = appraisal.otherPerformanceAssessments ?? [];
+  const hasSummaryStrip =
+    !!(appraisal.selfPerformanceMid?.grade?.trim() ||
+      appraisal.selfPerformanceMid?.comment?.trim() ||
+      appraisal.selfPerformanceFinal?.grade?.trim() ||
+      appraisal.selfPerformanceFinal?.comment?.trim()) ||
+    otherPerf.length > 0;
 
   const footerHint = (() => {
     if (!isAllGoalsAssessed) {
       return {
         text: `평가 진행률: ${assessedGoalsCount} / ${totalGoals} (모든 목표를 평가해야 합니다)`,
         tone: "warning" as const,
+      };
+    }
+    if (isAllGoalsAssessed && performanceSelfWindowClosed && totalGoals > 0) {
+      return {
+        text: "성과 종합 자가 평가는 워크플로 3단계(중간)·5단계(기말)에서만 제출할 수 있습니다. 해당 단계가 되면 버튼이 활성화됩니다.",
+        tone: "info" as const,
       };
     }
     if (
@@ -124,6 +199,136 @@ export function AppraisalCard({
               {appraisal.description}
             </p>
 
+            {hasSummaryStrip ? (
+              <div
+                className="rounded-lg border border-slate-200 bg-slate-50/90 p-3 text-sm shadow-sm"
+                role="region"
+                aria-label="성과 종합 등급 요약">
+                <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-2">
+                  <span className="text-xs font-semibold text-slate-600">
+                    나의 성과 종합 자가
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {appraisal.selfPerformanceMid?.grade?.trim() ? (
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-200 bg-white text-emerald-900">
+                        중간 {appraisal.selfPerformanceMid.grade}등급
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-slate-400">중간 —</span>
+                    )}
+                    {appraisal.selfPerformanceFinal?.grade?.trim() ? (
+                      <Badge
+                        variant="outline"
+                        className="border-indigo-200 bg-white text-indigo-900">
+                        기말 {appraisal.selfPerformanceFinal.grade}등급
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-slate-400">기말 —</span>
+                    )}
+                  </div>
+                </div>
+                {(appraisal.selfPerformanceMid?.grade?.trim() ||
+                  appraisal.selfPerformanceMid?.comment?.trim() ||
+                  appraisal.selfPerformanceFinal?.grade?.trim() ||
+                  appraisal.selfPerformanceFinal?.comment?.trim()) ? (
+                  <Accordion
+                    type="multiple"
+                    className="w-full border-b border-slate-200/80 pb-1">
+                    {(appraisal.selfPerformanceMid?.grade?.trim() ||
+                      appraisal.selfPerformanceMid?.comment?.trim()) ? (
+                      <AccordionItem value="self-mid" className="border-slate-100">
+                        <AccordionTrigger className="py-2 text-xs font-medium text-slate-800 hover:no-underline">
+                          <span className="flex flex-wrap items-center gap-2">
+                            중간 자가 코멘트
+                            {appraisal.selfPerformanceMid?.grade?.trim() ? (
+                              <Badge
+                                variant="outline"
+                                className="border-emerald-200 bg-white text-[10px] text-emerald-900">
+                                {appraisal.selfPerformanceMid.grade}등급
+                              </Badge>
+                            ) : null}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pb-2 pt-0">
+                          <p className="whitespace-pre-wrap rounded-md border border-slate-100 bg-white p-2 text-xs leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
+                            {appraisal.selfPerformanceMid?.comment?.trim() ||
+                              "등록된 코멘트가 없습니다."}
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ) : null}
+                    {(appraisal.selfPerformanceFinal?.grade?.trim() ||
+                      appraisal.selfPerformanceFinal?.comment?.trim()) ? (
+                      <AccordionItem value="self-final" className="border-slate-100">
+                        <AccordionTrigger className="py-2 text-xs font-medium text-slate-800 hover:no-underline">
+                          <span className="flex flex-wrap items-center gap-2">
+                            기말 자가 코멘트
+                            {appraisal.selfPerformanceFinal?.grade?.trim() ? (
+                              <Badge
+                                variant="outline"
+                                className="border-indigo-200 bg-white text-[10px] text-indigo-900">
+                                {appraisal.selfPerformanceFinal.grade}등급
+                              </Badge>
+                            ) : null}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pb-2 pt-0">
+                          <p className="whitespace-pre-wrap rounded-md border border-slate-100 bg-white p-2 text-xs leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
+                            {appraisal.selfPerformanceFinal?.comment?.trim() ||
+                              "등록된 코멘트가 없습니다."}
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ) : null}
+                  </Accordion>
+                ) : null}
+                {otherPerf.length > 0 ? (
+                  <div className="pt-2">
+                    <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                      <Users className="h-3.5 w-3.5" aria-hidden />
+                      팀장·상위 조직 성과 평가
+                    </div>
+                    <Accordion type="multiple" className="w-full">
+                      {otherPerf.map((row, idx) => (
+                        <AccordionItem
+                          key={`${row.assessedById ?? "x"}-${row.assessTerm}-${idx}`}
+                          value={`other-${row.assessedById ?? idx}-${row.assessTerm}-${idx}`}
+                          className="border-slate-100">
+                          <AccordionTrigger className="py-2 text-xs hover:no-underline">
+                            <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 pr-1 text-left">
+                              <span className="min-w-0 font-medium text-slate-800 [overflow-wrap:anywhere]">
+                                {row.assessedByName}
+                                <span className="ml-1.5 font-normal text-slate-500">
+                                  ({termLabel(row.assessTerm)})
+                                </span>
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 border-purple-200 bg-purple-50/80 text-purple-900">
+                                {(row.grade ?? "").trim() || "—"}등급
+                              </Badge>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-2 pt-0">
+                            <p className="whitespace-pre-wrap rounded-md border border-slate-100 bg-white p-2 text-xs leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
+                              {(row.comment ?? "").trim() ||
+                                "등록된 코멘트가 없습니다."}
+                            </p>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
+                ) : (
+                  <p className="pt-2 text-xs text-slate-500">
+                    아직 등록된 팀장·상위 성과 종합 평가가 없습니다.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
             <div className="flex items-center gap-3 pt-1 text-sm text-gray-500">
               <div className="flex items-center gap-1.5">
                 <ListChecks className="h-3.5 w-3.5" />
@@ -136,20 +341,44 @@ export function AppraisalCard({
 
           <div className="flex w-full min-w-0 shrink-0 flex-col gap-2 lg:w-auto lg:max-w-sm">
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                className="shrink-0"
-                onClick={() => {
-                  navigate(`/goal-management/${appraisal.appraisalId}`);
-                }}
-              >
-                {totalGoals > 0 ? (
-                  <Pencil className="mr-2 h-4 w-4" />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
-                {totalGoals > 0 ? "목표 관리" : "목표 등록"}
-              </Button>
+              {registerGoalsBlocked ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex shrink-0">
+                      <Button
+                        variant="outline"
+                        className="shrink-0"
+                        disabled
+                        aria-label={PERSONAL_GOALS_PHASE_HINT}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        목표 등록
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs text-balance leading-snug"
+                  >
+                    {PERSONAL_GOALS_PHASE_HINT}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => {
+                    navigate(`/goal-management/${appraisal.appraisalId}`);
+                  }}
+                >
+                  {totalGoals > 0 ? (
+                    <Pencil className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Plus className="mr-2 h-4 w-4" />
+                  )}
+                  {totalGoals > 0 ? "목표 관리" : "목표 등록"}
+                </Button>
+              )}
               {totalGoals > 0 ? (
                 <Button
                   disabled={finalAssessmentButtonDisabled}
@@ -195,6 +424,7 @@ export function AppraisalCard({
                 currentUserId={currentUserId || ""}
                 onSave={onSaveGoalAssessment}
                 disabled={goalRowDisabled}
+                writableAssessTerm={performanceSelfTerm ?? undefined}
                 targetUserJobGroup={currentUser?.jobGroup}
               />
             ))}
