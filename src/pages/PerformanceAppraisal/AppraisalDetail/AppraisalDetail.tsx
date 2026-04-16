@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 
 import { useDebounce } from "@uidotdev/usehooks";
 
-import { ChevronLeft, ChevronRight, Search, UserPlus } from "lucide-react";
+import { Search, UserPlus } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,28 @@ import { DataTable } from "./widget/DataTable";
 import { getColumns } from "./widget/Column";
 import { TablePagination } from "./widget/TablePagination";
 
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  const err = error as {
+    response?: { data?: { message?: string | string[] } };
+    message?: string;
+  };
+  const apiMessage = err?.response?.data?.message;
+  if (Array.isArray(apiMessage)) {
+    const first = apiMessage.find(
+      (message): message is string =>
+        typeof message === "string" && message.trim().length > 0,
+    );
+    if (first) return first.trim();
+  }
+  if (typeof apiMessage === "string" && apiMessage.trim()) {
+    return apiMessage.trim();
+  }
+  if (typeof err?.message === "string" && err.message.trim()) {
+    return err.message.trim();
+  }
+  return fallback;
+}
+
 function getAddAppraisalUsersCounts(res: unknown): {
   createdLen: number;
   skipped: number;
@@ -54,6 +76,15 @@ function getAddAppraisalUsersCounts(res: unknown): {
     skipped: inner.skippedUserIds?.length ?? 0,
   };
 }
+
+const WORKFLOW_PHASES = [
+  { phase: 1, label: "팀장 역량 배포" },
+  { phase: 2, label: "팀원 목표 작성·팀장 승인" },
+  { phase: 3, label: "팀원 본인(중간)" },
+  { phase: 4, label: "팀장·상위 평가(중간)" },
+  { phase: 5, label: "팀원 본인(기말)" },
+  { phase: 6, label: "팀장·상위 평가(기말)" },
+] as const;
 
 export default function AppraisalDetail() {
   const { appraisalId } = useParams();
@@ -155,8 +186,8 @@ export default function AppraisalDetail() {
       await queryClient.invalidateQueries({ queryKey: ["appraisalMeta"] });
       await queryClient.invalidateQueries({ queryKey: ["appraisalTypes"] });
     },
-    onError: () => {
-      toast.error("단계 변경에 실패했습니다.");
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "단계 변경에 실패했습니다."));
     },
   });
 
@@ -247,6 +278,19 @@ export default function AppraisalDetail() {
     }
   })();
 
+  const handleSelectMacroPhase = (nextPhase: number) => {
+    if (isPatchingPhase) return;
+    if (nextPhase === macroPhase) return;
+    const nextPhaseLabel =
+      WORKFLOW_PHASES.find((workflowPhase) => workflowPhase.phase === nextPhase)
+        ?.label ?? `${nextPhase}단계`;
+    const shouldProceed = window.confirm(
+      `워크플로를 ${nextPhase}단계(${nextPhaseLabel})로 변경할까요?`,
+    );
+    if (!shouldProceed) return;
+    patchMacroPhase(nextPhase);
+  };
+
   return (
     <div className='p-4 lg:p-6 space-y-6'>
       <div className='flex flex-col sm:flex-row gap-4 justify-between'>
@@ -261,33 +305,26 @@ export default function AppraisalDetail() {
             <p className='text-xs text-muted-foreground text-center sm:text-right'>
               HR 워크플로 단계
             </p>
-            <div className='flex items-center gap-2 justify-center sm:justify-end'>
-              <Button
-                type='button'
-                variant='outline'
-                size='icon'
-                className='shrink-0'
-                disabled={macroPhase <= 1 || isPatchingPhase}
-                onClick={() => patchMacroPhase(macroPhase - 1)}
-                aria-label='이전 단계'>
-                <ChevronLeft className='h-4 w-4' aria-hidden />
-              </Button>
-              <span className='text-sm font-medium tabular-nums min-w-[6rem] text-center'>
-                {macroPhase} / 6
-              </span>
-              <Button
-                type='button'
-                variant='outline'
-                size='icon'
-                className='shrink-0'
-                disabled={macroPhase >= 6 || isPatchingPhase}
-                onClick={() => patchMacroPhase(macroPhase + 1)}
-                aria-label='다음 단계'>
-                <ChevronRight className='h-4 w-4' aria-hidden />
-              </Button>
+            <div className='flex flex-wrap items-center gap-2 justify-center sm:justify-end'>
+              {WORKFLOW_PHASES.map((workflowPhase) => {
+                const isCurrentPhase = workflowPhase.phase === macroPhase;
+                return (
+                  <Button
+                    key={workflowPhase.phase}
+                    type='button'
+                    variant={isCurrentPhase ? "default" : "outline"}
+                    size='sm'
+                    className='min-w-[44px]'
+                    disabled={isPatchingPhase}
+                    onClick={() => handleSelectMacroPhase(workflowPhase.phase)}
+                    aria-label={`${workflowPhase.phase}단계 선택`}>
+                    {workflowPhase.phase}
+                  </Button>
+                );
+              })}
             </div>
             <p className='text-xs text-muted-foreground text-center sm:text-right max-w-xs'>
-              {macroPhaseDescription}
+              {macroPhase} / 6 · {macroPhaseDescription}
             </p>
           </div>
         )}

@@ -3,10 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Goal as GoalIcon, Pencil, ChevronDown, ChevronUp } from "lucide-react";
+import { Goal as GoalIcon, Pencil } from "lucide-react";
 import { useState, Fragment, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import type { Goal } from "../type";
 import {
   normGoalAssessTerm,
@@ -66,14 +72,15 @@ const GoalAssessmentItem = ({
   const OFFICE_ADMIN_JOB_GROUP = "사무관리직";
   const isOfficeAdmin =
     (targetUserJobGroup ?? "").trim() === OFFICE_ADMIN_JOB_GROUP;
+  const isCommonGoal =
+    String(goal.goalType ?? "")
+      .trim()
+      .toLowerCase() === "common";
 
   const selfUserId =
     targetUserId && currentUserId ? targetUserId : currentUserId ?? "";
 
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [expandedAssessments, setExpandedAssessments] = useState<Set<string>>(
-    new Set(),
-  );
 
   const [grade, setGrade] = useState("");
   const [comment, setComment] = useState("");
@@ -207,17 +214,6 @@ const GoalAssessmentItem = ({
     setGrade("");
     setComment("");
     setKpiAchievementRate("");
-  };
-
-  const toggleExpansion = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const newSet = new Set(expandedAssessments);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setExpandedAssessments(newSet);
   };
 
   const grades = (() => {
@@ -401,149 +397,509 @@ const GoalAssessmentItem = ({
   }) => {
     const { term, role } = args;
     const isSelfCol = role === "self";
-    const assessment = isSelfCol
-      ? pickGoalAssessmentForUserAndTerm(rows, selfUserId, term)
-      : currentUserId
-        ? pickGoalAssessmentForUserAndTerm(rows, currentUserId, term)
+    const selfAssessment = pickGoalAssessmentForUserAndTerm(rows, selfUserId, term);
+
+    const leaderRowsForTerm = rows
+      .filter(
+        (a) =>
+          a.gradedBy !== selfUserId && normGoalAssessTerm(a.assessTerm) === term,
+      )
+      .sort((a, b) => {
+        const at = new Date(a.updated ?? a.created ?? "").getTime();
+        const bt = new Date(b.updated ?? b.created ?? "").getTime();
+        return bt - at;
+      });
+
+    const myLeaderRow =
+      currentUserId && !isSelfCol
+        ? leaderRowsForTerm.find((a) => a.gradedBy === currentUserId)
         : undefined;
 
-    const displayLeader =
-      !isSelfCol && !targetUserId
-        ? pickFirstNonOwnerGoalAssessmentForTerm(rows, selfUserId, term)
-        : assessment;
-
-    const row = isSelfCol ? assessment : targetUserId ? assessment : displayLeader;
-
-    const isExpanded = row ? expandedAssessments.has(row.goalAssessId) : false;
     const canWriteNew = isSelfCol
-      ? slotEditableSelf(term)
-      : slotEditableLeader(term);
-    const showNew = canWriteNew && !row;
-    const showPencilOwn =
-      canWriteNew &&
-      !!row &&
-      row.gradedBy === (isSelfCol ? selfUserId : currentUserId);
-    const showHrPencil = !!row && canHrEditAssessment(row);
+      ? slotEditableSelf(term) && !selfAssessment
+      : slotEditableLeader(term) && !myLeaderRow;
 
-    const shouldShowKpiRate =
-      isOfficeAdmin &&
-      row &&
-      (row.gradedBy === selfUserId ||
-        (!targetUserId && row.gradedBy === currentUserId));
-    const kpiRateDisplay = shouldShowKpiRate
-      ? row.kpiAchievementRate?.trim() || "—"
-      : null;
+    const isLeaderCell = !isSelfCol;
+    const hasAnyRow = isSelfCol ? !!selfAssessment : leaderRowsForTerm.length > 0;
+    const leaderNewEditingKey = newEditingKey(term, "leader");
+    const isInlineLeaderNewEditing =
+      isLeaderCell && editingKey === leaderNewEditingKey;
 
+    if (!isLeaderCell) {
+      const row = selfAssessment;
+      const showNew = canWriteNew;
+      const selfNewEditingKey = newEditingKey(term, "self");
+      const isInlineSelfNewEditing = editingKey === selfNewEditingKey;
+      const isInlineSelfRowEditing = !!row && editingKey === row.goalAssessId;
+      const isInlineSelfEditing = isInlineSelfNewEditing || isInlineSelfRowEditing;
+      const showKpiAchievementField = shouldOfferKpiAchievementField(editingKey);
+      const showPencilOwn =
+        !!row &&
+        !disabled &&
+        !isSpectator &&
+        writableAssessTerm != null &&
+        writableAssessTerm === term &&
+        !hrCannotSubmitOwnGoalGrade &&
+        row.gradedBy === selfUserId &&
+        !targetUserId;
+      const showHrPencil = !!row && canHrEditAssessment(row);
+
+      const shouldShowKpiRate =
+        isOfficeAdmin && row && row.gradedBy === selfUserId;
+      const kpiRateDisplay = shouldShowKpiRate
+        ? row.kpiAchievementRate?.trim() || "—"
+        : null;
+
+      return (
+        <td className="border border-slate-200 bg-white p-2 align-top sm:p-3">
+          {!row ? (
+            isInlineSelfNewEditing ? (
+              <div className="space-y-3 rounded-md border border-blue-200 bg-blue-50/60 p-3">
+                <p className="text-xs font-semibold text-blue-800">
+                  본인평가 입력 필요
+                </p>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="등급 선택">
+                  {grades.map((g) => (
+                    <button
+                      key={g.value}
+                      type="button"
+                      onClick={() => setGrade(g.value)}
+                      className={cn(
+                        "rounded-md border px-2.5 py-1.5 text-xs",
+                        grade === g.value
+                          ? cn(g.color, "font-bold ring-2 ring-blue-400/50")
+                          : "border-gray-200 bg-white text-gray-600",
+                      )}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="본인평가 코멘트를 입력하세요."
+                  className="min-h-[72px] resize-y bg-white text-sm"
+                  aria-label="본인평가 코멘트"
+                />
+                {showKpiAchievementField ? (
+                  <Input
+                    value={kpiAchievementRate}
+                    onChange={(e) => setKpiAchievementRate(e.target.value)}
+                    placeholder="KPI 달성률"
+                    className="bg-white text-sm"
+                    aria-label="KPI 달성률"
+                  />
+                ) : null}
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={handleCancel}>
+                    취소
+                  </Button>
+                  <Button size="sm" onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+                    저장
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex min-h-[72px] flex-col items-stretch justify-center gap-2">
+                <span className="text-center text-xs text-slate-400">—</span>
+                {showNew ? (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="h-9 text-sm bg-indigo-600 hover:bg-indigo-700 text-white"
+                    onClick={() => setEditingKey(selfNewEditingKey)}
+                  >
+                    본인 입력
+                  </Button>
+                ) : null}
+              </div>
+            )
+          ) : (
+            isInlineSelfEditing ? (
+              <div className="space-y-3 rounded-md border border-blue-200 bg-blue-50/60 p-3">
+                <p className="text-xs font-semibold text-blue-800">
+                  본인평가 수정
+                </p>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="등급 선택">
+                  {grades.map((g) => (
+                    <button
+                      key={g.value}
+                      type="button"
+                      onClick={() => setGrade(g.value)}
+                      className={cn(
+                        "rounded-md border px-2.5 py-1.5 text-xs",
+                        grade === g.value
+                          ? cn(g.color, "font-bold ring-2 ring-blue-400/50")
+                          : "border-gray-200 bg-white text-gray-600",
+                      )}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="본인평가 코멘트를 입력하세요."
+                  className="min-h-[72px] resize-y bg-white text-sm"
+                  aria-label="본인평가 코멘트"
+                />
+                {showKpiAchievementField ? (
+                  <Input
+                    value={kpiAchievementRate}
+                    onChange={(e) => setKpiAchievementRate(e.target.value)}
+                    placeholder="KPI 달성률"
+                    className="bg-white text-sm"
+                    aria-label="KPI 달성률"
+                  />
+                ) : null}
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={handleCancel}>
+                    취소
+                  </Button>
+                  <Button size="sm" onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+                    저장
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-start justify-end gap-1">
+                    {showPencilOwn ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0 hover:text-blue-600"
+                        aria-label="목표 평가 수정"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingKey(row.goalAssessId);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : null}
+                    {showHrPencil ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0 hover:text-purple-600"
+                        aria-label="HR — 타 평가자 등급 수정"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingKey(row.goalAssessId);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : null}
+                  </div>
+                  {isOfficeAdmin ? (
+                    <dl className="grid grid-cols-1 gap-2">
+                      <div>
+                        <dt className="text-[10px] font-semibold text-slate-500">
+                          등급
+                        </dt>
+                        <dd className="mt-1 flex flex-wrap">
+                          {renderGradeReadChip(row.grade)}
+                        </dd>
+                      </div>
+                      {kpiRateDisplay != null ? (
+                        <div>
+                          <dt className="text-[10px] font-semibold text-slate-500">
+                            KPI 달성률
+                          </dt>
+                          <dd className="mt-1 text-xs font-semibold tabular-nums text-slate-900">
+                            {kpiRateDisplay}
+                          </dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  ) : (
+                    <div className="flex flex-wrap justify-center sm:justify-start">
+                      {renderGradeReadChip(row.grade)}
+                    </div>
+                  )}
+                </div>
+                {row.comment ? (
+                  <div className="rounded-md border border-slate-100 bg-slate-50/90 p-2">
+                    <p className="text-[10px] font-semibold text-slate-500">
+                      코멘트
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-800 [overflow-wrap:anywhere]">
+                      {row.comment}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            )
+          )}
+        </td>
+      );
+    }
+
+    // Leader cell: show list (team leader + upper leaders) for this term.
     return (
       <td className="border border-slate-200 bg-white p-2 align-top sm:p-3">
-        {!row ? (
-          <div className="flex min-h-[72px] flex-col items-stretch justify-center gap-2">
-            <span className="text-center text-xs text-slate-400">—</span>
-            {showNew ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs"
-                onClick={() =>
-                  setEditingKey(newEditingKey(term, role))
-                }>
-                입력
-              </Button>
-            ) : null}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div
-              className={cn(
-                "flex flex-col gap-2",
-                row.comment ? "cursor-pointer" : "",
-              )}
-              onClick={() => {
-                if (row.comment) toggleExpansion(row.goalAssessId);
-              }}>
-              <div className="flex flex-wrap items-start justify-end gap-1">
-                {row.comment ? (
-                  <span className="text-slate-400" aria-hidden>
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
+        {!hasAnyRow ? (
+          isInlineLeaderNewEditing ? (
+            <div className="space-y-3 rounded-md border border-blue-200 bg-blue-50/60 p-3">
+              <p className="text-xs font-semibold text-blue-800">
+                1차평가 입력 필요
+              </p>
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label="등급 선택"
+              >
+                {grades.map((g) => (
+                  <button
+                    key={g.value}
+                    type="button"
+                    onClick={() => setGrade(g.value)}
+                    className={cn(
+                      "rounded-md border px-2.5 py-1.5 text-xs",
+                      grade === g.value
+                        ? cn(g.color, "font-bold ring-2 ring-blue-400/50")
+                        : "border-gray-200 bg-white text-gray-600",
                     )}
-                  </span>
-                ) : null}
-                {showPencilOwn ? (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 shrink-0 hover:text-blue-600"
-                    aria-label="목표 평가 수정"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingKey(row.goalAssessId);
-                    }}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                ) : null}
-                {showHrPencil ? (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 shrink-0 hover:text-purple-600"
-                    aria-label="HR — 타 평가자 등급 수정"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingKey(row.goalAssessId);
-                    }}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                ) : null}
+                  >
+                    {g.label}
+                  </button>
+                ))}
               </div>
-              {isOfficeAdmin ? (
-                <dl className="grid grid-cols-1 gap-2">
-                  <div>
-                    <dt className="text-[10px] font-semibold text-slate-500">
-                      등급
-                    </dt>
-                    <dd className="mt-1 flex flex-wrap">
-                      {renderGradeReadChip(row.grade)}
-                    </dd>
-                  </div>
-                  {kpiRateDisplay != null ? (
-                    <div>
-                      <dt className="text-[10px] font-semibold text-slate-500">
-                        KPI 달성률
-                      </dt>
-                      <dd className="mt-1 text-xs font-semibold tabular-nums text-slate-900">
-                        {kpiRateDisplay}
-                      </dd>
-                    </div>
-                  ) : null}
-                </dl>
+              <Textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="1차평가 코멘트를 입력하세요."
+                className="min-h-[72px] resize-y bg-white text-sm"
+                aria-label="1차평가 코멘트"
+              />
+              <div className="flex justify-end gap-2">
+                <Button size="sm" variant="ghost" onClick={handleCancel}>
+                  취소
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  저장
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-h-[72px] flex-col items-stretch justify-center gap-2">
+              <p className="text-center text-xs font-semibold text-amber-700">
+                아직 1차평가가 없습니다
+              </p>
+              {canWriteNew ? (
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-9 text-sm bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={() => setEditingKey(leaderNewEditingKey)}
+                >
+                  1차평가 입력
+                </Button>
               ) : (
-                <div className="flex flex-wrap justify-center sm:justify-start">
-                  {renderGradeReadChip(row.grade)}
-                </div>
+                <span className="text-center text-xs text-slate-400">—</span>
               )}
             </div>
-            {isExpanded && row.comment ? (
-              <div className="rounded-md border border-slate-100 bg-slate-50/90 p-2">
-                <p className="text-[10px] font-semibold text-slate-500">
-                  코멘트
+          )
+        ) : (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-start justify-end gap-1">
+              {canWriteNew && !isInlineLeaderNewEditing ? (
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-8 px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                  aria-label="리더 목표 평가 입력"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingKey(leaderNewEditingKey);
+                  }}
+                >
+                  1차평가 입력
+                </Button>
+              ) : null}
+              {myLeaderRow ? (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 shrink-0 hover:text-blue-600"
+                  aria-label="내 리더 목표 평가 수정"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingKey(myLeaderRow.goalAssessId);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              ) : null}
+            </div>
+            {isInlineLeaderNewEditing ? (
+              <div className="space-y-3 rounded-md border border-blue-200 bg-blue-50/60 p-3">
+                <p className="text-xs font-semibold text-blue-800">
+                  1차평가 입력 필요
                 </p>
-                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-800 [overflow-wrap:anywhere]">
-                  {row.comment}
-                </p>
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="group"
+                  aria-label="등급 선택"
+                >
+                  {grades.map((g) => (
+                    <button
+                      key={g.value}
+                      type="button"
+                      onClick={() => setGrade(g.value)}
+                      className={cn(
+                        "rounded-md border px-2.5 py-1.5 text-xs",
+                        grade === g.value
+                          ? cn(g.color, "font-bold ring-2 ring-blue-400/50")
+                          : "border-gray-200 bg-white text-gray-600",
+                      )}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="1차평가 코멘트를 입력하세요."
+                  className="min-h-[72px] resize-y bg-white text-sm"
+                  aria-label="1차평가 코멘트"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={handleCancel}>
+                    취소
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    저장
+                  </Button>
+                </div>
               </div>
             ) : null}
+
+            <ul className="space-y-2">
+              {leaderRowsForTerm.map((r) => {
+                const name =
+                  r.gradedByUser?.koreanName?.trim() ||
+                  `평가자 ${String(r.gradedBy).slice(0, 8)}…`;
+                const showHrPencil = canHrEditAssessment(r);
+                const isMe = !!currentUserId && r.gradedBy === currentUserId;
+                const isEditingThisRow = editingKey === r.goalAssessId;
+                return (
+                  <li
+                    key={r.goalAssessId}
+                    className="rounded-md border border-slate-100 bg-slate-50/60 p-2"
+                  >
+                    {isEditingThisRow ? (
+                      <div className="space-y-3 rounded-md border border-blue-200 bg-blue-50/60 p-3">
+                        <p className="text-xs font-semibold text-blue-800">
+                          {name}
+                          {isMe ? " (나)" : ""} · 1차평가 수정
+                        </p>
+                        <div
+                          className="flex flex-wrap gap-2"
+                          role="group"
+                          aria-label="등급 선택"
+                        >
+                          {grades.map((g) => (
+                            <button
+                              key={g.value}
+                              type="button"
+                              onClick={() => setGrade(g.value)}
+                              className={cn(
+                                "rounded-md border px-2.5 py-1.5 text-xs",
+                                grade === g.value
+                                  ? cn(g.color, "font-bold ring-2 ring-blue-400/50")
+                                  : "border-gray-200 bg-white text-gray-600",
+                              )}
+                            >
+                              {g.label}
+                            </button>
+                          ))}
+                        </div>
+                        <Textarea
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="1차평가 코멘트를 입력하세요."
+                          className="min-h-[72px] resize-y bg-white text-sm"
+                          aria-label="1차평가 코멘트"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={handleCancel}>
+                            취소
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleSave}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            저장
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-semibold text-slate-600 truncate">
+                              {name}
+                              {isMe ? " (나)" : ""}
+                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              {renderGradeReadChip(r.grade)}
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex items-center gap-1">
+                            {showHrPencil ? (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 shrink-0 hover:text-purple-600"
+                                aria-label="HR — 타 평가자 등급 수정"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingKey(r.goalAssessId);
+                                }}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {r.comment?.trim() ? (
+                          <div className="mt-2 rounded-md border border-slate-100 bg-white p-2">
+                            <p className="text-[10px] font-semibold text-slate-500">
+                              코멘트
+                            </p>
+                            <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-800 [overflow-wrap:anywhere]">
+                              {r.comment}
+                            </p>
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
       </td>
     );
   };
-
-  const definitionText = [goal.title, goal.description?.trim()]
-    .filter(Boolean)
-    .join("\n\n");
 
   const goalApproval = useMemo(() => {
     const currentVersion = Math.floor(Number(goal.approvalVersion ?? 1)) || 1;
@@ -574,6 +930,8 @@ const GoalAssessmentItem = ({
     if (g === "F") return "rejected" as const;
     return "pending" as const;
   })();
+
+  const shouldRenderBottomEditor = false;
 
   return (
     <div className="min-w-0 space-y-5 rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-6">
@@ -614,136 +972,110 @@ const GoalAssessmentItem = ({
         ) : null}
       </div>
 
-      {/* 목표 승인(신규 2단계) — 기존 중간/기말 평가와 분리 노출 */}
-      <div
-        className={cn(
-          "rounded-xl border px-4 py-3 text-sm",
-          goalApprovalStatus === "approved"
-            ? "border-emerald-200 bg-emerald-50/70 text-emerald-950"
-            : goalApprovalStatus === "rejected"
-              ? "border-red-200 bg-red-50/70 text-red-950"
-              : "border-slate-200 bg-slate-50/70 text-slate-800",
+      {/* 목표 승인 정보는 한 줄 요약으로 축소 (핵심은 목표 설명 + 평가표) */}
+      <div className="flex flex-wrap items-center gap-2 text-xs" role="status">
+        {isCommonGoal ? (
+          <Badge className="h-6 rounded-full bg-slate-100 px-2 text-slate-700 hover:bg-slate-100 border-none">
+            공통 목표
+          </Badge>
+        ) : (
+          <>
+            <span className="font-semibold text-slate-500">목표 승인</span>
+            {goalApprovalStatus === "approved" ? (
+              <Badge className="h-6 rounded-full bg-emerald-100 px-2 text-emerald-800 hover:bg-emerald-100 border-none">
+                승인(T)
+              </Badge>
+            ) : goalApprovalStatus === "rejected" ? (
+              <Badge className="h-6 rounded-full bg-red-100 px-2 text-red-800 hover:bg-red-100 border-none">
+                반려(F)
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="h-6 rounded-full px-2 text-slate-600">
+                승인 대기
+              </Badge>
+            )}
+            {goalApproval?.gradedByUser?.koreanName?.trim() ? (
+              <span className="text-slate-600">
+                · {goalApproval.gradedByUser.koreanName}
+              </span>
+            ) : null}
+            {goalApprovalStatus === "rejected" && goalApproval?.comment?.trim() ? (
+              <span className="w-full text-red-700 [overflow-wrap:anywhere]">
+                반려 사유: {goalApproval.comment}
+              </span>
+            ) : null}
+          </>
         )}
-        role="status"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-xs font-bold uppercase tracking-wide opacity-80">
-              목표 승인
-            </p>
-            <p className="text-sm font-semibold">
-              {goalApprovalStatus === "approved"
-                ? "승인 완료 (T)"
-                : goalApprovalStatus === "rejected"
-                  ? "거절됨 (F) — 목표 수정이 필요합니다"
-                  : "승인 대기"}
-              {goalApproval?.gradedByUser?.koreanName?.trim()
-                ? ` · ${goalApproval.gradedByUser.koreanName}`
-                : null}
-            </p>
-          </div>
-          {goalApprovalStatus === "approved" ? (
-            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none">
-              T
-            </Badge>
-          ) : goalApprovalStatus === "rejected" ? (
-            <Badge className="bg-red-100 text-red-800 hover:bg-red-100 border-none">
-              F
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-slate-600">
-              대기
-            </Badge>
-          )}
-        </div>
-
-        {goalApprovalStatus === "rejected" && goalApproval?.comment?.trim() ? (
-          <div className="mt-2 rounded-md border border-red-100 bg-white/60 px-3 py-2">
-            <p className="text-[11px] font-semibold text-red-700">거절 사유</p>
-            <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-900 [overflow-wrap:anywhere]">
-              {goalApproval.comment}
-            </p>
-            <p className="mt-2 text-[11px] text-slate-600">
-              목표를 수정·저장하면 기존 승인/거절은 무효화되고, 다시 승인을 받아야
-              합니다.
-            </p>
-          </div>
-        ) : null}
       </div>
 
       <section
         className="overflow-hidden rounded-xl border border-slate-200 bg-white"
         aria-label="목표별 평가">
-        <div className="border-b border-slate-200 bg-slate-50/90 px-4 py-3 sm:px-5">
-          <h5 className="text-xs font-semibold leading-snug text-slate-600">
-            중간·기말 목표 평가
-            <span className="mt-0.5 block font-normal text-slate-500 sm:mt-0 sm:ml-1 sm:inline">
-              · 코멘트가 있으면 셀을 눌러 펼칩니다
-            </span>
-          </h5>
-        </div>
+        <Accordion type="multiple" defaultValue={["mid", "final"]} className="w-full">
+          <AccordionItem value="mid" className="border-b border-slate-200">
+            <AccordionTrigger className="px-4 py-3 text-sm font-semibold text-slate-800 hover:no-underline">
+              중간평가
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+              <table className="w-full table-fixed border-collapse text-left text-sm">
+                <tbody>
+                  <tr>
+                    <th
+                      className="w-[96px] border border-slate-200 bg-slate-100/80 px-2 py-2 text-center text-xs font-bold text-slate-800 align-top"
+                      scope="row"
+                    >
+                      본인평가
+                    </th>
+                    {renderAssessmentCell({ term: "mid", role: "self" })}
+                  </tr>
+                  <tr>
+                    <th
+                      className="w-[96px] border border-slate-200 bg-slate-100/80 px-2 py-2 text-center text-xs font-bold text-slate-800 align-top"
+                      scope="row"
+                    >
+                      1차평가
+                    </th>
+                    {renderAssessmentCell({ term: "mid", role: "leader" })}
+                  </tr>
+                </tbody>
+              </table>
+            </AccordionContent>
+          </AccordionItem>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="bg-slate-100/80">
-                <th
-                  rowSpan={2}
-                  className="border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 sm:px-4 sm:py-3"
-                  scope="col">
-                  목표 정의
-                </th>
-                <th
-                  colSpan={2}
-                  className="border border-slate-200 px-2 py-2 text-center text-xs font-bold text-slate-800 sm:px-3"
-                  scope="colgroup">
-                  중간평가
-                </th>
-                <th
-                  colSpan={2}
-                  className="border border-slate-200 px-2 py-2 text-center text-xs font-bold text-slate-800 sm:px-3"
-                  scope="colgroup">
-                  최종평가
-                </th>
-              </tr>
-              <tr className="bg-slate-50">
-                <th
-                  className="border border-slate-200 px-2 py-2 text-center text-[11px] font-semibold text-slate-600 sm:text-xs"
-                  scope="col">
-                  본인평가
-                </th>
-                <th
-                  className="border border-slate-200 px-2 py-2 text-center text-[11px] font-semibold text-slate-600 sm:text-xs"
-                  scope="col">
-                  1차평가
-                </th>
-                <th
-                  className="border border-slate-200 px-2 py-2 text-center text-[11px] font-semibold text-slate-600 sm:text-xs"
-                  scope="col">
-                  본인평가
-                </th>
-                <th
-                  className="border border-slate-200 px-2 py-2 text-center text-[11px] font-semibold text-slate-600 sm:text-xs"
-                  scope="col">
-                  1차평가
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="max-w-[280px] border border-slate-200 bg-white p-3 align-top text-xs leading-relaxed text-slate-800 sm:max-w-[360px] sm:p-4 sm:text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">
-                  {definitionText}
-                </td>
-                {renderAssessmentCell({ term: "mid", role: "self" })}
-                {renderAssessmentCell({ term: "mid", role: "leader" })}
-                {renderAssessmentCell({ term: "final", role: "self" })}
-                {renderAssessmentCell({ term: "final", role: "leader" })}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+          <AccordionItem value="final" className="border-b-0">
+            <AccordionTrigger className="px-4 py-3 text-sm font-semibold text-slate-800 hover:no-underline">
+              최종평가
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+              <table className="w-full table-fixed border-collapse text-left text-sm">
+                <tbody>
+                  <tr>
+                    <th
+                      className="w-[96px] border border-slate-200 bg-slate-100/80 px-2 py-2 text-center text-xs font-bold text-slate-800 align-top"
+                      scope="row"
+                    >
+                      본인평가
+                    </th>
+                    {renderAssessmentCell({ term: "final", role: "self" })}
+                  </tr>
+                  <tr>
+                    <th
+                      className="w-[96px] border border-slate-200 bg-slate-100/80 px-2 py-2 text-center text-xs font-bold text-slate-800 align-top"
+                      scope="row"
+                    >
+                      1차평가
+                    </th>
+                    {renderAssessmentCell({ term: "final", role: "leader" })}
+                  </tr>
+                </tbody>
+              </table>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
-        {editingKey ? <Fragment>{renderEditRow()}</Fragment> : null}
+        {shouldRenderBottomEditor ? <Fragment>{renderEditRow()}</Fragment> : null}
       </section>
     </div>
   );

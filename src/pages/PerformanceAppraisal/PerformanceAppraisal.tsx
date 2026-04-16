@@ -4,7 +4,6 @@ import {
   Plus,
   Eye,
   // Edit,
-  Calendar,
   User as UserIcon,
   // Target,
   Book,
@@ -43,13 +42,6 @@ import {
   DELETE_appraisal,
 } from "@/api/appraisal/appraisal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useDebounce } from "@uidotdev/usehooks";
 import { Progress } from "@/components/ui/progress";
 
@@ -57,23 +49,9 @@ interface AppraisalFormData {
   title: string;
   // excludedUsers: User[];
   description: string;
-  endDate: string;
-  appraisalYear: string;
-  appraisalTerm: string;
   minGradeRank?: number;
   maxGradeRank?: number;
 }
-
-const APPRRAISAL_TERMS = [
-  {
-    value: "mid",
-    label: "중간",
-  },
-  {
-    value: "final",
-    label: "최종",
-  },
-];
 
 export default function PerformanceAppraisal() {
   const navigate = useNavigate();
@@ -90,9 +68,6 @@ export default function PerformanceAppraisal() {
   const [formData, setFormData] = useState<AppraisalFormData>({
     title: "",
     description: "",
-    endDate: "",
-    appraisalYear: new Date().getFullYear().toString(),
-    appraisalTerm: APPRRAISAL_TERMS[0].value,
     minGradeRank: undefined,
     maxGradeRank: undefined,
   });
@@ -101,11 +76,9 @@ export default function PerformanceAppraisal() {
   const [patchFormData, setPatchFormData] = useState<{
     title?: string;
     description?: string;
-    endDate?: string;
   }>({
     title: "",
     description: "",
-    endDate: "",
   });
 
   const { data: appraisalTypes, isLoading: isLoadingAppraisalTypes } = useQuery(
@@ -131,9 +104,6 @@ export default function PerformanceAppraisal() {
       setFormData({
         title: "",
         description: "",
-        endDate: "",
-        appraisalYear: new Date().getFullYear().toString(),
-        appraisalTerm: APPRRAISAL_TERMS[0].value,
         minGradeRank: undefined,
         maxGradeRank: undefined,
       });
@@ -148,7 +118,6 @@ export default function PerformanceAppraisal() {
       appraisalId: string;
       title?: string;
       description?: string;
-      endDate?: string;
       status?: string;
     }) => PATCH_appraisal(payload),
     onSuccess: () => {
@@ -158,7 +127,6 @@ export default function PerformanceAppraisal() {
       setPatchFormData({
         title: "",
         description: "",
-        endDate: "",
       });
       toast.success("평가가 수정되었습니다");
     },
@@ -166,7 +134,6 @@ export default function PerformanceAppraisal() {
       setPatchFormData({
         title: "",
         description: "",
-        endDate: "",
       });
       setModalType(null);
     },
@@ -266,7 +233,7 @@ export default function PerformanceAppraisal() {
           </DialogTrigger>
           <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader>
-              <DialogTitle>새 성과 평가 생성</DialogTitle>
+              <DialogTitle>새 인사 평가 생성</DialogTitle>
             </DialogHeader>
             <div className='space-y-4 py-4'>
               <div className='space-y-2'>
@@ -287,42 +254,6 @@ export default function PerformanceAppraisal() {
                   onChange={handleExcludedUsersChange}
                 />
               </div> */}
-
-              <div className='space-y-2'>
-                <Label>평가 기간</Label>
-                <div className='flex items-center gap-2'>
-                  <Input
-                    type='text'
-                    value={formData.appraisalYear}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        appraisalYear: e.target.value,
-                      })
-                    }
-                    disabled
-                    className='w-[150px]'
-                  />
-                  <Select
-                    value={formData.appraisalTerm}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, appraisalTerm: value })
-                    }>
-                    <SelectTrigger className='w-[150px]'>
-                      <SelectValue placeholder='기간 선택' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {APPRRAISAL_TERMS.map((type) => (
-                        <SelectItem
-                          key={type.value}
-                          value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
               <div className='grid grid-cols-2 gap-4'>
                 <div className='space-y-2'>
@@ -374,16 +305,6 @@ export default function PerformanceAppraisal() {
                   }
                   placeholder='평가에 대한 설명을 입력하세요'
                   rows={3}
-                />
-              </div>
-              <div className='space-y-2'>
-                <Label>마감일</Label>
-                <Input
-                  type='date'
-                  value={formData.endDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, endDate: e.target.value })
-                  }
                 />
               </div>
             </div>
@@ -452,15 +373,6 @@ export default function PerformanceAppraisal() {
                       <User className='w-4 h-4' />
                       <span>{appraisal.count}</span>
                     </div> */}
-                  <div className='flex items-center gap-2 text-sm text-gray-600'>
-                    <Calendar className='w-4 h-4' />
-                    <span>
-                      마감:
-                      {Intl.DateTimeFormat("ko-KR").format(
-                        new Date(appraisal.endDate),
-                      )}
-                    </span>
-                  </div>
                 </div>
                 <div className='flex flex-col gap-2 text-sm text-gray-600'>
                   <Progress
@@ -517,26 +429,6 @@ export default function PerformanceAppraisal() {
                       </DialogHeader>
                       <div className='space-y-2'>
                         <Label>{appraisal.title} 평가 실행</Label>
-                      </div>
-                      <div className='space-y-2'>
-                        <Label>마감일</Label>
-                        {/* <p>form: {patchFormData.endDate}</p>
-                        <p>api: {appraisal.endDate}</p> */}
-                        <Input
-                          type='date'
-                          value={
-                            patchFormData.endDate ||
-                            new Date(appraisal.endDate)
-                              .toISOString()
-                              .split("T")[0]
-                          }
-                          onChange={(e) => {
-                            setPatchFormData({
-                              ...patchFormData,
-                              endDate: e.target.value,
-                            });
-                          }}
-                        />
                       </div>
                       <UserMultiSelect
                         value={excludedUsers}

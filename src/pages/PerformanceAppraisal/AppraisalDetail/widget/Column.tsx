@@ -120,10 +120,89 @@ interface DetailColumn {
   compFinalFinalLeaderDone?: boolean;
 }
 
+const GOAL_APPROVAL_ASSESS_TERM = "goal_approval";
+
+function getGoalSummary(owner?: User): {
+  totalGoals: number;
+  commonGoals: number;
+  personalGoals: number;
+  approvedCount: number;
+  rejectedCount: number;
+} {
+  const goals = owner?.goals ?? [];
+  const totalGoals = goals.length;
+
+  let commonGoals = 0;
+  let personalGoals = 0;
+  let approvedCount = 0;
+  let rejectedCount = 0;
+
+  goals.forEach((goal) => {
+    const isCommonGoal =
+      String(goal.goalType ?? "")
+        .trim()
+        .toLowerCase() === "common";
+
+    if (isCommonGoal) {
+      commonGoals += 1;
+      return;
+    }
+    personalGoals += 1;
+
+    const currentVersion = Math.floor(Number(goal.approvalVersion ?? 1)) || 1;
+    const currentApprovalRow = (goal.goalAssessmentBy ?? []).find((assessment) => {
+      const isGoalApproval =
+        String(assessment.assessTerm ?? "")
+          .trim()
+          .toLowerCase() === GOAL_APPROVAL_ASSESS_TERM;
+      const isCurrentVersion =
+        Number(assessment.targetApprovalVersion ?? -1) === currentVersion;
+      return isGoalApproval && isCurrentVersion;
+    });
+
+    const grade = String(currentApprovalRow?.grade ?? "")
+      .trim()
+      .toUpperCase();
+    if (grade === "T") approvedCount += 1;
+    if (grade === "F") rejectedCount += 1;
+  });
+
+  return {
+    totalGoals,
+    commonGoals,
+    personalGoals,
+    approvedCount,
+    rejectedCount,
+  };
+}
+
+function resolveGoalOwner(row: DetailColumn): User | undefined {
+  const rowOwner = row.owner;
+  if (!rowOwner) return undefined;
+
+  if ((rowOwner.goals ?? []).length > 0) return rowOwner;
+
+  const appraisalUsers = row.appraisal?.user ?? [];
+  const matchedByAppraisalUserId = appraisalUsers.find(
+    (user) =>
+      user.appraisalUserId &&
+      rowOwner.appraisalUserId &&
+      user.appraisalUserId === rowOwner.appraisalUserId,
+  );
+  if (matchedByAppraisalUserId) return matchedByAppraisalUserId;
+
+  const matchedByUserId = appraisalUsers.find(
+    (user) => user.userId === rowOwner.userId,
+  );
+  return matchedByUserId ?? rowOwner;
+}
+
 function workflowDoneBadge(done?: boolean) {
   if (done === true) {
     return (
-      <Badge variant='outline' className='text-xs whitespace-nowrap'>
+      <Badge
+        variant='outline'
+        className='text-xs whitespace-nowrap border-green-300 text-green-700 bg-green-50 hover:bg-green-50'>
         완료
       </Badge>
     );
@@ -215,77 +294,51 @@ export const getColumns = (
   //     );
   //   },
   // },
+  // {
+  //   accessorKey: "appraisal",
+  //   header: () => <p className='text-center'>End Date</p>,
+  //   cell: ({ row }) => {
+  //     return (
+  //       <div className='text-center font-medium'>
+  //         {(row.getValue("appraisal") as Appraisal)?.endDate}
+  //       </div>
+  //     );
+  //   },
+  // },
   {
-    accessorKey: "appraisal",
-    header: () => <p className='text-center'>End Date</p>,
+    accessorKey: "goalSummary",
+    header: () => <p className='text-center'>목표 현황</p>,
     cell: ({ row }) => {
-      return (
-        <div className='text-center font-medium'>
-          {(row.getValue("appraisal") as Appraisal)?.endDate}
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "status",
-    header: () => <p className='text-right pr-2'>목표 상태</p>,
-    cell: ({ row }) => {
-      const rawStatus = (row.getValue("status") as string)?.toLowerCase();
-      let statusText = "기본";
-      let badgeVariant: "default" | "secondary" | "outline" | "destructive" =
-        "secondary";
-
-      if (rawStatus === "submitted") {
-        statusText = "목표 제출됨";
-        badgeVariant = "default";
-      } else if (rawStatus === "finished") {
-        statusText = "평가 완료";
-        badgeVariant = "outline";
-      } else if (rawStatus === "in_progress") {
-        statusText = "작성 중";
-        badgeVariant = "secondary";
-      } else {
-        statusText = rawStatus || "진행 전";
-      }
+      const goalOwner = resolveGoalOwner(row.original);
+      const summary = getGoalSummary(goalOwner);
 
       return (
-        <div className='text-right pr-2'>
-          <Badge
-            variant={badgeVariant}
-            className={
-              badgeVariant === "default"
-                ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
-                : ""
-            }>
-            {statusText}
-          </Badge>
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "competency",
-    header: () => <p className='text-right pr-2'>역량 평가</p>,
-    cell: ({ row }) => {
-      const total = row.original.competencyTotal || 0;
-      const submitted = row.original.competencySubmitted || 0;
-      const isComplete = total > 0 && submitted >= total;
-
-      return (
-        <div className='text-right font-medium pr-2'>
-          {total === 0 ? (
-            <span className='text-gray-400'>대상 아님</span>
-          ) : (
-            <Badge
-              variant={isComplete ? "outline" : "secondary"}
-              className={
-                isComplete
-                  ? ""
-                  : "bg-amber-100 text-amber-700 hover:bg-amber-100"
-              }>
-              {submitted} / {total} 완료
-            </Badge>
-          )}
+        <div className='mx-auto w-full max-w-[220px] rounded-xl border border-slate-200 bg-white p-2'>
+          <div className='grid grid-cols-3 gap-2 text-center'>
+            <div className='space-y-1'>
+              <p className='text-[11px] font-medium text-slate-500'>목표 수</p>
+              <Badge
+                variant='outline'
+                className='min-w-[60px] justify-center font-semibold'>
+                {summary.totalGoals}개
+              </Badge>
+            </div>
+            <div className='space-y-1'>
+              <p className='text-[11px] font-medium text-slate-500'>승인</p>
+              <Badge className='min-w-[52px] justify-center border border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-100'>
+                {summary.approvedCount}
+              </Badge>
+            </div>
+            <div className='space-y-1'>
+              <p className='text-[11px] font-medium text-slate-500'>반려</p>
+              <Badge className='min-w-[52px] justify-center border border-rose-300 bg-rose-100 text-rose-800 hover:bg-rose-100'>
+                {summary.rejectedCount}
+              </Badge>
+            </div>
+          </div>
+          <p className='mt-2 text-center text-xs text-slate-500'>
+            공통 {summary.commonGoals} / 개인 {summary.personalGoals}
+          </p>
         </div>
       );
     },

@@ -53,9 +53,10 @@ export function goalHasUserAssessmentForTerm(
 export function isAppraisalEditableByEndDate(
   endDate: string | null | undefined,
 ): boolean {
-  if (!endDate?.trim()) return false;
+  // 마감일 컬럼/입력을 제거한 정책에서는 마감일이 없으면 편집을 허용한다.
+  if (!endDate?.trim()) return true;
   const parsed = new Date(endDate);
-  if (Number.isNaN(parsed.getTime())) return false;
+  if (Number.isNaN(parsed.getTime())) return true;
   const y = parsed.getFullYear();
   const m = parsed.getMonth();
   const d = parsed.getDate();
