@@ -224,6 +224,7 @@ const AppraisalSection = ({
   departmentName,
   currentUserId,
   hideCommonGoalManagement = false,
+  departmentFlat,
 }: {
   appraisal: Appraisal;
   departmentId: string;
@@ -231,6 +232,8 @@ const AppraisalSection = ({
   currentUserId: string;
   /** 여러 하위 부서를 합친 뷰일 때 공통 목표 API 대상이 불명확하여 숨김 */
   hideCommonGoalManagement?: boolean;
+  /** 선택 부서 기준 prefill 타깃 계산용(직계 하위부서 리더 식별) */
+  departmentFlat?: DepartmentTreeData[];
 }) => {
   const [isAddCommonGoalModalOpen, setIsAddCommonGoalModalOpen] =
     useState(false);
@@ -448,23 +451,42 @@ const AppraisalSection = ({
     });
   };
 
-  const allGoals = appraisal.user.flatMap((u) => u.goals);
-  const goalCounts = allGoals.reduce(
-    (acc, goal) => {
-      acc[goal.title] = (acc[goal.title] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
+  const commonGoals = useMemo(() => {
+    const directChildLeaderIds = (() => {
+      if (!departmentFlat?.length) return [];
+      return departmentFlat
+        .filter((node) => String(node.parent) === departmentId)
+        .map((node) => node.data?.leader?.userId)
+        .filter((id): id is string => !!id);
+    })();
 
-  const commonGoals = Object.entries(goalCounts)
-    .filter(([_, count]) => count > 1)
-    .map(([title]) => {
-      const goal = allGoals.find((g) => g.title === title);
-      if (!goal) return null;
-      return goal;
-    })
-    .filter((g) => g !== null) as Goal[];
+    // 상위 부서(직계 하위부서 존재): 직계 하위부서 리더들의 공통목표만 prefill
+    // 리프 부서: 해당 부서의 일반 팀원(비리더) 공통목표를 prefill
+    const prefillTargetUsers =
+      directChildLeaderIds.length > 0
+        ? appraisal.user.filter((u) => directChildLeaderIds.includes(u.userId))
+        : appraisal.user.filter((u) => !u.isDepartmentLeader);
+
+    const allGoals = prefillTargetUsers.flatMap((u) => u.goals ?? []);
+    const seenKeys = new Set<string>();
+    const deduped: Goal[] = [];
+
+    for (const goal of allGoals) {
+      if (goal.goalType !== "common") continue;
+      // 같은 부서/평가 공통 목표가 팀원마다 복제되어 내려오므로 제목+설명(+KPI) 단위로 화면상 중복 제거
+      const key = [
+        goal.title ?? "",
+        goal.description ?? "",
+        goal.kpi ?? "",
+        goal.achieveIndicator ?? "",
+      ].join("|");
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      deduped.push(goal);
+    }
+
+    return deduped;
+  }, [appraisal.user, departmentFlat, departmentId]);
 
   return (
     <Card className="mb-6 border-none shadow-sm ring-1 ring-gray-100">
@@ -1937,7 +1959,7 @@ function buildLeaderGradeTabForNode(
     departments: [
       mergeSubtreeDepartmentAppraisals(node.id, node.text, relevant),
     ],
-    hideCommonGoalManagement: true,
+    hideCommonGoalManagement: false,
   };
 }
 
@@ -2141,6 +2163,7 @@ const triggerClass =
 function renderLeaderGradeTabContent(
   tab: LeaderGradeTab,
   currentUserId: string,
+  departmentFlat?: DepartmentTreeData[],
 ) {
   if (tab.departments.length === 0) {
     return (
@@ -2161,6 +2184,7 @@ function renderLeaderGradeTabContent(
               departmentName={dept.departmentName}
               currentUserId={currentUserId || ""}
               hideCommonGoalManagement={tab.hideCommonGoalManagement}
+              departmentFlat={departmentFlat}
             />
           ))}
         </div>
@@ -2328,7 +2352,11 @@ const LeaderGradeCard = ({
                 value={tab.value}
                 className="mt-4 outline-none"
               >
-                {renderLeaderGradeTabContent(tab, currentUserId || "")}
+                {renderLeaderGradeTabContent(
+                  tab,
+                  currentUserId || "",
+                  departmentFlat,
+                )}
               </TabsContent>
             ))}
           </Tabs>
@@ -2355,7 +2383,11 @@ const LeaderGradeCard = ({
       </TabsList>
       {leaderTabs.map((tab) => (
         <TabsContent key={tab.value} value={tab.value} className="mt-0">
-          {renderLeaderGradeTabContent(tab, currentUserId || "")}
+          {renderLeaderGradeTabContent(
+            tab,
+            currentUserId || "",
+            departmentFlat,
+          )}
         </TabsContent>
       ))}
     </Tabs>
