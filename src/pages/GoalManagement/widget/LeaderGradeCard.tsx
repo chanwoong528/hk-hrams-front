@@ -1510,8 +1510,8 @@ const AppraisalSection = ({
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col gap-4 overflow-hidden p-6 sm:max-w-2xl">
+          <DialogHeader className="shrink-0 space-y-1.5 text-left">
             <DialogTitle>
               {leaderPerfAssessTerm === "mid"
                 ? `중간 성과 종합 평가 (${selectedUserForFinal?.koreanName})`
@@ -1520,7 +1520,7 @@ const AppraisalSection = ({
                   : `성과 종합 평가 (${selectedUserForFinal?.koreanName})`}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]">
             {selectedUserForFinal ? (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-600">
@@ -1769,7 +1769,7 @@ const AppraisalSection = ({
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex shrink-0 justify-end gap-2 border-t pt-4">
             <Button
               variant="ghost"
               onClick={() => {
